@@ -170,14 +170,20 @@ function Logo({ size = "md" }: { size?: "sm" | "md" }) {
   const small = size === "sm";
 
   return (
-    <div className={small ? "relative h-14 w-[190px]" : "relative h-24 w-[420px] mx-auto"}>
+    <div
+      className={
+        small
+          ? "flex justify-center items-center w-full h-14"
+          : "flex justify-center items-center w-full h-24"
+      }
+    >
       <img
         src="/autoflow-logo.png?v=10"
         alt="AutoFlow"
         className={
           small
-            ? "absolute left-[43%] top-1/2 h-24 w-auto max-w-none -translate-x-1/2 -translate-y-1/2 object-contain"
-            : "absolute left-1/2 top-1/2 h-40 w-auto max-w-none -translate-x-1/2 -translate-y-1/2 object-contain"
+            ? "h-50 w-auto object-contain"
+            : "h-86 w-auto object-contain"
         }
       />
     </div>
