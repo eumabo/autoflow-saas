@@ -12,7 +12,7 @@ import type { Profile, Client, Vehicle, ServiceOrder, OrderStatus } from "../lib
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type Page = "dashboard" | "clients" | "vehicles" | "orders" | "history" | "order-detail";
+type Page = "billing" | "dashboard" | "clients" | "vehicles" | "orders" | "history" | "order-detail";
 
 // ─── Status helpers ───────────────────────────────────────────────────────────
 
@@ -1333,6 +1333,7 @@ function HistoryPage({ orders, clients, vehicles, onView }: {
 // ─── Loading screen ───────────────────────────────────────────────────────────
 
 function LoadingScreen() {
+  
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4">
       <Logo />
@@ -1342,6 +1343,16 @@ function LoadingScreen() {
 }
 
 // ─── App root ─────────────────────────────────────────────────────────────────
+
+function isPaid(profile: Profile | null) {
+  const p = profile as any;
+
+  return Boolean(
+    p?.subscription?.status === "active" ||
+    p?.subscription_status === "active" ||
+    p?.status === "active"
+  );
+}
 
 export default function App() {
   const [session, setSession] = useState<Session | null | "loading">("loading");
@@ -1492,7 +1503,44 @@ export default function App() {
 
   if (!dataLoaded) return <LoadingScreen />;
 
+  if (profile && !isPaid(profile)) {
   return (
+    <div className="min-h-screen bg-background flex flex-col items-center justify-center px-4">
+      <div className="w-full max-w-sm text-center">
+        <Logo />
+
+        <Card className="p-6 mt-6">
+          <h1 className="font-heading font-bold text-2xl text-foreground mb-3">
+            Assinatura necessária
+          </h1>
+
+          <p className="text-sm text-muted-foreground mb-5">
+            Para acessar o AutoFlow, finalize o pagamento da assinatura.
+          </p>
+
+          <Btn
+            variant="primary"
+            className="w-full justify-center"
+            onClick={() => alert("Agora vamos ligar esse botão ao pagamento.")}
+          >
+            Ir para pagamento
+          </Btn>
+
+          <Btn
+            variant="ghost"
+            className="w-full justify-center mt-2"
+            onClick={logout}
+          >
+            Sair
+          </Btn>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+return (
+
     <div className="min-h-screen bg-background dark" style={{ fontFamily: "var(--font-body, 'DM Sans', sans-serif)" }}>
       <Sidebar
         profile={profile}
