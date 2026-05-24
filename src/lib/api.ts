@@ -65,7 +65,12 @@ async function apiFetch<T>(
   });
 
   const json = await res.json();
-  if (!res.ok) throw new Error(json?.error ?? `HTTP ${res.status}`);
+
+  if (!res.ok) {
+    console.error("API ERROR:", json);
+    throw new Error(json?.error ?? JSON.stringify(json) ?? `HTTP ${res.status}`);
+  }
+
   return json as T;
 }
 

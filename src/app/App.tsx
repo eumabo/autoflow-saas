@@ -170,14 +170,14 @@ function Logo({ size = "md" }: { size?: "sm" | "md" }) {
   const small = size === "sm";
 
   return (
-    <div className={small ? "relative h-10 w-[150px]" : "relative h-20 w-[420px]"}>
+    <div className={small ? "relative h-14 w-[190px]" : "relative h-24 w-[420px] mx-auto"}>
       <img
-        src="/autoflow-logo.png?v=6"
+        src="/autoflow-logo.png?v=10"
         alt="AutoFlow"
         className={
           small
-            ? "absolute left-[60%] top-1/2 h-40 w-auto max-w-none -translate-x-1/2 -translate-y-[45%] object-contain"
-            : "absolute left-[43%] top-1/2 h-68 w-auto max-w-none -translate-x-1/2 -translate-y-1/2 object-contain"
+            ? "absolute left-[46%] top-1/2 h-24 w-auto max-w-none -translate-x-1/2 -translate-y-1/2 object-contain"
+            : "absolute left-1/2 top-1/2 h-40 w-auto max-w-none -translate-x-1/2 -translate-y-1/2 object-contain"
         }
       />
     </div>
@@ -212,7 +212,7 @@ function LoginScreen({ onGoRegister }: { onGoRegister: () => void }) {
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col items-center justify-center px-4 -translate-y-16">
+    <div className="min-h-screen bg-background flex flex-col items-center justify-center px-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
           <Logo />
@@ -244,6 +244,7 @@ function RegisterScreen({ onGoLogin }: { onGoLogin: () => void }) {
   const [form, setForm] = useState({ name: "", workshopName: "", email: "", password: "", confirm: "" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [pendingEmail, setPendingEmail] = useState("");
 
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm(p => ({ ...p, [k]: e.target.value }));
@@ -251,19 +252,77 @@ function RegisterScreen({ onGoLogin }: { onGoLogin: () => void }) {
   async function handle(e: React.FormEvent) {
     e.preventDefault();
     setError("");
-    if (form.password !== form.confirm) { setError("Senhas não coincidem."); return; }
-    if (form.password.length < 6) { setError("Senha deve ter ao menos 6 caracteres."); return; }
-    setLoading(true);
-    const { data, error } = await supabase.auth.signUp({ email: form.email, password: form.password });
-    if (error) { setError(error.message); setLoading(false); return; }
-    if (data.user) {
-      try {
-        await API.upsertProfile({ workshop_name: form.workshopName, owner_name: form.name });
-      } catch {
-        // Profile will be created on next login via onboarding
-      }
+
+    if (form.password !== form.confirm) {
+      setError("Senhas não coincidem.");
+      return;
     }
+
+    if (form.password.length < 6) {
+      setError("Senha deve ter ao menos 6 caracteres.");
+      return;
+    }
+
+    setLoading(true);
+
+    localStorage.setItem(
+      "autoflow_pending_profile",
+      JSON.stringify({ owner_name: form.name, workshop_name: form.workshopName })
+    );
+
+    const { error } = await supabase.auth.signUp({
+      email: form.email,
+      password: form.password,
+      options: {
+        emailRedirectTo: window.location.origin,
+      },
+    });
+
+    if (error) {
+      localStorage.removeItem("autoflow_pending_profile");
+      setError(error.message);
+      setLoading(false);
+      return;
+    }
+
+    setPendingEmail(form.email);
     setLoading(false);
+  }
+
+  if (pendingEmail) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center px-4 py-8">
+        <div className="w-full max-w-md text-center">
+          <Logo />
+
+          <Card className="p-6 mt-8">
+            <div className="w-12 h-12 rounded-full bg-primary/15 border border-primary/25 mx-auto mb-4 flex items-center justify-center">
+              <CheckCircle size={24} className="text-primary" />
+            </div>
+
+            <h1 className="font-heading font-bold text-2xl mb-3 text-foreground">
+              Confirme seu e-mail
+            </h1>
+
+            <p className="text-sm text-muted-foreground mb-3">
+              Enviamos um link de confirmação para:
+            </p>
+
+            <p className="text-primary font-semibold mb-5 break-all">
+              {pendingEmail}
+            </p>
+
+            <p className="text-sm text-muted-foreground">
+              Depois de confirmar pelo link recebido, você volta automaticamente para o AutoFlow.
+            </p>
+          </Card>
+
+          <button onClick={onGoLogin} className="text-primary hover:underline font-medium mt-5 text-sm">
+            Voltar para login
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -335,9 +394,7 @@ function OnboardingScreen({ user, onDone }: { user: User; onDone: (p: Profile) =
             </Btn>
           </form>
         </Card>
-        <p className="text-center text-xs text-muted-foreground mt-3">
-  Dev By Guilherme S ® - DMCA 2026 ®️
-</p>
+        <p className="text-center text-xs text-muted-foreground mt-3">Sua oficina</p>
       </div>
     </div>
   );
@@ -362,25 +419,18 @@ function Sidebar({ profile, page, onNav, onLogout, open, onClose }: {
   onClose: () => void;
 }) {
   return (
-  <>
-    {open && <div className="fixed inset-0 bg-black/50 z-30 lg:hidden" onClick={onClose} />}
-
-    <aside className={`fixed top-0 left-0 h-full w-64 bg-sidebar border-r border-sidebar-border flex flex-col z-40 transition-transform duration-200 lg:translate-x-0 ${open ? "translate-x-0" : "-translate-x-full"}`}>
-      <div className="px-4 py-4 border-b border-sidebar-border">
-        <div className="flex flex-col items-center justify-center gap-2">
-          <img
-            src="/autoflow-logo.png?v=6"
-            alt="AutoFlow"
-            className="h-14 w-auto object-contain"
-          />
-
+    <>
+      {open && <div className="fixed inset-0 bg-black/50 z-30 lg:hidden" onClick={onClose} />}
+      <aside className={`fixed top-0 left-0 h-full w-64 bg-sidebar border-r border-sidebar-border flex flex-col z-40 transition-transform duration-200 lg:translate-x-0 ${open ? "translate-x-0" : "-translate-x-full"}`}>
+        <div className="px-4 py-4 border-b border-sidebar-border">
+          <Logo size="sm" />
           {profile && (
-            <span className="text-xs text-muted-foreground truncate">
-              {profile.workshop_name}
-            </span>
+            <div className="mt-1.5 flex items-center gap-1.5 text-xs text-muted-foreground pl-9">
+              <Building2 size={10} />
+              <span className="truncate">{profile.workshop_name}</span>
+            </div>
           )}
         </div>
-      </div>
 
         <nav className="flex-1 px-2 py-3 flex flex-col gap-0.5 overflow-y-auto">
           {NAV.map(({ page: p, label, icon: Icon }) => {
@@ -1298,7 +1348,6 @@ export default function App() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [orders, setOrders] = useState<ServiceOrder[]>([]);
   const [dataLoaded, setDataLoaded] = useState(false);
-  const [subscriptionBlocked, setSubscriptionBlocked] = useState(false);
 
   // Auth state
   useEffect(() => {
@@ -1324,50 +1373,45 @@ export default function App() {
     }
 
     async function init() {
-  try {
-    const [prof, cls, vehs, ords] = await Promise.allSettled([
-      API.getProfile(),
-      API.getClients(),
-      API.getVehicles(),
-      API.getOrders(),
-    ]);
+      const [prof, cls, vehs, ords] = await Promise.allSettled([
+        API.getProfile(),
+        API.getClients(),
+        API.getVehicles(),
+        API.getOrders(),
+      ]);
 
-    const p = prof.status === "fulfilled" ? prof.value : null;
+      let p = prof.status === "fulfilled" ? prof.value : null;
 
-    if (!p) {
-      setNeedsOnboarding(true);
-    } else {
-      setProfile(p);
-      setNeedsOnboarding(false);
+      if (!p) {
+        const pendingProfileRaw = localStorage.getItem("autoflow_pending_profile");
+
+        if (pendingProfileRaw) {
+          try {
+            const pendingProfile = JSON.parse(pendingProfileRaw) as {
+              owner_name: string;
+              workshop_name: string;
+            };
+
+            p = await API.upsertProfile(pendingProfile);
+            localStorage.removeItem("autoflow_pending_profile");
+          } catch {
+            localStorage.removeItem("autoflow_pending_profile");
+          }
+        }
+      }
+
+      if (!p) {
+        setNeedsOnboarding(true);
+      } else {
+        setProfile(p);
+        setNeedsOnboarding(false);
+      }
+
+      setClients(cls.status === "fulfilled" ? cls.value : []);
+      setVehicles(vehs.status === "fulfilled" ? vehs.value : []);
+      setOrders(ords.status === "fulfilled" ? ords.value : []);
+      setDataLoaded(true);
     }
-
-    
-    const errorText = [
-  cls.status === "rejected" ? cls.reason?.message || cls.reason : "",
-  vehs.status === "rejected" ? vehs.reason?.message || vehs.reason : "",
-  ords.status === "rejected" ? ords.reason?.message || ords.reason : "",
-].join(" ");
-
-if (
-  errorText.includes("SUBSCRIPTION_REQUIRED") ||
-  errorText.includes("Assinatura inativa") ||
-  errorText.includes("Assinatura expirada")
-) {
-  setSubscriptionBlocked(true);
-} else {
-  setSubscriptionBlocked(false);
-}
-
-setClients(cls.status === "fulfilled" ? cls.value : []);
-setVehicles(vehs.status === "fulfilled" ? vehs.value : []);
-setOrders(ords.status === "fulfilled" ? ords.value : []);
-
-  } catch (err) {
-    console.error("INIT ERROR:", err);
-  } finally {
-    setDataLoaded(true);
-  }
-}
 
     init();
   }, [session]);
@@ -1424,48 +1468,23 @@ setOrders(ords.status === "fulfilled" ? ords.value : []);
     return <LoginScreen onGoRegister={() => setAuthPage("register")} />;
   }
 
+  if (needsOnboarding) {
+    return (
+      <OnboardingScreen
+        user={session.user}
+        onDone={async (p) => {
+          setProfile(p);
+          setNeedsOnboarding(false);
+          await loadAll();
+          setDataLoaded(true);
+        }}
+      />
+    );
+  }
+
   if (!dataLoaded) return <LoadingScreen />;
 
-if (subscriptionBlocked) {
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center px-4">
-      <Card className="p-8 max-w-md w-full text-center">
-        <Building2 size={40} className="mx-auto text-primary mb-4" />
-        <h1 className="text-2xl font-bold text-foreground mb-2">
-          Assinatura expirada
-        </h1>
-        <p className="text-muted-foreground mb-6">
-          Sua assinatura expirou. Renove agora para continuar usando o AutoFlow.
-        </p>
-
-        <Btn
-          className="w-full justify-center"
-          onClick={async () => {
-            try {
-              const res = await API.createCheckout();
-              window.location.href = res.checkout_url;
-            } catch (err: any) {
-              alert(err.message);
-            }
-          }}
-        >
-          Assinar Agora
-        </Btn>
-
-        <Btn
-          variant="ghost"
-          className="w-full justify-center mt-2"
-          onClick={logout}
-        >
-          Sair
-        </Btn>
-      </Card>
-    </div>
-  );
-}
-
-return (
-
     <div className="min-h-screen bg-background dark" style={{ fontFamily: "var(--font-body, 'DM Sans', sans-serif)" }}>
       <Sidebar
         profile={profile}
