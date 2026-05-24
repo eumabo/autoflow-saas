@@ -1523,25 +1523,46 @@ export default function App() {
             className="w-full justify-center"
             onClick={async () => {
   try {
+    const session = (await supabase.auth.getSession()).data.session;
+
+    if (!session) {
+      alert("Sessão expirada. Faça login novamente.");
+      return;
+    }
+
     const res = await fetch(
-      "https://kddlzartfawqjnrafzdb.supabase.co/functions/v1/create-checkout",
+      "https://kddlzartfawqjnrafzdb.supabase.co/functions/v1/rapid-action/billing/create-checkout",
       {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
+          Authorization: `Bearer ${session.access_token}`,
         },
       }
     );
 
+    if (!res.ok) {
+      const txt = await res.text();
+      console.error(txt);
+      alert("Erro no checkout.");
+      return;
+    }
+
     const data = await res.json();
 
-    if (data?.checkout_url) {
-      window.location.href = data.checkout_url;
+    const checkoutUrl =
+      data?.checkout_url ||
+      data?.init_point ||
+      data?.url;
+
+    if (checkoutUrl) {
+      window.location.href = checkoutUrl;
     } else {
-      alert("Erro ao gerar pagamento.");
+      console.error(data);
+      alert("Checkout não retornou link.");
     }
-  } catch {
+  } catch (err) {
+    console.error(err);
     alert("Erro ao conectar com pagamento.");
   }
 }}
