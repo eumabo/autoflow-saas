@@ -362,18 +362,25 @@ function Sidebar({ profile, page, onNav, onLogout, open, onClose }: {
   onClose: () => void;
 }) {
   return (
-    <>
-      {open && <div className="fixed inset-0 bg-black/50 z-30 lg:hidden" onClick={onClose} />}
-      <aside className={`fixed top-0 left-0 h-full w-64 bg-sidebar border-r border-sidebar-border flex flex-col z-40 transition-transform duration-200 lg:translate-x-0 ${open ? "translate-x-0" : "-translate-x-full"}`}>
-        <div className="px-4 py-4 border-b border-sidebar-border">
-          <Logo size="sm" />
+  <>
+    {open && <div className="fixed inset-0 bg-black/50 z-30 lg:hidden" onClick={onClose} />}
+
+    <aside className={`fixed top-0 left-0 h-full w-64 bg-sidebar border-r border-sidebar-border flex flex-col z-40 transition-transform duration-200 lg:translate-x-0 ${open ? "translate-x-0" : "-translate-x-full"}`}>
+      <div className="px-4 py-4 border-b border-sidebar-border">
+        <div className="flex items-center gap-2">
+          <img
+            src="/autoflow-logo.png?v=6"
+            alt="AutoFlow"
+            className="h-9 w-auto object-contain"
+          />
+
           {profile && (
-            <div className="mt-1.5 flex items-center gap-1.5 text-xs text-muted-foreground pl-9">
-              <Building2 size={10} />
-              <span className="truncate">{profile.workshop_name}</span>
-            </div>
+            <span className="text-xs text-muted-foreground truncate">
+              {profile.workshop_name}
+            </span>
           )}
         </div>
+      </div>
 
         <nav className="flex-1 px-2 py-3 flex flex-col gap-0.5 overflow-y-auto">
           {NAV.map(({ page: p, label, icon: Icon }) => {
