@@ -7,4 +7,6 @@ export const supabase = createClient(
   { auth: { persistSession: true, autoRefreshToken: true } },
 );
 
-export const API_BASE = import.meta.env.VITE_API_BASE
+const apiBase = import.meta.env.VITE_API_BASE ?? "http://localhost:8000/rapid-action";
+
+export const API_BASE = apiBase.replace(/\/$/, "");

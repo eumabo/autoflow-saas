@@ -52,6 +52,10 @@ async function apiFetch<T>(
   path: string,
   options: RequestInit = {},
 ): Promise<T> {
+  if (!API_BASE) {
+    throw new Error("API_BASE não configurada. Verifique VITE_API_BASE.");
+  }
+
   const { data: { session } } = await supabase.auth.getSession();
   const token = session?.access_token;
 
@@ -64,11 +68,17 @@ async function apiFetch<T>(
     },
   });
 
-  const json = await res.json();
+  let json: any = null;
+
+  try {
+    json = await res.json();
+  } catch {
+    json = null;
+  }
 
   if (!res.ok) {
-    console.error("API ERROR:", json);
-    throw new Error(json?.error ?? JSON.stringify(json) ?? `HTTP ${res.status}`);
+    console.error("API ERROR:", json ?? res.statusText);
+    throw new Error(json?.error ?? "Erro interno. Tente novamente.");
   }
 
   return json as T;

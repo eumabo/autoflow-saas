@@ -11,6 +11,8 @@ app.use("*", logger())
 
 app.use("*", cors({
   origin: [
+    "http://localhost:5173",
+    "http://localhost:3000",
     "https://autoflowoficina.online",
     "https://www.autoflowoficina.online",
     "https://autoflow-saas-git-main-eumabos-projects.vercel.app",
@@ -239,6 +241,16 @@ app.put(`${P}/vehicles/:id`, async (c) => {
   const id = c.req.param("id");
   const body = await c.req.json();
   if (!body.plate?.trim()) return badRequest(c, "Placa é obrigatória");
+  if (!body.client_id) return badRequest(c, "Cliente é obrigatório");
+
+  const { data: clientCheck } = await svc()
+    .from("af_clients")
+    .select("id")
+    .eq("id", body.client_id)
+    .eq("workshop_id", user.id)
+    .maybeSingle();
+  if (!clientCheck) return c.json({ error: "Cliente não encontrado" }, 404);
+
   const { data, error } = await svc()
     .from("af_vehicles")
     .update({
@@ -302,13 +314,22 @@ app.post(`${P}/orders`, async (c) => {
   if (!body.vehicle_id) return badRequest(c, "Veículo é obrigatório");
   if (!body.reported_issue?.trim()) return badRequest(c, "Problema relatado é obrigatório");
   // Verify client + vehicle belong to this workshop
+  const { data: clientCheck } = await svc()
+    .from("af_clients")
+    .select("id")
+    .eq("id", body.client_id)
+    .eq("workshop_id", user.id)
+    .maybeSingle();
+  if (!clientCheck) return c.json({ error: "Cliente não encontrado" }, 404);
+
   const { data: vCheck } = await svc()
     .from("af_vehicles")
     .select("id")
     .eq("id", body.vehicle_id)
+    .eq("client_id", body.client_id)
     .eq("workshop_id", user.id)
     .maybeSingle();
-  if (!vCheck) return c.json({ error: "Veículo não encontrado" }, 404);
+  if (!vCheck) return c.json({ error: "Veículo não encontrado para este cliente" }, 404);
   const now = new Date().toISOString();
   const { data, error } = await svc()
     .from("af_service_orders")
@@ -343,6 +364,11 @@ app.put(`${P}/orders/:id`, async (c) => {
   for (const key of allowed) {
     if (body[key] !== undefined) patch[key] = body[key];
   }
+
+  if (patch.status && !["aguardando", "em_manutencao", "finalizado"].includes(patch.status)) {
+    return badRequest(c, "Status inválido");
+  }
+
   const { data, error } = await svc()
     .from("af_service_orders")
     .update(patch)
@@ -370,8 +396,6 @@ app.delete(`${P}/orders/:id`, async (c) => {
   if (error) return serverError(c, error.message);
   return c.json({ ok: true });
 });
-
-Deno.serve(app.fetch);
 
 app.post(`${P}/billing/create-checkout`, async (c) => {
   const user = await getUser(c.req.header("Authorization"));
@@ -416,3 +440,5 @@ app.post(`${P}/billing/create-checkout`, async (c) => {
     checkout_url: data.init_point,
   });
 });
+
+Deno.serve(app.fetch);
