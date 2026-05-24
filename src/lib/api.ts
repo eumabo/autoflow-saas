@@ -6,6 +6,8 @@ export interface Profile {
   id: string;
   workshop_name: string;
   owner_name: string;
+  email?: string | null;
+  plan?: string | null;
   created_at: string;
 }
 
@@ -93,7 +95,17 @@ export async function getProfile(): Promise<Profile | null> {
 }
 
 export async function upsertProfile(data: { workshop_name: string; owner_name: string }): Promise<Profile> {
-  return apiFetch<Profile>("/profile", { method: "POST", body: JSON.stringify(data) });
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  return apiFetch<Profile>("/profile", {
+    method: "POST",
+    body: JSON.stringify({
+      ...data,
+      email: user?.email ?? null,
+    }),
+  });
 }
 
 // ─── Clients ─────────────────────────────────────────────────────────────────
