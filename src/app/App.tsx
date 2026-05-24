@@ -1298,6 +1298,7 @@ export default function App() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [orders, setOrders] = useState<ServiceOrder[]>([]);
   const [dataLoaded, setDataLoaded] = useState(false);
+  const [subscriptionBlocked, setSubscriptionBlocked] = useState(false);
 
   // Auth state
   useEffect(() => {
@@ -1340,6 +1341,7 @@ export default function App() {
       setNeedsOnboarding(false);
     }
 
+    
     setClients(cls.status === "fulfilled" ? cls.value : []);
     setVehicles(vehs.status === "fulfilled" ? vehs.value : []);
     setOrders(ords.status === "fulfilled" ? ords.value : []);
@@ -1405,23 +1407,48 @@ export default function App() {
     return <LoginScreen onGoRegister={() => setAuthPage("register")} />;
   }
 
-  if (needsOnboarding) {
-    return (
-      <OnboardingScreen
-        user={session.user}
-        onDone={async (p) => {
-          setProfile(p);
-          setNeedsOnboarding(false);
-          await loadAll();
-          setDataLoaded(true);
-        }}
-      />
-    );
-  }
-
   if (!dataLoaded) return <LoadingScreen />;
 
+if (subscriptionBlocked) {
   return (
+    <div className="min-h-screen bg-background flex items-center justify-center px-4">
+      <Card className="p-8 max-w-md w-full text-center">
+        <Building2 size={40} className="mx-auto text-primary mb-4" />
+        <h1 className="text-2xl font-bold text-foreground mb-2">
+          Assinatura expirada
+        </h1>
+        <p className="text-muted-foreground mb-6">
+          Sua assinatura expirou. Renove agora para continuar usando o AutoFlow.
+        </p>
+
+        <Btn
+          className="w-full justify-center"
+          onClick={async () => {
+            try {
+              const res = await API.createCheckout();
+              window.location.href = res.checkout_url;
+            } catch (err: any) {
+              alert(err.message);
+            }
+          }}
+        >
+          Assinar Agora
+        </Btn>
+
+        <Btn
+          variant="ghost"
+          className="w-full justify-center mt-2"
+          onClick={logout}
+        >
+          Sair
+        </Btn>
+      </Card>
+    </div>
+  );
+}
+
+return (
+  
     <div className="min-h-screen bg-background dark" style={{ fontFamily: "var(--font-body, 'DM Sans', sans-serif)" }}>
       <Sidebar
         profile={profile}
