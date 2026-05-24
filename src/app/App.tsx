@@ -1521,7 +1521,30 @@ export default function App() {
           <Btn
             variant="primary"
             className="w-full justify-center"
-            onClick={() => alert("Agora vamos ligar esse botão ao pagamento.")}
+            onClick={async () => {
+  try {
+    const res = await fetch(
+      "https://kddlzartfawqjnrafzdb.supabase.co/functions/v1/create-checkout",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
+        },
+      }
+    );
+
+    const data = await res.json();
+
+    if (data?.checkout_url) {
+      window.location.href = data.checkout_url;
+    } else {
+      alert("Erro ao gerar pagamento.");
+    }
+  } catch {
+    alert("Erro ao conectar com pagamento.");
+  }
+}}
           >
             Ir para pagamento
           </Btn>
