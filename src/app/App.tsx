@@ -1348,9 +1348,11 @@ function isPaid(profile: Profile | null) {
   const p = profile as any;
 
   return Boolean(
+    p?.plan === "active" ||
+    p?.plan === "paid" ||
+    p?.plan === "premium" ||
     p?.is_paid === true ||
     p?.is_subscribed === true ||
-    p?.paid === true ||
     p?.subscription?.status === "active" ||
     p?.subscription_status === "active" ||
     p?.plan_status === "active" ||
