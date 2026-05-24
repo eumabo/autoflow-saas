@@ -1367,6 +1367,7 @@ export default function App() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [orders, setOrders] = useState<ServiceOrder[]>([]);
   const [dataLoaded, setDataLoaded] = useState(false);
+  const [checkingPayment, setCheckingPayment] = useState(false);
 
   // Auth state
   useEffect(() => {
@@ -1510,137 +1511,91 @@ export default function App() {
         <Logo />
 
         <Card className="p-6 mt-6">
-          <h1 className="font-heading font-bold text-2xl text-foreground mb-3">
-            Assinatura necessária
-          </h1>
+  <h1 className="font-heading font-bold text-2xl text-foreground mb-3">
+    Assinatura necessária
+  </h1>
 
-          <p className="text-sm text-muted-foreground mb-5">
-            Para acessar o AutoFlow, finalize o pagamento da assinatura.
-          </p>
+  <p className="text-sm text-muted-foreground mb-5">
+    Sua conta está criada. Para acessar o painel, finalize a assinatura.
+  </p>
 
-          <Btn
-            variant="primary"
-            className="w-full justify-center"
-            onClick={async () => {
-  try {
-    const session = (await supabase.auth.getSession()).data.session;
+  <Btn
+    variant="primary"
+    className="w-full justify-center"
+    onClick={async () => {
+      try {
+        const session = (await supabase.auth.getSession()).data.session;
 
-    if (!session) {
-      alert("Sessão expirada. Faça login novamente.");
-      return;
-    }
-
-    const res = await fetch(
-      "https://kddlzartfawqjnrafzdb.supabase.co/functions/v1/rapid-action/billing/create-checkout",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session.access_token}`,
-        },
-      }
-    );
-
-    if (!res.ok) {
-      const txt = await res.text();
-      console.error(txt);
-      alert("Erro no checkout.");
-      return;
-    }
-
-    const data = await res.json();
-
-    const checkoutUrl =
-      data?.checkout_url ||
-      data?.init_point ||
-      data?.url;
-
-    if (checkoutUrl) {
-      window.location.href = checkoutUrl;
-    } else {
-      console.error(data);
-      alert("Checkout não retornou link.");
-    }
-  } catch (err) {
-    console.error(err);
-    alert("Erro ao conectar com pagamento.");
-  }
-}}
-          <p className="text-sm text-muted-foreground mb-5">
-  Sua conta está criada. Para acessar o painel, finalize a assinatura.
-</p>
-
-<Btn
-  variant="primary"
-  className="w-full justify-center"
-  onClick={async () => {
-    try {
-      const session = (await supabase.auth.getSession()).data.session;
-
-      if (!session) {
-        alert("Sessão expirada. Faça login novamente.");
-        return;
-      }
-
-      const res = await fetch(
-        "https://kddlzartfawqjnrafzdb.supabase.co/functions/v1/rapid-action/billing/create-checkout",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${session.access_token}`,
-          },
+        if (!session) {
+          alert("Sessão expirada. Faça login novamente.");
+          return;
         }
-      );
 
-      if (!res.ok) {
-        alert("Não foi possível gerar o pagamento agora.");
-        return;
+        const res = await fetch(
+          "https://kddlzartfawqjnrafzdb.supabase.co/functions/v1/rapid-action/billing/create-checkout",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${session.access_token}`,
+            },
+          }
+        );
+
+        if (!res.ok) {
+          alert("Não foi possível gerar o pagamento agora.");
+          return;
+        }
+
+        const data = await res.json();
+        const checkoutUrl = data?.checkout_url || data?.init_point || data?.url;
+
+        if (checkoutUrl) {
+          window.location.href = checkoutUrl;
+        } else {
+          alert("Checkout não retornou link.");
+        }
+      } catch {
+        alert("Erro ao conectar com pagamento.");
       }
+    }}
+  >
+    Assinar agora
+  </Btn>
 
-      const data = await res.json();
-      const checkoutUrl = data?.checkout_url || data?.init_point || data?.url;
+  <Btn
+    variant="secondary"
+    className="w-full justify-center mt-2"
+    loading={checkingPayment}
+    onClick={async () => {
+      setCheckingPayment(true);
 
-      if (checkoutUrl) {
-        window.location.href = checkoutUrl;
-      } else {
-        alert("Checkout não retornou link.");
+      try {
+        const updated = await API.getProfile();
+        setProfile(updated);
+
+        if (isPaid(updated)) {
+          setPage("dashboard");
+          await loadAll();
+        } else {
+          alert("Pagamento ainda não confirmado.");
+        }
+      } finally {
+        setCheckingPayment(false);
       }
-    } catch {
-      alert("Erro ao conectar com pagamento.");
-    }
-  }}
->
-  Assinar agora
-</Btn>
+    }}
+  >
+    {!checkingPayment ? "Já paguei, atualizar acesso" : null}
+  </Btn>
 
-<Btn
-  variant="secondary"
-  className="w-full justify-center mt-2"
-  onClick={async () => {
-    const updated = await API.getProfile();
-    setProfile(updated);
-
-    if (isPaid(updated)) {
-      setPage("dashboard");
-      await loadAll();
-    } else {
-      alert("Pagamento ainda não confirmado.");
-    }
-  }}
->
-  Já paguei, atualizar acesso
-</Btn>
-
-<Btn
-  variant="ghost"
-  className="w-full justify-center mt-2"
-  onClick={logout}
->
-  Sair
-</Btn>
-
-        </Card>
+  <Btn
+    variant="ghost"
+    className="w-full justify-center mt-2"
+    onClick={logout}
+  >
+    Sair
+  </Btn>
+</Card>
       </div>
     </div>
   );
