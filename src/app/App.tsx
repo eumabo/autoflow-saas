@@ -1348,8 +1348,12 @@ function isPaid(profile: Profile | null) {
   const p = profile as any;
 
   return Boolean(
+    p?.is_paid === true ||
+    p?.is_subscribed === true ||
+    p?.paid === true ||
     p?.subscription?.status === "active" ||
     p?.subscription_status === "active" ||
+    p?.plan_status === "active" ||
     p?.status === "active"
   );
 }
@@ -1551,7 +1555,7 @@ export default function App() {
         const checkoutUrl = data?.checkout_url || data?.init_point || data?.url;
 
         if (checkoutUrl) {
-          window.location.href = checkoutUrl;
+          window.open(checkoutUrl, "_blank", "noopener,noreferrer");
         } else {
           alert("Checkout não retornou link.");
         }
