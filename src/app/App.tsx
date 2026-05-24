@@ -176,7 +176,7 @@ function Logo({ size = "md" }: { size?: "sm" | "md" }) {
         alt="AutoFlow"
         className={
           small
-            ? "absolute left-[46%] top-1/2 h-24 w-auto max-w-none -translate-x-1/2 -translate-y-1/2 object-contain"
+            ? "absolute left-[43%] top-1/2 h-24 w-auto max-w-none -translate-x-1/2 -translate-y-1/2 object-contain"
             : "absolute left-1/2 top-1/2 h-40 w-auto max-w-none -translate-x-1/2 -translate-y-1/2 object-contain"
         }
       />
