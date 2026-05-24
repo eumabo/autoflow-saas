@@ -4,5 +4,6 @@
   "deno.enablePaths": [
     "supabase/functions"
   ],
- "js/ts.implicitProjectConfig.checkJs": true
+  "js/ts.implicitProjectConfig.checkJs": true,
+  "js/ts.tsdk": "node_modules/typescript/lib"
 }
