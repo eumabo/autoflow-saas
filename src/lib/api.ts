@@ -67,21 +67,19 @@ async function apiFetch<T>(
       ...options.headers,
     },
   });
+let json: any = null;
 
-  let json: any = null;
+try {
+  json = await res.json();
+} catch {
+  json = null;
+}
 
-  try {
-    json = await res.json();
-  } catch {
-    json = null;
-  }
+if (!res.ok) {
+  throw new Error(json?.error ?? "Erro na requisição");
+}
 
-  if (!res.ok) {
-    console.error("API ERROR:", json ?? res.statusText);
-    throw new Error(json?.error ?? "Erro interno. Tente novamente.");
-  }
-
-  return json as T;
+return json as T;
 }
 
 // ─── Profile ─────────────────────────────────────────────────────────────────
