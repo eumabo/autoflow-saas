@@ -328,15 +328,17 @@ function RegisterScreen({ onGoLogin }: { onGoLogin: () => void }) {
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center px-4 py-8">
       <div className="w-full max-w-sm">
-        <div className="text-center mb-6">
-          <Logo />
-          <p className="text-sm text-muted-foreground mt-2">Cadastre sua oficina</p>
-        </div>
+        <div className="flex flex-col items-center mb-6">
+  <Logo />
+  <p className="text-sm text-muted-foreground mt-2 text-center">
+    Cadastre sua oficina
+  </p>
+</div>
         <Card className="p-6">
           <form onSubmit={handle} className="flex flex-col gap-4">
-            <Input label="Seu nome" placeholder="João Silva" value={form.name} onChange={set("name")} required />
-            <Input label="Nome da oficina" placeholder="Oficina do João" value={form.workshopName} onChange={set("workshopName")} required />
-            <Input label="E-mail" type="email" placeholder="joao@oficina.com.br" value={form.email} onChange={set("email")} required />
+            <Input label="Seu nome" placeholder="Guilherme Souza" value={form.name} onChange={set("name")} required />
+            <Input label="Nome da oficina" placeholder="Oficina do Guilherme" value={form.workshopName} onChange={set("workshopName")} required />
+            <Input label="E-mail" type="email" placeholder="guilherme@oficina.com.br" value={form.email} onChange={set("email")} required />
             <Input label="Senha" type="password" placeholder="Mínimo 6 caracteres" value={form.password} onChange={set("password")} required />
             <Input label="Confirmar senha" type="password" placeholder="Repita a senha" value={form.confirm} onChange={set("confirm")} required />
             <AuthError msg={error} />
