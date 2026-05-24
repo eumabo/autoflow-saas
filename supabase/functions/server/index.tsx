@@ -4,13 +4,18 @@ import { logger } from "npm:hono/logger"
 import { createClient } from "jsr:@supabase/supabase-js@2"
 
 const app = new Hono();
-const P = "/make-server-baeabc2c";
+const P = "/rapid-action";
 
 
 app.use("*", logger())
 
 app.use("*", cors({
-  origin: "*",
+  origin: [
+    "https://autoflowoficina.online",
+    "https://www.autoflowoficina.online",
+    "https://autoflow-saas-git-main-eumabos-projects.vercel.app",
+    "https://autoflow-saas-two.vercel.app"
+  ],
   allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowHeaders: ["Content-Type", "Authorization", "apikey"]
 }))
@@ -37,6 +42,40 @@ async function getUser(authHeader: string | undefined) {
 const unauthorized = (c: any) => c.json({ error: "Unauthorized" }, 401);
 const badRequest = (c: any, msg: string) => c.json({ error: msg }, 400);
 const serverError = (c: any, msg: string) => c.json({ error: msg }, 500);
+
+async function getSubscription(userId: string) {
+  const { data, error } = await svc()
+    .from("subscriptions")
+    .select("*")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data;
+}
+
+function isSubscriptionActive(sub: any) {
+  if (!sub) return false;
+  if (sub.status !== "active" && sub.status !== "trial") return false;
+  if (!sub.expires_at) return false;
+  return new Date(sub.expires_at).getTime() > Date.now();
+}
+
+async function requireActiveSubscription(c: any, user: any) {
+  const sub = await getSubscription(user.id);
+
+  if (!isSubscriptionActive(sub)) {
+    return c.json(
+      {
+        error: "Assinatura inativa ou expirada",
+        code: "SUBSCRIPTION_REQUIRED",
+      },
+      402
+    );
+  }
+
+  return null;
+}
 
 // ─── Health ──────────────────────────────────────────────────────────────────
 
@@ -75,6 +114,9 @@ app.post(`${P}/profile`, async (c) => {
 app.get(`${P}/clients`, async (c) => {
   const user = await getUser(c.req.header("Authorization"));
   if (!user) return unauthorized(c);
+
+  const blocked = await requireActiveSubscription(c, user);
+  if (blocked) return blocked;
   const { data, error } = await svc()
     .from("af_clients")
     .select("*")
@@ -87,6 +129,9 @@ app.get(`${P}/clients`, async (c) => {
 app.post(`${P}/clients`, async (c) => {
   const user = await getUser(c.req.header("Authorization"));
   if (!user) return unauthorized(c);
+
+  const blocked = await requireActiveSubscription(c, user);
+  if (blocked) return blocked;
   const body = await c.req.json();
   if (!body.name?.trim()) return badRequest(c, "Nome é obrigatório");
   const { data, error } = await svc()
@@ -101,6 +146,9 @@ app.post(`${P}/clients`, async (c) => {
 app.put(`${P}/clients/:id`, async (c) => {
   const user = await getUser(c.req.header("Authorization"));
   if (!user) return unauthorized(c);
+
+  const blocked = await requireActiveSubscription(c, user);
+  if (blocked) return blocked;
   const id = c.req.param("id");
   const body = await c.req.json();
   if (!body.name?.trim()) return badRequest(c, "Nome é obrigatório");
@@ -119,6 +167,9 @@ app.put(`${P}/clients/:id`, async (c) => {
 app.delete(`${P}/clients/:id`, async (c) => {
   const user = await getUser(c.req.header("Authorization"));
   if (!user) return unauthorized(c);
+
+  const blocked = await requireActiveSubscription(c, user);
+  if (blocked) return blocked;
   const id = c.req.param("id");
   const { error } = await svc()
     .from("af_clients")
@@ -134,6 +185,9 @@ app.delete(`${P}/clients/:id`, async (c) => {
 app.get(`${P}/vehicles`, async (c) => {
   const user = await getUser(c.req.header("Authorization"));
   if (!user) return unauthorized(c);
+
+  const blocked = await requireActiveSubscription(c, user);
+  if (blocked) return blocked;
   const { data, error } = await svc()
     .from("af_vehicles")
     .select("*")
@@ -146,6 +200,9 @@ app.get(`${P}/vehicles`, async (c) => {
 app.post(`${P}/vehicles`, async (c) => {
   const user = await getUser(c.req.header("Authorization"));
   if (!user) return unauthorized(c);
+
+  const blocked = await requireActiveSubscription(c, user);
+  if (blocked) return blocked;
   const body = await c.req.json();
   if (!body.plate?.trim()) return badRequest(c, "Placa é obrigatória");
   if (!body.client_id) return badRequest(c, "Cliente é obrigatório");
@@ -166,7 +223,6 @@ app.post(`${P}/vehicles`, async (c) => {
       brand: body.brand ?? "",
       model: body.model ?? "",
       year: body.year ?? "",
-      mileage: body.mileage ?? "",
     })
     .select()
     .single();
@@ -177,6 +233,9 @@ app.post(`${P}/vehicles`, async (c) => {
 app.put(`${P}/vehicles/:id`, async (c) => {
   const user = await getUser(c.req.header("Authorization"));
   if (!user) return unauthorized(c);
+
+  const blocked = await requireActiveSubscription(c, user);
+  if (blocked) return blocked;
   const id = c.req.param("id");
   const body = await c.req.json();
   if (!body.plate?.trim()) return badRequest(c, "Placa é obrigatória");
@@ -202,6 +261,9 @@ app.put(`${P}/vehicles/:id`, async (c) => {
 app.delete(`${P}/vehicles/:id`, async (c) => {
   const user = await getUser(c.req.header("Authorization"));
   if (!user) return unauthorized(c);
+
+  const blocked = await requireActiveSubscription(c, user);
+  if (blocked) return blocked;
   const id = c.req.param("id");
   const { error } = await svc()
     .from("af_vehicles")
@@ -217,6 +279,9 @@ app.delete(`${P}/vehicles/:id`, async (c) => {
 app.get(`${P}/orders`, async (c) => {
   const user = await getUser(c.req.header("Authorization"));
   if (!user) return unauthorized(c);
+
+  const blocked = await requireActiveSubscription(c, user);
+  if (blocked) return blocked;
   const { data, error } = await svc()
     .from("af_service_orders")
     .select("*")
@@ -229,6 +294,9 @@ app.get(`${P}/orders`, async (c) => {
 app.post(`${P}/orders`, async (c) => {
   const user = await getUser(c.req.header("Authorization"));
   if (!user) return unauthorized(c);
+
+  const blocked = await requireActiveSubscription(c, user);
+  if (blocked) return blocked;
   const body = await c.req.json();
   if (!body.client_id) return badRequest(c, "Cliente é obrigatório");
   if (!body.vehicle_id) return badRequest(c, "Veículo é obrigatório");
@@ -265,6 +333,9 @@ app.post(`${P}/orders`, async (c) => {
 app.put(`${P}/orders/:id`, async (c) => {
   const user = await getUser(c.req.header("Authorization"));
   if (!user) return unauthorized(c);
+
+  const blocked = await requireActiveSubscription(c, user);
+  if (blocked) return blocked;
   const id = c.req.param("id");
   const body = await c.req.json();
   const allowed = ["reported_issue", "services_performed", "value", "status", "notes"];
@@ -287,6 +358,9 @@ app.put(`${P}/orders/:id`, async (c) => {
 app.delete(`${P}/orders/:id`, async (c) => {
   const user = await getUser(c.req.header("Authorization"));
   if (!user) return unauthorized(c);
+
+  const blocked = await requireActiveSubscription(c, user);
+  if (blocked) return blocked;
   const id = c.req.param("id");
   const { error } = await svc()
     .from("af_service_orders")
@@ -298,3 +372,47 @@ app.delete(`${P}/orders/:id`, async (c) => {
 });
 
 Deno.serve(app.fetch);
+
+app.post(`${P}/billing/create-checkout`, async (c) => {
+  const user = await getUser(c.req.header("Authorization"));
+  if (!user) return unauthorized(c);
+
+  const accessToken = Deno.env.get("MERCADOPAGO_ACCESS_TOKEN");
+  if (!accessToken) return serverError(c, "Mercado Pago token não configurado");
+
+  const res = await fetch("https://api.mercadopago.com/checkout/preferences", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({
+      items: [
+        {
+          title: "AutoFlow Oficina - Plano Mensal",
+          quantity: 1,
+          currency_id: "BRL",
+          unit_price: 49.9,
+        },
+      ],
+      external_reference: user.id,
+      back_urls: {
+        success: "https://autoflowoficina.online",
+        failure: "https://autoflowoficina.online",
+        pending: "https://autoflowoficina.online",
+      },
+      auto_return: "approved",
+    }),
+  });
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    return c.json({ error: data?.message ?? "Erro ao criar checkout", details: data }, 500);
+  }
+
+  return c.json({
+    preference_id: data.id,
+    checkout_url: data.init_point,
+  });
+});

@@ -136,3 +136,9 @@ export async function updateOrder(id: string, data: Partial<ServiceOrder>): Prom
 export async function deleteOrder(id: string): Promise<void> {
   await apiFetch<{ ok: boolean }>(`/orders/${id}`, { method: "DELETE" });
 }
+
+export async function createCheckout(): Promise<{ checkout_url: string }> {
+  return apiFetch<{ checkout_url: string }>("/billing/create-checkout", {
+    method: "POST",
+  });
+}
