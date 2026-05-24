@@ -1342,9 +1342,26 @@ export default function App() {
     }
 
     
-    setClients(cls.status === "fulfilled" ? cls.value : []);
-    setVehicles(vehs.status === "fulfilled" ? vehs.value : []);
-    setOrders(ords.status === "fulfilled" ? ords.value : []);
+    const errorText = [
+  cls.status === "rejected" ? cls.reason?.message || cls.reason : "",
+  vehs.status === "rejected" ? vehs.reason?.message || vehs.reason : "",
+  ords.status === "rejected" ? ords.reason?.message || ords.reason : "",
+].join(" ");
+
+if (
+  errorText.includes("SUBSCRIPTION_REQUIRED") ||
+  errorText.includes("Assinatura inativa") ||
+  errorText.includes("Assinatura expirada")
+) {
+  setSubscriptionBlocked(true);
+} else {
+  setSubscriptionBlocked(false);
+}
+
+setClients(cls.status === "fulfilled" ? cls.value : []);
+setVehicles(vehs.status === "fulfilled" ? vehs.value : []);
+setOrders(ords.status === "fulfilled" ? ords.value : []);
+
   } catch (err) {
     console.error("INIT ERROR:", err);
   } finally {
@@ -1448,7 +1465,7 @@ if (subscriptionBlocked) {
 }
 
 return (
-  
+
     <div className="min-h-screen bg-background dark" style={{ fontFamily: "var(--font-body, 'DM Sans', sans-serif)" }}>
       <Sidebar
         profile={profile}
