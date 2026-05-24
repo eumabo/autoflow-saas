@@ -367,20 +367,14 @@ function Sidebar({ profile, page, onNav, onLogout, open, onClose }: {
 
     <aside className={`fixed top-0 left-0 h-full w-64 bg-sidebar border-r border-sidebar-border flex flex-col z-40 transition-transform duration-200 lg:translate-x-0 ${open ? "translate-x-0" : "-translate-x-full"}`}>
       <div className="px-4 py-4 border-b border-sidebar-border">
-        <div className="flex flex-col items-center justify-center gap-2">
-          <img
-            src="/autoflow-logo.png?v=6"
-            alt="AutoFlow"
-            className="h-14 w-auto object-contain"
-          />
-
-          {profile && (
-            <span className="text-xs text-muted-foreground truncate">
-              {profile.workshop_name}
-            </span>
-          )}
-        </div>
-      </div>
+  <div className="flex flex-col items-center justify-center gap-2">
+    <img
+      src="/autoflow-logo.png?v=7"
+      alt="AutoFlow"
+      className="h-14 w-auto object-contain"
+    />
+  </div>
+</div>
 
         <nav className="flex-1 px-2 py-3 flex flex-col gap-0.5 overflow-y-auto">
           {NAV.map(({ page: p, label, icon: Icon }) => {
