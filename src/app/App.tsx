@@ -1576,9 +1576,10 @@ export default function App() {
 
       try {
         const updated = await API.getProfile();
-        setProfile(updated);
+console.log("PROFILE ATUALIZADO:", updated);
+setProfile(updated);
 
-        if (isPaid(updated)) {
+if (isPaid(updated)) {
           setPage("dashboard");
           await loadAll();
         } else {
