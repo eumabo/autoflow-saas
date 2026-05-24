@@ -1323,26 +1323,32 @@ export default function App() {
     }
 
     async function init() {
-      const [prof, cls, vehs, ords] = await Promise.allSettled([
-        API.getProfile(),
-        API.getClients(),
-        API.getVehicles(),
-        API.getOrders(),
-      ]);
+  try {
+    const [prof, cls, vehs, ords] = await Promise.allSettled([
+      API.getProfile(),
+      API.getClients(),
+      API.getVehicles(),
+      API.getOrders(),
+    ]);
 
-      const p = prof.status === "fulfilled" ? prof.value : null;
-      if (!p) {
-        setNeedsOnboarding(true);
-      } else {
-        setProfile(p);
-        setNeedsOnboarding(false);
-      }
+    const p = prof.status === "fulfilled" ? prof.value : null;
 
-      setClients(cls.status === "fulfilled" ? cls.value : []);
-      setVehicles(vehs.status === "fulfilled" ? vehs.value : []);
-      setOrders(ords.status === "fulfilled" ? ords.value : []);
-      setDataLoaded(true);
+    if (!p) {
+      setNeedsOnboarding(true);
+    } else {
+      setProfile(p);
+      setNeedsOnboarding(false);
     }
+
+    setClients(cls.status === "fulfilled" ? cls.value : []);
+    setVehicles(vehs.status === "fulfilled" ? vehs.value : []);
+    setOrders(ords.status === "fulfilled" ? ords.value : []);
+  } catch (err) {
+    console.error("INIT ERROR:", err);
+  } finally {
+    setDataLoaded(true);
+  }
+}
 
     init();
   }, [session]);
