@@ -1,0 +1,1 @@
+import "./supabase/functions/server/index.tsx";
