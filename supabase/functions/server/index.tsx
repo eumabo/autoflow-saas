@@ -552,7 +552,7 @@ app.delete(`${P}/financial/:id`, async (c) => {
             title: "Assinatura AutoFlow",
             quantity: 1,
             currency_id: "BRL",
-            unit_price: 2.9,
+            unit_price: 29.9,
           },
         ],
         external_reference: user.id,
