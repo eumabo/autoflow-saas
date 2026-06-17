@@ -241,6 +241,155 @@ function AuthError({ msg }: { msg: string }) {
   );
 }
 
+
+function LandingPage({
+  onGoLogin,
+  onGoRegister,
+}: {
+  onGoLogin: () => void;
+  onGoRegister: () => void;
+}) {
+  return (
+    <div className="min-h-screen bg-background dark text-foreground" style={{ fontFamily: "var(--font-body, 'DM Sans', sans-serif)" }}>
+      <header className="max-w-6xl mx-auto px-4 py-5 flex items-center justify-between">
+        <div className="w-40">
+          <Logo size="sm" />
+        </div>
+
+        <button
+          type="button"
+          onClick={onGoLogin}
+          className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+        >
+          Entrar
+        </button>
+      </header>
+
+      <main className="max-w-6xl mx-auto px-4 py-10">
+        <section className="grid lg:grid-cols-2 gap-10 items-center min-h-[70vh]">
+          <div>
+            <div className="inline-flex px-3 py-1 rounded-full border border-primary/30 bg-primary/10 text-primary text-xs font-medium mb-5">
+              Plano Fundadores por R$ 29,90/mês
+            </div>
+
+            <h1 className="font-heading font-bold text-4xl lg:text-6xl leading-tight text-foreground tracking-tight">
+              Gestão completa para oficinas mecânicas.
+            </h1>
+
+            <p className="text-muted-foreground text-lg mt-5 max-w-xl">
+              Controle clientes, veículos, ordens de serviço, financeiro, PDFs e acompanhamento online em um só sistema.
+            </p>
+
+            <div className="flex flex-col sm:flex-row gap-3 mt-7">
+              <Btn variant="primary" size="lg" onClick={onGoRegister}>
+                Começar agora
+              </Btn>
+
+              <Btn variant="secondary" size="lg" onClick={onGoLogin}>
+                Já tenho conta
+              </Btn>
+            </div>
+
+            <p className="text-xs text-muted-foreground mt-4">
+              Ideal para oficinas que querem sair do papel, WhatsApp bagunçado e planilhas perdidas.
+            </p>
+          </div>
+
+          <Card className="p-5 shadow-2xl">
+            <div className="mb-4">
+              <div className="text-xs text-muted-foreground uppercase tracking-wider">Painel AutoFlow</div>
+              <div className="font-heading font-bold text-2xl text-foreground mt-1">Oficina organizada em minutos</div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                ["Clientes", "Cadastro completo"],
+                ["Veículos", "Histórico por placa"],
+                ["OS", "Ordens profissionais"],
+                ["PDF", "Documento pronto"],
+                ["Financeiro", "Receitas e despesas"],
+                ["Link público", "Cliente acompanha online"],
+              ].map(([title, desc]) => (
+                <div key={title} className="p-4 rounded-lg bg-secondary/40 border border-border">
+                  <div className="text-primary font-bold text-sm">{title}</div>
+                  <div className="text-xs text-muted-foreground mt-1">{desc}</div>
+                </div>
+              ))}
+            </div>
+          </Card>
+        </section>
+
+        <section className="py-16">
+          <div className="text-center mb-8">
+            <h2 className="font-heading font-bold text-3xl text-foreground">
+              Tudo que sua oficina precisa em um só lugar
+            </h2>
+            <p className="text-muted-foreground mt-2">
+              Simples para usar no dia a dia e profissional para apresentar ao cliente.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-4">
+            {[
+              "Cadastro de clientes e veículos",
+              "Ordens de serviço organizadas",
+              "Controle financeiro da oficina",
+              "PDF profissional para impressão",
+              "Envio por WhatsApp",
+              "Acompanhamento online da OS",
+            ].map((item) => (
+              <Card key={item} className="p-4">
+                <CheckCircle size={18} className="text-primary mb-3" />
+                <p className="text-sm font-medium text-foreground">{item}</p>
+              </Card>
+            ))}
+          </div>
+        </section>
+
+        <section className="py-10">
+          <Card className="p-6 md:p-8 max-w-2xl mx-auto text-center border-primary/30">
+            <p className="text-primary text-sm font-medium mb-2">
+              Plano Fundadores
+            </p>
+
+            <h2 className="font-heading font-bold text-4xl mb-2 text-foreground">
+              R$ 29,90/mês
+            </h2>
+
+            <p className="text-muted-foreground text-sm mb-6">
+              Para os primeiros clientes que entrarem no AutoFlow.
+            </p>
+
+            <div className="grid sm:grid-cols-2 gap-2 text-sm text-left mb-6">
+              {[
+                "Clientes ilimitados",
+                "Veículos ilimitados",
+                "Ordens de serviço",
+                "Financeiro",
+                "PDF profissional",
+                "Suporte inicial",
+              ].map((item) => (
+                <div key={item} className="flex items-center gap-2 text-foreground">
+                  <CheckCircle size={15} className="text-primary flex-shrink-0" />
+                  {item}
+                </div>
+              ))}
+            </div>
+
+            <Btn variant="primary" size="lg" className="w-full justify-center" onClick={onGoRegister}>
+              Criar conta agora
+            </Btn>
+          </Card>
+        </section>
+      </main>
+
+      <footer className="border-t border-border py-6 text-center text-xs text-muted-foreground">
+        AutoFlow © 2026 — Desenvolvido por Vortan Systems
+      </footer>
+    </div>
+  );
+}
+
 function LoginScreen({ onGoRegister }: { onGoRegister: () => void }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -2743,7 +2892,7 @@ export default function App() {
   const [sessionLoading, setSessionLoading] = useState(true);
   const [profile, setProfile] = useState<Profile | null>(null);
   /*const [needsOnboarding, setNeedsOnboarding] = useState(false);*/
-  const [authPage, setAuthPage] = useState<"login" | "register">("login");
+  const [authPage, setAuthPage] = useState<"landing" | "login" | "register">("landing");
   const [page, setPage] = useState<Page>("dashboard");
   const [activeOrder, setActiveOrder] = useState<ServiceOrder | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -2901,8 +3050,20 @@ if (publicOrderToken) {
 if (sessionLoading) return <LoadingScreen />;
 
   if (!session) {
-    if (authPage === "register") return <RegisterScreen onGoLogin={() => setAuthPage("login")} />;
-    return <LoginScreen onGoRegister={() => setAuthPage("register")} />;
+    if (authPage === "register") {
+      return <RegisterScreen onGoLogin={() => setAuthPage("login")} />;
+    }
+
+    if (authPage === "login") {
+      return <LoginScreen onGoRegister={() => setAuthPage("register")} />;
+    }
+
+    return (
+      <LandingPage
+        onGoLogin={() => setAuthPage("login")}
+        onGoRegister={() => setAuthPage("register")}
+      />
+    );
   }
 /*
   if (needsOnboarding) {
