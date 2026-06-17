@@ -250,27 +250,43 @@ function LandingPage({
   onGoRegister: () => void;
 }) {
   return (
-    <div className="min-h-screen bg-background dark text-foreground" style={{ fontFamily: "var(--font-body, 'DM Sans', sans-serif)" }}>
-      <header className="max-w-6xl mx-auto px-4 py-5 flex items-center justify-between">
-        <div className="w-40">
-          <Logo size="sm" />
-        </div>
+    <div className="min-h-screen bg-background text-foreground">
+      <section className="max-w-7xl mx-auto px-4 pt-6">
+        <div className="relative overflow-hidden rounded-3xl border border-primary/20 shadow-2xl shadow-green-500/10">
+          <img
+            src="/autoflow-banner.png?v=1"
+            alt="AutoFlow - Gestão completa para oficinas mecânicas"
+            className="w-full h-auto object-cover block"
+          />
 
-        <button
-          type="button"
-          onClick={onGoLogin}
-          className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-        >
-          Entrar
-        </button>
-      </header>
+          <button
+            type="button"
+            onClick={onGoLogin}
+            className="absolute top-6 right-6 text-sm text-white/80 hover:text-white bg-black/35 border border-white/15 rounded-lg px-4 py-2 backdrop-blur-sm"
+          >
+            Entrar
+          </button>
+        </div>
+      </section>
 
       <main className="max-w-6xl mx-auto px-4 py-10">
         <section className="grid lg:grid-cols-2 gap-10 items-center min-h-[70vh]">
           <div>
-            <div className="inline-flex px-3 py-1 rounded-full border border-primary/30 bg-primary/10 text-primary text-xs font-medium mb-5">
-              Plano Fundadores por R$ 29,90/mês
-            </div>
+            <Card className="max-w-2xl border-primary/20 mb-8">
+              <div className="p-5 text-center">
+                <div className="text-primary font-semibold text-sm">
+                  PLANO FUNDADORES
+                </div>
+
+                <div className="text-4xl font-bold mt-2">
+                  R$ 29,90/mês
+                </div>
+
+                <div className="text-muted-foreground mt-2">
+                  Valor promocional para os primeiros clientes.
+                </div>
+              </div>
+            </Card>
 
             <h1 className="font-heading font-bold text-4xl lg:text-6xl leading-tight text-foreground tracking-tight">
               Gestão completa para oficinas mecânicas.
@@ -295,11 +311,14 @@ function LandingPage({
             </p>
           </div>
 
-          <Card className="p-5 shadow-2xl">
-            <div className="mb-4">
-              <div className="text-xs text-muted-foreground uppercase tracking-wider">Painel AutoFlow</div>
-              <div className="font-heading font-bold text-2xl text-foreground mt-1">Oficina organizada em minutos</div>
+          <Card className="p-5">
+            <div className="text-xs text-muted-foreground mb-2">
+              PAINEL AUTOFLOW
             </div>
+
+            <h2 className="font-heading font-bold text-2xl mb-5">
+              Oficina organizada em minutos
+            </h2>
 
             <div className="grid grid-cols-2 gap-3">
               {[
@@ -321,9 +340,10 @@ function LandingPage({
 
         <section className="py-16">
           <div className="text-center mb-8">
-            <h2 className="font-heading font-bold text-3xl text-foreground">
+            <h2 className="font-heading font-bold text-3xl">
               Tudo que sua oficina precisa em um só lugar
             </h2>
+
             <p className="text-muted-foreground mt-2">
               Simples para usar no dia a dia e profissional para apresentar ao cliente.
             </p>
@@ -340,46 +360,10 @@ function LandingPage({
             ].map((item) => (
               <Card key={item} className="p-4">
                 <CheckCircle size={18} className="text-primary mb-3" />
-                <p className="text-sm font-medium text-foreground">{item}</p>
+                <p className="text-sm font-medium">{item}</p>
               </Card>
             ))}
           </div>
-        </section>
-
-        <section className="py-10">
-          <Card className="p-6 md:p-8 max-w-2xl mx-auto text-center border-primary/30">
-            <p className="text-primary text-sm font-medium mb-2">
-              Plano Fundadores
-            </p>
-
-            <h2 className="font-heading font-bold text-4xl mb-2 text-foreground">
-              R$ 29,90/mês
-            </h2>
-
-            <p className="text-muted-foreground text-sm mb-6">
-              Para os primeiros clientes que entrarem no AutoFlow.
-            </p>
-
-            <div className="grid sm:grid-cols-2 gap-2 text-sm text-left mb-6">
-              {[
-                "Clientes ilimitados",
-                "Veículos ilimitados",
-                "Ordens de serviço",
-                "Financeiro",
-                "PDF profissional",
-                "Suporte inicial",
-              ].map((item) => (
-                <div key={item} className="flex items-center gap-2 text-foreground">
-                  <CheckCircle size={15} className="text-primary flex-shrink-0" />
-                  {item}
-                </div>
-              ))}
-            </div>
-
-            <Btn variant="primary" size="lg" className="w-full justify-center" onClick={onGoRegister}>
-              Criar conta agora
-            </Btn>
-          </Card>
         </section>
       </main>
 
