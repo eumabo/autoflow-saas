@@ -213,11 +213,17 @@ function Logo({ size = "md", src }: { size?: "sm" | "md"; src?: string | null })
   const small = size === "sm";
 
   return (
-    <div className={small ? "flex justify-center items-center w-full h-14" : "flex justify-center items-center w-full h-24"}>
+    <div className={small
+  ? "flex justify-center items-center w-full h-24"
+  : "flex justify-center items-center w-full h-28"}>
       <img
         src={src || "/autoflow-logo.png?v=10"}
         alt="Logo"
-        className={small ? "h-12 w-auto object-contain" : "h-20 w-auto object-contain"}
+        className={
+  small
+  ? "h-36 w-auto object-contain"
+  : "h-40 w-auto object-contain"
+}
       />
     </div>
   );
@@ -2248,7 +2254,36 @@ function SettingsPage({
               onChange={async (e) => {
                 const file = e.target.files?.[0];
                 if (!file) return;
+                 const img = new Image();
 
+img.onload = async () => {
+  if (img.width < 1000 || img.height < 600) {
+    alert(
+      "Logo muito pequena. Use uma imagem com pelo menos 1000x600 pixels."
+    );
+    return;
+  }
+
+  const ratio = img.width / img.height;
+
+if (ratio < 1.5 || ratio > 1.8) {
+  alert(
+    "Use uma logo horizontal semelhante ao formato da AutoFlow."
+  );
+  return;
+}
+
+if (img.width < 1000 || img.height < 600) {
+  alert(
+    "Use uma logo com pelo menos 1000x600 pixels."
+  );
+  return;
+}
+
+  // CONTINUA O CÓDIGO DE UPLOAD AQUI
+};
+
+img.src = URL.createObjectURL(file); 
                 try {
                   const {
                     data: { user },
@@ -2279,6 +2314,10 @@ function SettingsPage({
               }}
             />
           </label>
+
+          <p className="text-xs text-muted-foreground mt-2">
+  PNG transparente • Recomendado 1500x900 px
+</p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
