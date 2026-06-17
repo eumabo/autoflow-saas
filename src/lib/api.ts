@@ -9,8 +9,20 @@ export interface Profile {
   email?: string | null;
   plan?: string | null;
   created_at: string;
-}
 
+  phone?: string | null;
+  whatsapp?: string | null;
+  instagram?: string | null;
+
+  street?: string | null;
+  number?: string | null;
+  district?: string | null;
+  city?: string | null;
+  state?: string | null;
+  zip_code?: string | null;
+
+  logo_url?: string | null;
+}
 export interface Client {
   id: string;
   workshop_id: string;
@@ -48,6 +60,41 @@ export interface ServiceOrder {
   checklist?: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface FinancialEntry {
+  id: string;
+  workshop_id: string;
+  description: string;
+  amount: number;
+  type: "income" | "expense";
+  category: string;
+  created_at: string;
+}
+
+
+// ─── Financial ───────────────────────────────────────────────────────────────
+
+export async function getFinancialEntries(): Promise<FinancialEntry[]> {
+  return apiFetch<FinancialEntry[]>("/financial");
+}
+
+export async function createFinancialEntry(data: {
+  description: string;
+  amount: number;
+  type: "income" | "expense";
+  category?: string;
+}): Promise<FinancialEntry> {
+  return apiFetch<FinancialEntry>("/financial", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteFinancialEntry(id: string): Promise<void> {
+  await apiFetch<{ ok: boolean }>(`/financial/${id}`, {
+    method: "DELETE",
+  });
 }
 
 // ─── Core fetch ───────────────────────────────────────────────────────────────
@@ -96,7 +143,7 @@ export async function getProfile(): Promise<Profile | null> {
   }
 }
 
-export async function upsertProfile(data: { workshop_name: string; owner_name: string }): Promise<Profile> {
+export async function upsertProfile(data: Partial<Profile>): Promise<Profile> {
   const {
     data: { user },
   } = await supabase.auth.getUser();

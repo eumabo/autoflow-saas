@@ -118,7 +118,18 @@
     if (!body.workshop_name?.trim()) return badRequest(c, "Nome da oficina é obrigatório");
     const { data, error } = await svc()
       .from("af_profiles")
-      .upsert({ id: user.id, workshop_name: body.workshop_name.trim(), owner_name: body.owner_name?.trim() ?? "" })
+      .upsert({
+  id: user.id,
+  workshop_name: body.workshop_name?.trim() ?? "",
+  owner_name: body.owner_name?.trim() ?? "",
+  phone: body.phone ?? "",
+  whatsapp: body.whatsapp ?? "",
+  instagram: body.instagram ?? "",
+  address: body.address ?? "",
+  city: body.city ?? "",
+  state: body.state ?? "",
+  logo_url: body.logo_url ?? "",
+})
       .select()
       .single();
     if (error) return serverError(c, error.message);

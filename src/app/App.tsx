@@ -9,12 +9,12 @@ import {
 } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import * as API from "../lib/api";
-import type { Profile, Client, Vehicle, ServiceOrder, OrderStatus } from "../lib/api";
+import type { Profile, Client, Vehicle, ServiceOrder, OrderStatus, FinancialEntry } from "../lib/api";
 import jsPDF from "jspdf";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type Page = "billing" | "dashboard" | "clients" | "vehicles" | "orders" | "history" | "order-detail";
+type Page = "billing" | "dashboard" | "clients" | "vehicles" | "orders" | "history" | "order-detail" | "settings" | "financial";
 
 // ─── Status helpers ───────────────────────────────────────────────────────────
 
@@ -209,25 +209,15 @@ function Toast({ message, type }: { message: string; type: "error" | "success" }
 
 // ─── Logo ─────────────────────────────────────────────────────────────────────
 
-function Logo({ size = "md" }: { size?: "sm" | "md" }) {
+function Logo({ size = "md", src }: { size?: "sm" | "md"; src?: string | null }) {
   const small = size === "sm";
 
   return (
-    <div
-      className={
-        small
-          ? "flex justify-center items-center w-full h-14"
-          : "flex justify-center items-center w-full h-24"
-      }
-    >
+    <div className={small ? "flex justify-center items-center w-full h-14" : "flex justify-center items-center w-full h-24"}>
       <img
-        src="/autoflow-logo.png?v=10"
-        alt="AutoFlow"
-        className={
-          small
-            ? "h-50 w-auto object-contain"
-            : "h-86 w-auto object-contain"
-        }
+        src={src || "/autoflow-logo.png?v=10"}
+        alt="Logo"
+        className={small ? "h-12 w-auto object-contain" : "h-20 w-auto object-contain"}
       />
     </div>
   );
@@ -414,7 +404,7 @@ function OnboardingScreen({ user, onDone }: { user: User; onDone: (p: Profile) =
   const [error, setError] = useState("");
 
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
-    setForm(p => ({ ...p, [k]: e.target.value }));
+   setForm(p => ({ ...p, [k]: e.target.value }));
 
   async function handle(e: React.FormEvent) {
     e.preventDefault();
@@ -480,6 +470,16 @@ const NAV = [
   { page: "clients" as Page, label: "Clientes", icon: Users },
   { page: "vehicles" as Page, label: "Veículos", icon: Car },
   { page: "history" as Page, label: "Histórico", icon: History },
+  {
+  page: "financial" as Page,
+  label: "Financeiro",
+  icon: DollarSign,
+}, 
+  {
+  page: "settings" as Page,
+  label: "Configurações",
+  icon: Building2,
+}
 ];
 
 function Sidebar({ profile, page, onNav, onLogout, open, onClose }: {
@@ -495,7 +495,7 @@ function Sidebar({ profile, page, onNav, onLogout, open, onClose }: {
       {open && <div className="fixed inset-0 bg-black/50 z-30 lg:hidden" onClick={onClose} />}
       <aside className={`fixed top-0 left-0 h-full w-64 bg-sidebar border-r border-sidebar-border flex flex-col z-40 transition-transform duration-200 lg:translate-x-0 ${open ? "translate-x-0" : "-translate-x-full"}`}>
         <div className="px-4 py-4 border-b border-sidebar-border">
-          <Logo size="sm" />
+          <Logo size="sm" src={profile?.logo_url} />
           {profile && (
             <div className="mt-1.5 flex items-center gap-1.5 text-xs text-muted-foreground pl-9">
               <Building2 size={10} />
@@ -814,6 +814,298 @@ return (
   );
 }
 
+
+
+
+
+
+// ─── Financeiro ─────────────────────────────────────────────────────────────────
+
+function FinancialPage({
+  orders,
+  entries,
+  onReload,
+}: {
+  orders: ServiceOrder[];
+  entries: FinancialEntry[];
+  onReload: () => Promise<void>;
+}) {
+  const [modal, setModal] = useState<null | "income" | "expense">(null);
+  const [form, setForm] = useState({
+    description: "",
+    amount: "",
+    category: "",
+  });
+  const [loading, setLoading] = useState(false);
+
+  const finalizedOrders = orders.filter((o) => o.status === "finalizado");
+
+  const orderIncome = finalizedOrders.reduce(
+    (acc, o) => acc + Number(String(o.value || "0").replace(",", ".")),
+    0
+  );
+
+  const manualIncome = entries
+    .filter((e) => e.type === "income")
+    .reduce((acc, e) => acc + Number(e.amount || 0), 0);
+
+  const expenses = entries
+    .filter((e) => e.type === "expense")
+    .reduce((acc, e) => acc + Number(e.amount || 0), 0);
+
+  const totalRevenue = orderIncome + manualIncome;
+  const profit = totalRevenue - expenses;
+
+  const set = (k: keyof typeof form) =>
+    (e: React.ChangeEvent<HTMLInputElement>) =>
+      setForm((p) => ({ ...p, [k]: e.target.value }));
+
+  async function save(e: React.FormEvent) {
+    e.preventDefault();
+
+    if (!modal) return;
+
+    setLoading(true);
+
+    try {
+      await API.createFinancialEntry({
+        description: form.description,
+        amount: Number(String(form.amount || "0").replace(",", ".")),
+        type: modal,
+        category: form.category,
+      });
+
+      await onReload();
+
+      setModal(null);
+      setForm({
+        description: "",
+        amount: "",
+        category: "",
+      });
+    } catch (err: any) {
+      alert(err.message);
+    }
+
+    setLoading(false);
+  }
+
+  async function del(id: string) {
+    if (!confirm("Deseja excluir esta movimentação?")) return;
+
+    try {
+      await API.deleteFinancialEntry(id);
+      await onReload();
+    } catch (err: any) {
+      alert(err.message);
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h1 className="font-heading font-bold text-2xl text-foreground">
+            Financeiro
+          </h1>
+
+          <p className="text-sm text-muted-foreground">
+            Controle financeiro da oficina
+          </p>
+        </div>
+
+        <div className="flex gap-2">
+          <Btn
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={() => setModal("expense")}
+          >
+            Nova Despesa
+          </Btn>
+
+          <Btn
+            type="button"
+            variant="primary"
+            size="sm"
+            onClick={() => setModal("income")}
+          >
+            Nova Receita
+          </Btn>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card className="p-4">
+          <div className="text-sm text-muted-foreground">
+            Faturamento Total
+          </div>
+
+          <div className="text-2xl font-bold">
+            {totalRevenue.toLocaleString("pt-BR", {
+              style: "currency",
+              currency: "BRL",
+            })}
+          </div>
+        </Card>
+
+        <Card className="p-4">
+          <div className="text-sm text-muted-foreground">Receitas</div>
+
+          <div className="text-2xl font-bold text-green-600">
+            {totalRevenue.toLocaleString("pt-BR", {
+              style: "currency",
+              currency: "BRL",
+            })}
+          </div>
+        </Card>
+
+        <Card className="p-4">
+          <div className="text-sm text-muted-foreground">Despesas</div>
+
+          <div className="text-2xl font-bold text-red-600">
+            {expenses.toLocaleString("pt-BR", {
+              style: "currency",
+              currency: "BRL",
+            })}
+          </div>
+        </Card>
+
+        <Card className="p-4">
+          <div className="text-sm text-muted-foreground">Lucro</div>
+
+          <div className="text-2xl font-bold text-primary">
+            {profit.toLocaleString("pt-BR", {
+              style: "currency",
+              currency: "BRL",
+            })}
+          </div>
+        </Card>
+      </div>
+
+      <Card>
+        <div className="px-4 py-3 border-b border-border">
+          <h2 className="font-heading font-semibold text-base text-foreground">
+            Movimentações
+          </h2>
+        </div>
+
+        {entries.length === 0 ? (
+          <div className="p-5">
+            <p className="text-sm text-muted-foreground">
+              Nenhuma movimentação cadastrada.
+            </p>
+          </div>
+        ) : (
+          <div className="divide-y divide-border">
+            {entries.map((entry) => (
+              <div
+                key={entry.id}
+                className="px-4 py-3 flex items-center justify-between gap-3"
+              >
+                <div>
+                  <div className="text-sm font-medium text-foreground">
+                    {entry.description}
+                  </div>
+
+                  <div className="text-xs text-muted-foreground">
+                    {entry.category || "Sem categoria"} ·{" "}
+                    {new Date(entry.created_at).toLocaleDateString("pt-BR")}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <div
+                    className={
+                      entry.type === "income"
+                        ? "text-sm font-bold text-green-600"
+                        : "text-sm font-bold text-red-600"
+                    }
+                  >
+                    {entry.type === "income" ? "+" : "-"}{" "}
+                    {Number(entry.amount || 0).toLocaleString("pt-BR", {
+                      style: "currency",
+                      currency: "BRL",
+                    })}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => del(entry.id)}
+                    className="text-muted-foreground hover:text-destructive"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
+
+      {modal && (
+        <Modal
+          title={modal === "income" ? "Nova Receita" : "Nova Despesa"}
+          onClose={() => setModal(null)}
+        >
+          <form onSubmit={save} className="flex flex-col gap-4">
+            <Input
+              label="Descrição"
+              placeholder={
+                modal === "income"
+                  ? "Ex: Venda de peça"
+                  : "Ex: Compra de óleo"
+              }
+              value={form.description}
+              onChange={set("description")}
+              required
+            />
+
+            <Input
+              label="Valor"
+              placeholder="0,00"
+              value={form.amount}
+              onChange={set("amount")}
+              required
+            />
+
+            <Input
+              label="Categoria"
+              placeholder={
+                modal === "income"
+                  ? "Ex: Peças, serviços, outros"
+                  : "Ex: Peças, aluguel, ferramentas"
+              }
+              value={form.category}
+              onChange={set("category")}
+            />
+
+            <div className="flex gap-2 pt-1">
+              <Btn
+                type="button"
+                variant="secondary"
+                className="flex-1 justify-center"
+                onClick={() => setModal(null)}
+              >
+                Cancelar
+              </Btn>
+
+              <Btn
+                type="submit"
+                variant="primary"
+                className="flex-1 justify-center"
+                loading={loading}
+              >
+                {!loading && "Salvar"}
+              </Btn>
+            </div>
+          </form>
+        </Modal>
+      )}
+    </div>
+  );
+}
+
 // ─── Clients ─────────────────────────────────────────────────────────────────
 
 function ClientsPage({ clients, onReload }: {
@@ -865,15 +1157,15 @@ function ClientsPage({ clients, onReload }: {
   }
 
   async function del(id: string) {
-    try {
-      await API.deleteClient(id);
-      await onReload();
-      setConfirmDel(null);
-      showToast("Cliente excluído.", "success");
-    } catch (err: any) {
-      showToast(err.message, "error");
-    }
+  try {
+    await API.deleteClient(id);
+    await onReload();
+    setConfirmDel(null);
+    showToast("Cliente excluído.", "success");
+  } catch (err: any) {
+    showToast(err.message, "error");
   }
+}
 
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm(p => ({ ...p, [k]: e.target.value }));
@@ -1336,6 +1628,10 @@ function OrderDetail({ profile, order, clients, vehicles, onBack, onReload }: {
   const client = clients.find(c => c.id === order.client_id);
   const vehicle = vehicles.find(v => v.id === order.vehicle_id);
   const workshopName = profile?.workshop_name || "Oficina";
+  const workshopSignature =
+  `${profile?.workshop_name || "Oficina"}\n` +
+  `${profile?.whatsapp || profile?.phone ? `Tel/WhatsApp: ${profile?.whatsapp || profile?.phone}\n` : ""}` +
+  `${profile?.city || profile?.state ? `${profile?.city || ""}${profile?.city && profile?.state ? " - " : ""}${profile?.state || ""}` : ""}`;
 
   const [editing, setEditing] = useState(false);
   const [current, setCurrent] = useState(order);
@@ -1413,7 +1709,7 @@ function OrderDetail({ profile, order, clients, vehicles, onBack, onReload }: {
         : "") +
       `Em caso de dúvidas, estamos à disposição.\n\n` +
       `Obrigado pela preferência.\n\n` +
-      `${workshopName}`
+      `${workshopSignature}`
     );
   }
 
@@ -1432,10 +1728,10 @@ function OrderDetail({ profile, order, clients, vehicles, onBack, onReload }: {
     openWhatsApp(buildUpdateMessage(false));
   }
 
-  function sendPdfWhatsApp() {
-    generatePDF();
-    openWhatsApp(buildUpdateMessage(true));
-  }
+  async function sendPdfWhatsApp() {
+  await generatePDF();
+  openWhatsApp(buildUpdateMessage(true));
+}
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
@@ -1564,17 +1860,35 @@ function OrderDetail({ profile, order, clients, vehicles, onBack, onReload }: {
     }
   }
 
-  function generatePDF() {
+  async function generatePDF() {
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
+    async function imageToBase64(url: string): Promise<string> {
+  const res = await fetch(url);
+  const blob = await res.blob();
+
+  return await new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result as string);
+    reader.readAsDataURL(blob);
+  });
+}
 
     doc.setFillColor(8, 13, 23);
     doc.rect(0, 0, pageWidth, 34, "F");
+    if (profile?.logo_url) {
+  try {
+    const logoBase64 = await imageToBase64(profile.logo_url);
+    doc.addImage(logoBase64, "PNG", 16, 6, 20, 20);
+  } catch (err) {
+    console.warn("Erro ao carregar logo no PDF:", err);
+  }
+}
 
     doc.setTextColor(255, 255, 255);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(18);
-    doc.text(workshopName.toUpperCase(), 20, 17);
+    doc.text(workshopName.toUpperCase(), profile?.logo_url ? 46 : 20, 17);
 
     doc.setFontSize(9);
     doc.setFont("helvetica", "normal");
@@ -1873,6 +2187,172 @@ function OrderDetail({ profile, order, clients, vehicles, onBack, onReload }: {
   );
 }
 
+
+
+
+
+
+
+
+function SettingsPage({
+  profile,
+}: {
+  profile: Profile | null;
+}) {
+  const [form, setForm] = useState({
+    workshop_name: profile?.workshop_name ?? "",
+    owner_name: profile?.owner_name ?? "",
+    phone: profile?.phone ?? "",
+    whatsapp: profile?.whatsapp ?? "",
+    instagram: profile?.instagram ?? "",
+    city: profile?.city ?? "",
+    state: profile?.state ?? "",
+    zip_code: profile?.zip_code ?? "",
+    logo_url: profile?.logo_url ?? "",
+  });
+
+  const set = (k: keyof typeof form) =>
+    (e: React.ChangeEvent<HTMLInputElement>) =>
+      setForm((p) => ({ ...p, [k]: e.target.value }));
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <h1 className="font-heading font-bold text-2xl text-foreground">
+          Configurações
+        </h1>
+
+        <p className="text-sm text-muted-foreground">
+          Dados da oficina
+        </p>
+      </div>
+
+      <Card className="p-5">
+        <div className="mb-5">
+          {form.logo_url && (
+            <img
+              src={form.logo_url}
+              alt="Logo"
+              className="h-20 w-auto object-contain mb-3 border border-border rounded p-2"
+            />
+          )}
+
+          <label className="inline-flex items-center gap-2 px-4 py-2.5 rounded-md bg-secondary text-secondary-foreground border border-border hover:bg-secondary/80 cursor-pointer text-sm font-medium">
+            <Upload size={14} />
+            Escolher logo da oficina
+
+            <input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={async (e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+
+                try {
+                  const {
+                    data: { user },
+                  } = await supabase.auth.getUser();
+
+                  if (!user) return;
+
+                  const fileName = `${user.id}/${Date.now()}-${file.name}`;
+
+                  const { error } = await supabase.storage
+                    .from("workshop-logos")
+                    .upload(fileName, file, { upsert: true });
+
+                  if (error) throw error;
+
+                  const { data } = supabase.storage
+                    .from("workshop-logos")
+                    .getPublicUrl(fileName);
+
+                  setForm((p) => ({
+                    ...p,
+                    logo_url: data.publicUrl,
+                  }));
+                } catch (err) {
+                  console.error(err);
+                  alert("Erro ao enviar logo");
+                }
+              }}
+            />
+          </label>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Input
+            label="Nome da Oficina"
+            value={form.workshop_name}
+            onChange={set("workshop_name")}
+          />
+
+          <Input
+            label="Responsável"
+            value={form.owner_name}
+            onChange={set("owner_name")}
+          />
+
+          <Input
+            label="Telefone"
+            value={form.phone}
+            onChange={set("phone")}
+          />
+
+          <Input
+            label="WhatsApp"
+            value={form.whatsapp}
+            onChange={set("whatsapp")}
+          />
+
+          <Input
+            label="Instagram"
+            value={form.instagram}
+            onChange={set("instagram")}
+          />
+
+          <Input
+            label="Cidade"
+            value={form.city}
+            onChange={set("city")}
+          />
+
+          <Input
+            label="Estado"
+            value={form.state}
+            onChange={set("state")}
+          />
+
+          <Input
+            label="CEP"
+            value={form.zip_code}
+            onChange={set("zip_code")}
+          />
+        </div>
+
+        <div className="mt-4">
+          <Btn
+            type="button"
+            onClick={async () => {
+              try {
+                console.log("LOGO URL:", form.logo_url);
+console.log("FORM SALVANDO:", JSON.stringify(form, null, 2));
+                await API.upsertProfile(form);
+                alert("Configurações salvas com sucesso!");
+              } catch (err: any) {
+                alert(err.message);
+              }
+            }}
+          >
+            Salvar Alterações
+          </Btn>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
 // ─── History ──────────────────────────────────────────────────────────────────
 
 function HistoryPage({ orders, clients, vehicles, onView }: {
@@ -1983,6 +2463,7 @@ export default function App() {
   const [clients, setClients] = useState<Client[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [orders, setOrders] = useState<ServiceOrder[]>([]);
+  const [financialEntries, setFinancialEntries] = useState<FinancialEntry[]>([]);
   const [dataLoaded, setDataLoaded] = useState(false);
   const [checkingPayment, setCheckingPayment] = useState(false);
 
@@ -2004,18 +2485,19 @@ export default function App() {
       setProfile(null);
       setClients([]);
       setVehicles([]);
-      setOrders([]);
+      setFinancialEntries([]);
       setNeedsOnboarding(false);
       return;
     }
 
     async function init() {
-      const [prof, cls, vehs, ords] = await Promise.allSettled([
-        API.getProfile(),
-        API.getClients(),
-        API.getVehicles(),
-        API.getOrders(),
-      ]);
+     const [prof, cls, vehs, ords, fins] = await Promise.allSettled([
+  API.getProfile(),
+  API.getClients(),
+  API.getVehicles(),
+  API.getOrders(),
+  API.getFinancialEntries(),
+]);
 
       let p = prof.status === "fulfilled" ? prof.value : null;
 
@@ -2047,6 +2529,7 @@ export default function App() {
       setClients(cls.status === "fulfilled" ? cls.value : []);
       setVehicles(vehs.status === "fulfilled" ? vehs.value : []);
       setOrders(ords.status === "fulfilled" ? ords.value : []);
+      setFinancialEntries(fins.status === "fulfilled" ? fins.value : []);
       setDataLoaded(true);
     }
 
@@ -2069,15 +2552,23 @@ export default function App() {
   }, []);
 
   const loadAll = useCallback(async () => {
-    const [cls, vehs, ords] = await Promise.all([
-      API.getClients(),
-      API.getVehicles(),
-      API.getOrders(),
-    ]);
-    setClients(cls);
-    setVehicles(vehs);
-    setOrders(ords);
-  }, []);
+  const [cls, vehs, ords, fins] = await Promise.all([
+    API.getClients(),
+    API.getVehicles(),
+    API.getOrders(),
+    API.getFinancialEntries(),
+  ]);
+
+  setClients(cls);
+  setVehicles(vehs);
+  setOrders(ords);
+  setFinancialEntries(fins);
+}, []);
+
+   const loadFinancialEntries = useCallback(async () => {
+  const data = await API.getFinancialEntries();
+  setFinancialEntries(data);
+}, []);
 
   function nav(p: Page) {
     setPage(p);
@@ -2246,27 +2737,43 @@ return (
             <Dashboard clients={clients} vehicles={vehicles} orders={orders} onNav={nav} onViewOrder={viewOrder} />
           )}
           {page === "clients" && (
-            <ClientsPage clients={clients} onReload={loadClients} />
+            <ClientsPage
+  clients={clients}
+  onReload={loadAll}
+/>
           )}
           {page === "vehicles" && (
-            <VehiclesPage vehicles={vehicles} clients={clients} onReload={loadVehicles} />
-          )}
-          {page === "orders" && (
-            <OrdersPage orders={orders} clients={clients} vehicles={vehicles} onReload={loadOrders} onView={viewOrder} />
-          )}
-          {page === "history" && (
-            <HistoryPage orders={orders} clients={clients} vehicles={vehicles} onView={viewOrder} />
-          )}
-          {page === "order-detail" && activeOrder && (
-            <OrderDetail
-              profile={profile}
-              order={activeOrder}
-              clients={clients}
-              vehicles={vehicles}
-              onBack={() => nav("orders")}
-              onReload={loadOrders}
-            />
-          )}
+  <VehiclesPage vehicles={vehicles} clients={clients} onReload={loadAll} />
+)}
+
+{page === "orders" && (
+  <OrdersPage orders={orders} clients={clients} vehicles={vehicles} onReload={loadAll} onView={viewOrder} />
+)}
+
+{page === "order-detail" && activeOrder && (
+  <OrderDetail
+    profile={profile}
+    order={activeOrder}
+    clients={clients}
+    vehicles={vehicles}
+    onBack={() => nav("orders")}
+    onReload={loadAll}
+  />
+)}
+
+{page === "financial" && (
+  <FinancialPage
+    orders={orders}
+    entries={financialEntries}
+    onReload={loadAll}
+  />
+)}
+
+{page === "settings" && (
+  <SettingsPage
+    profile={profile}
+  />
+)}
         </main>
       </div>
     </div>
