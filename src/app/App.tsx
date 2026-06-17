@@ -250,14 +250,23 @@ function LandingPage({
   onGoRegister: () => void;
 }) {
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <section className="max-w-7xl mx-auto px-4 pt-6">
-        <div className="relative overflow-hidden rounded-3xl border border-primary/20 shadow-2xl shadow-green-500/10">
-          <img
-            src="/autoflow-banner.png?v=1"
-            alt="AutoFlow - Gestão completa para oficinas mecânicas"
-            className="w-full h-auto object-cover block"
-          />
+   <div className="min-h-screen text-foreground bg-[#05070A] bg-[radial-gradient(circle_at_20%_10%,rgba(34,197,94,0.16),transparent_28%),radial-gradient(circle_at_80%_30%,rgba(22,163,74,0.10),transparent_26%),radial-gradient(circle_at_50%_100%,rgba(34,197,94,0.08),transparent_35%),linear-gradient(135deg,rgba(255,255,255,0.035)_0,rgba(255,255,255,0)_35%)] relative overflow-hidden">
+
+  {/* Glow esquerdo */}
+  <div className="fixed left-[-200px] top-1/4 w-[500px] h-[500px] rounded-full bg-green-500/10 blur-[180px] pointer-events-none" />
+
+  {/* Glow direito */}
+  <div className="fixed right-[-200px] top-1/3 w-[500px] h-[500px] rounded-full bg-green-500/10 blur-[180px] pointer-events-none" />
+
+  <div className="fixed inset-0 opacity-[0.02] pointer-events-none bg-[linear-gradient(rgba(34,197,94,1)_1px,transparent_1px),linear-gradient(90deg,rgba(34,197,94,1)_1px,transparent_1px)] bg-[size:80px_80px]" />
+
+  <section className="max-w-7xl mx-auto px-4 pt-6">
+    <div className="relative overflow-hidden rounded-3xl border border-primary/20 shadow-2xl shadow-green-500/10">
+      <img
+        src="/autoflow-banner.png?v=1"
+        alt="AutoFlow - Gestão completa para oficinas mecânicas"
+        className="w-full h-auto object-cover block"
+      />
 
           <button
             type="button"
