@@ -1143,6 +1143,8 @@ function ClientsPage({ clients, onReload }: {
     setForm({ name: "", phone: "", whatsapp: "" });
     setModal("add");
   }
+   
+  
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
@@ -1708,6 +1710,7 @@ function OrderDetail({ profile, order, clients, vehicles, onBack, onReload }: {
       `Veículo: ${vehicle?.brand || ""} ${vehicle?.model || ""} (${vehicle?.plate || "-"})\n` +
       `Status: ${statusText}\n` +
       `Valor: ${fmtMoney(form.value)}\n` +
+      (getPublicOrderUrl(current) ? `Link de acompanhamento: ${getPublicOrderUrl(current)}\n` : "") +
       (form.delivery_date ? `Previsão de entrega: ${new Date(form.delivery_date).toLocaleDateString("pt-BR")}\n` : "") +
       `\nServiços realizados:\n${form.services_performed || "Em andamento"}\n\n` +
       (includePdfText
@@ -1770,13 +1773,7 @@ function OrderDetail({ profile, order, clients, vehicles, onBack, onReload }: {
       showToast("Ordem atualizada!", "success");
 
       if (previousStatus !== "finalizado" && updated.status === "finalizado") {
-        openWhatsApp(
-          `Olá, ${client?.name || "cliente"}.\n\n` +
-          `Seu veículo ${vehicle?.brand || ""} ${vehicle?.model || ""} (${vehicle?.plate || "-"}) está pronto para retirada.\n\n` +
-          `Valor do serviço: ${fmtMoney(updated.value)}\n\n` +
-          `Agradecemos pela confiança.\n\n` +
-          `${workshopName}`
-        );
+          openWhatsApp(buildFinishedMessage(updated));
       }
     } catch (err: any) {
       showToast(err.message, "error");
@@ -1795,18 +1792,33 @@ function OrderDetail({ profile, order, clients, vehicles, onBack, onReload }: {
       showToast(`Status: ${STATUS_LABEL[status]}`, "success");
 
       if (previousStatus !== "finalizado" && status === "finalizado") {
-        openWhatsApp(
-          `Olá, ${client?.name || "cliente"}.\n\n` +
-          `Seu veículo ${vehicle?.brand || ""} ${vehicle?.model || ""} (${vehicle?.plate || "-"}) está pronto para retirada.\n\n` +
-          `Valor do serviço: ${fmtMoney(updated.value)}\n\n` +
-          `Agradecemos pela confiança.\n\n` +
-          `${workshopName}`
-        );
+        openWhatsApp(buildFinishedMessage(updated));
       }
     } catch (err: any) {
       showToast(err.message, "error");
     }
   }
+
+   function getPublicOrderUrl(orderData: ServiceOrder = current) {
+  const token = (orderData as any).public_token;
+
+  if (!token) return "";
+
+  return `${window.location.origin}/os/${token}`;
+}
+
+function buildFinishedMessage(orderData: ServiceOrder) {
+  const publicUrl = getPublicOrderUrl(orderData);
+
+  return (
+    `Olá, ${client?.name || "cliente"}.\n\n` +
+    `Seu veículo ${vehicle?.brand || ""} ${vehicle?.model || ""} (${vehicle?.plate || "-"}) está pronto para retirada.\n\n` +
+    `Valor do serviço: ${fmtMoney(orderData.value)}\n\n` +
+    (publicUrl ? `Acompanhe sua OS pelo link:\n${publicUrl}\n\n` : "") +
+    `Agradecemos pela confiança.\n\n` +
+    `${workshopName}`
+  );
+}
 
   async function uploadPhoto(file: File, photoType: OrderPhoto["photo_type"]) {
     const { data: { user } } = await supabase.auth.getUser();
@@ -2016,6 +2028,27 @@ function OrderDetail({ profile, order, clients, vehicles, onBack, onReload }: {
           <Btn variant="secondary" size="sm" onClick={sendPdfWhatsApp}>
             <FileText size={14} /> Enviar PDF
           </Btn>
+
+           
+           
+          <Btn
+  type="button"
+  onClick={() => {
+    const publicUrl = getPublicOrderUrl(current);
+
+    if (!publicUrl) {
+      showToast("Essa OS ainda não tem link público.", "error");
+      return;
+    }
+
+    navigator.clipboard.writeText(publicUrl);
+
+    alert("Link copiado!");
+  }}
+>
+  📲 Compartilhar acompanhamento
+</Btn>
+          
         </div>
       </div>
 
@@ -2070,7 +2103,7 @@ function OrderDetail({ profile, order, clients, vehicles, onBack, onReload }: {
         <form onSubmit={save}>
           <Card className="p-4 space-y-4">
             <Textarea label="Serviços executados" value={form.services_performed} onChange={set("services_performed")} rows={3} placeholder="Descreva os serviços realizados..." />
-
+              
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <Input label="Valor (R$)" value={form.value} onChange={set("value")} placeholder="0,00" />
               <Select label="Status" value={form.status} onChange={set("status")}>
@@ -2206,23 +2239,75 @@ function SettingsPage({
   profile: Profile | null;
 }) {
   const [form, setForm] = useState({
-    workshop_name: profile?.workshop_name ?? "",
-    owner_name: profile?.owner_name ?? "",
-    phone: profile?.phone ?? "",
-    whatsapp: profile?.whatsapp ?? "",
-    instagram: profile?.instagram ?? "",
-    city: profile?.city ?? "",
-    state: profile?.state ?? "",
-    zip_code: profile?.zip_code ?? "",
-    logo_url: profile?.logo_url ?? "",
-  });
+  workshop_name: profile?.workshop_name ?? "",
+  owner_name: profile?.owner_name ?? "",
+  phone: profile?.phone ?? "",
+  whatsapp: profile?.whatsapp ?? "",
+  instagram: profile?.instagram ?? "",
+  city: profile?.city ?? "",
+  state: profile?.state ?? "",
+  zip_code: profile?.zip_code ?? "",
+  logo_url: profile?.logo_url ?? "",
+});
+
+const [toast, setToast] = useState<{
+  msg: string;
+  type: "success" | "error";
+} | null>(null);
+  
 
   const set = (k: keyof typeof form) =>
     (e: React.ChangeEvent<HTMLInputElement>) =>
       setForm((p) => ({ ...p, [k]: e.target.value }));
 
+   async function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+  const file = e.target.files?.[0];
+  if (!file) return;
+
+  try {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      alert("Usuário não encontrado");
+      return;
+    }
+
+    const fileExt = file.name.split(".").pop();
+    const fileName = `${user.id}/logo-${Date.now()}.${fileExt}`;
+
+    const { error } = await supabase.storage
+      .from("workshop-logos")
+      .upload(fileName, file, {
+        upsert: true,
+        contentType: file.type,
+      });
+
+    if (error) throw error;
+
+    const { data } = supabase.storage
+      .from("workshop-logos")
+      .getPublicUrl(fileName);
+
+    setForm((p) => ({
+      ...p,
+      logo_url: data.publicUrl,
+    }));
+
+    setToast({
+  msg: "Logo enviada com sucesso! Agora clique em Salvar Alterações.",
+  type: "success",
+});
+  } catch (err) {
+    console.error(err);
+    alert("Erro ao enviar logo");
+  }
+}
+
   return (
     <div className="space-y-4">
+      {toast && <Toast message={toast.msg} type={toast.type} />}
       <div>
         <h1 className="font-heading font-bold text-2xl text-foreground">
           Configurações
@@ -2248,71 +2333,12 @@ function SettingsPage({
             Escolher logo da oficina
 
             <input
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={async (e) => {
-                const file = e.target.files?.[0];
-                if (!file) return;
-                 const img = new Image();
-
-img.onload = async () => {
-  if (img.width < 1000 || img.height < 600) {
-    alert(
-      "Logo muito pequena. Use uma imagem com pelo menos 1000x600 pixels."
-    );
-    return;
-  }
-
-  const ratio = img.width / img.height;
-
-if (ratio < 1.5 || ratio > 1.8) {
-  alert(
-    "Use uma logo horizontal semelhante ao formato da AutoFlow."
-  );
-  return;
-}
-
-if (img.width < 1000 || img.height < 600) {
-  alert(
-    "Use uma logo com pelo menos 1000x600 pixels."
-  );
-  return;
-}
-
-  // CONTINUA O CÓDIGO DE UPLOAD AQUI
-};
-
-img.src = URL.createObjectURL(file); 
-                try {
-                  const {
-                    data: { user },
-                  } = await supabase.auth.getUser();
-
-                  if (!user) return;
-
-                  const fileName = `${user.id}/${Date.now()}-${file.name}`;
-
-                  const { error } = await supabase.storage
-                    .from("workshop-logos")
-                    .upload(fileName, file, { upsert: true });
-
-                  if (error) throw error;
-
-                  const { data } = supabase.storage
-                    .from("workshop-logos")
-                    .getPublicUrl(fileName);
-
-                  setForm((p) => ({
-                    ...p,
-                    logo_url: data.publicUrl,
-                  }));
-                } catch (err) {
-                  console.error(err);
-                  alert("Erro ao enviar logo");
-                }
-              }}
-            />
+  type="file"
+  accept="image/*"
+  className="hidden"
+  onChange={handleLogoUpload}
+/>
+            
           </label>
 
           <p className="text-xs text-muted-foreground mt-2">
@@ -2372,20 +2398,41 @@ img.src = URL.createObjectURL(file);
 
         <div className="mt-4">
           <Btn
-            type="button"
-            onClick={async () => {
-              try {
-                console.log("LOGO URL:", form.logo_url);
-console.log("FORM SALVANDO:", JSON.stringify(form, null, 2));
-                await API.upsertProfile(form);
-                alert("Configurações salvas com sucesso!");
-              } catch (err: any) {
-                alert(err.message);
-              }
-            }}
-          >
-            Salvar Alterações
-          </Btn>
+  type="button"
+  onClick={async () => {
+    try {
+      console.log("LOGO URL:", form.logo_url);
+      console.log("FORM SALVANDO:", JSON.stringify(form, null, 2));
+
+      const updatedProfile = await API.upsertProfile(form);
+
+      setForm({
+        workshop_name: updatedProfile.workshop_name ?? "",
+        owner_name: updatedProfile.owner_name ?? "",
+        phone: updatedProfile.phone ?? "",
+        whatsapp: updatedProfile.whatsapp ?? "",
+        instagram: updatedProfile.instagram ?? "",
+        city: updatedProfile.city ?? "",
+        state: updatedProfile.state ?? "",
+        zip_code: updatedProfile.zip_code ?? "",
+        logo_url: updatedProfile.logo_url ?? "",
+      });
+
+      setToast({
+  msg: "Configurações salvas com sucesso!",
+  type: "success",
+});
+
+setTimeout(() => {
+  window.location.reload();
+}, 800);
+    } catch (err: any) {
+      alert(err.message);
+    }
+  }}
+>
+  Salvar Alterações
+</Btn>
         </div>
       </Card>
     </div>
@@ -2401,15 +2448,22 @@ function HistoryPage({ orders, clients, vehicles, onView }: {
   onView: (o: ServiceOrder) => void;
 }) {
   const [search, setSearch] = useState("");
+  console.log("ORDERS NO HISTORICO:", orders);
+console.log("STATUS DAS OS:", orders.map(o => o.status));
 
-  const done = orders.filter(o => o.status === "finalizado");
+  const done = orders.filter(o =>
+  String(o.status).trim().toLowerCase() === "finalizado"
+);
   const filtered = done.filter(o => {
     const client = clients.find(c => c.id === o.client_id);
     const vehicle = vehicles.find(v => v.id === o.vehicle_id);
     const q = search.toLowerCase();
     return !q || client?.name.toLowerCase().includes(q) || vehicle?.plate.toLowerCase().includes(q) || o.reported_issue.toLowerCase().includes(q);
   });
-  const sorted = [...filtered].sort((a, b) => b.updated_at.localeCompare(a.updated_at));
+  const sorted = [...filtered].sort((a, b) =>
+  new Date(b.updated_at || b.created_at).getTime() -
+  new Date(a.updated_at || a.created_at).getTime()
+);
 
   return (
     <div className="space-y-4">
@@ -2490,10 +2544,205 @@ function isPaid(profile: Profile | null) {
   );
 }
 
+function PublicOrderPage({ token }: { token: string }) {
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const res = await fetch(
+          `https://kddlzartfawqjnrafzdb.supabase.co/functions/v1/rapid-action/public/orders/${token}`
+        );
+
+        const json = await res.json();
+        setData(json);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    load();
+  }, [token]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-foreground">
+        Carregando...
+      </div>
+    );
+  }
+
+  if (!data?.order) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-destructive">
+        Ordem de serviço não encontrada.
+      </div>
+    );
+  }
+
+  const { order, profile, client, vehicle } = data;
+
+  return (
+    <div className="min-h-screen bg-background p-4">
+      <div className="max-w-3xl mx-auto space-y-4">
+
+        <Card className="p-6 text-center">
+          {profile?.logo_url && (
+            <img
+              src={profile.logo_url}
+              alt="Logo"
+              className="h-24 mx-auto mb-4 object-contain"
+            />
+          )}
+
+          <h1 className="text-2xl font-bold text-foreground">
+            {profile?.workshop_name}
+          </h1>
+
+          <p className="text-sm text-muted-foreground mt-1">
+            Acompanhe o andamento do seu veículo em tempo real
+          </p>
+        </Card>
+
+        <Card className="p-6">
+          <div className="flex items-center justify-between flex-wrap gap-4">
+            <div>
+              <p className="text-xs text-muted-foreground mb-1">
+                STATUS
+              </p>
+                 
+                 
+              
+
+              <StatusBadge status={order.status} />
+            </div>
+
+            <div className="text-right">
+              <p className="text-xs text-muted-foreground">
+                VALOR
+              </p>
+
+              <p className="text-2xl font-bold text-primary">
+                {fmtMoney(order.value)}
+              </p>
+            </div>
+          </div>
+        </Card>
+
+         {order.delivery_date && (
+  <Card className="p-4">
+    <p className="text-xs text-muted-foreground">
+      PREVISÃO DE ENTREGA
+    </p>
+
+    <p className="font-semibold">
+      {fmt(order.delivery_date)}
+    </p>
+  </Card>
+)}
+                     
+
+        <Card className="p-6 space-y-4">
+
+          <div>
+            <p className="text-xs text-muted-foreground">
+              CLIENTE
+            </p>
+
+            <p className="font-medium text-foreground">
+              {client?.name ?? "-"}
+            </p>
+          </div>
+
+          <div>
+            <p className="text-xs text-muted-foreground">
+              VEÍCULO
+            </p>
+
+            <p className="font-medium text-foreground">
+              {vehicle?.brand} {vehicle?.model}
+            </p>
+          </div>
+
+          <div>
+            <p className="text-xs text-muted-foreground">
+              PLACA
+            </p>
+
+            <p className="font-mono text-foreground">
+              {vehicle?.plate}
+            </p>
+          </div>
+
+        </Card>
+
+        <Card className="p-6">
+
+          <h2 className="font-semibold text-lg mb-2">
+            Problema Relatado
+          </h2>
+
+          <p className="text-muted-foreground">
+            {order.reported_issue || "-"}
+          </p>
+
+        </Card>
+
+        <Card className="p-6">
+
+          <h2 className="font-semibold text-lg mb-2">
+            Serviços Executados
+          </h2>
+
+          <p className="text-muted-foreground whitespace-pre-wrap">
+            {order.services_performed || "-"}
+          </p>
+
+        </Card>
+
+        {order.notes && (
+          <Card className="p-6">
+
+            <h2 className="font-semibold text-lg mb-2">
+              Observações
+            </h2>
+
+            <p className="text-muted-foreground whitespace-pre-wrap">
+              {order.notes}
+            </p>
+
+          </Card>
+        )}
+            
+{profile?.whatsapp && (
+  <Card className="p-4 text-center">
+    <p className="text-sm text-muted-foreground">
+      Dúvidas sobre o serviço?
+    </p>
+
+    <p className="font-semibold text-primary mt-1">
+      WhatsApp: {profile.whatsapp}
+    </p>
+  </Card>
+)}
+
+        <div className="text-center text-xs text-muted-foreground py-4">
+          Powered by AutoFlow
+        </div>
+
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
-  const [session, setSession] = useState<Session | null | "loading">("loading");
+  const [session, setSession] = useState<Session | null>(null);
+  const [sessionLoading, setSessionLoading] = useState(true);
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [needsOnboarding, setNeedsOnboarding] = useState(false);
+  /*const [needsOnboarding, setNeedsOnboarding] = useState(false);*/
   const [authPage, setAuthPage] = useState<"login" | "register">("login");
   const [page, setPage] = useState<Page>("dashboard");
   const [activeOrder, setActiveOrder] = useState<ServiceOrder | null>(null);
@@ -2505,6 +2754,9 @@ export default function App() {
   const [financialEntries, setFinancialEntries] = useState<FinancialEntry[]>([]);
   const [dataLoaded, setDataLoaded] = useState(false);
   const [checkingPayment, setCheckingPayment] = useState(false);
+  const publicOrderToken = window.location.pathname.startsWith("/os/")
+  ? window.location.pathname.replace("/os/", "").trim()
+  : null;
 
   // Auth state
   useEffect(() => {
@@ -2515,17 +2767,30 @@ export default function App() {
       setSession(session);
     });
     return () => subscription.unsubscribe();
-  }, []);
+  }, []);useEffect(() => {
+  supabase.auth.getSession().then(({ data: { session } }) => {
+    setSession(session);
+    setSessionLoading(false);
+  });
+
+  const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    setSession(session);
+    setSessionLoading(false);
+  });
+
+  return () => subscription.unsubscribe();
+}, []);
 
   // Setup DB + load data when session available
   useEffect(() => {
-    if (!session || session === "loading") {
+        if (!session) {
       setDataLoaded(false);
       setProfile(null);
       setClients([]);
       setVehicles([]);
       setFinancialEntries([]);
-      setNeedsOnboarding(false);
+      
+      /*setNeedsOnboarding(false);*/
       return;
     }
 
@@ -2559,11 +2824,13 @@ export default function App() {
       }
 
       if (!p) {
-        setNeedsOnboarding(true);
-      } else {
-        setProfile(p);
-        setNeedsOnboarding(false);
-      }
+  await supabase.auth.signOut();
+  setAuthPage("login");
+  setDataLoaded(true);
+  return;
+} else {
+  setProfile(p);
+}
 
       setClients(cls.status === "fulfilled" ? cls.value : []);
       setVehicles(vehs.status === "fulfilled" ? vehs.value : []);
@@ -2628,13 +2895,16 @@ export default function App() {
 
   // ── Render ────────────────────────────────────────────────────────────────
 
-  if (session === "loading") return <LoadingScreen />;
+if (publicOrderToken) {
+  return <PublicOrderPage token={publicOrderToken} />;
+}
+if (sessionLoading) return <LoadingScreen />;
 
   if (!session) {
     if (authPage === "register") return <RegisterScreen onGoLogin={() => setAuthPage("login")} />;
     return <LoginScreen onGoRegister={() => setAuthPage("register")} />;
   }
-
+/*
   if (needsOnboarding) {
     return (
       <OnboardingScreen
@@ -2648,7 +2918,7 @@ export default function App() {
       />
     );
   }
-
+*/
   if (!dataLoaded) return <LoadingScreen />;
 
   if (profile && !isPaid(profile)) {
@@ -2797,6 +3067,17 @@ return (
     vehicles={vehicles}
     onBack={() => nav("orders")}
     onReload={loadAll}
+  />
+)}
+{page === "history" && (
+  <HistoryPage
+    orders={orders}
+    clients={clients}
+    vehicles={vehicles}
+    onView={(order) => {
+      setActiveOrder(order);
+nav("order-detail");
+    }}
   />
 )}
 

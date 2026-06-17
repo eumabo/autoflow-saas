@@ -60,6 +60,7 @@ export interface ServiceOrder {
   checklist?: string | null;
   created_at: string;
   updated_at: string;
+  public_token?: string;
 }
 
 export interface FinancialEntry {

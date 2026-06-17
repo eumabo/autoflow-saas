@@ -191,6 +191,49 @@
     return c.json(data);
   });
 
+   // ===== ROTA PÚBLICA DA OS =====
+    app.get(`${P}/public/orders/:token`, async (c) => {
+  const token = c.req.param("token");
+
+  const { data: order, error } = await svc()
+    .from("af_service_orders")
+    .select("*")
+    .eq("public_token", token)
+    .maybeSingle();
+
+  if (error) return serverError(c, error.message);
+  if (!order) return c.json({ error: "OS não encontrada" }, 404);
+
+  const [{ data: profile }, { data: client }, { data: vehicle }] =
+    await Promise.all([
+      svc()
+        .from("af_profiles")
+        .select("*")
+        .eq("id", order.workshop_id)
+        .maybeSingle(),
+
+      svc()
+        .from("af_clients")
+        .select("*")
+        .eq("id", order.client_id)
+        .maybeSingle(),
+
+      svc()
+        .from("af_vehicles")
+        .select("*")
+        .eq("id", order.vehicle_id)
+        .maybeSingle(),
+    ]);
+
+  return c.json({
+    order,
+    profile,
+    client,
+    vehicle,
+  });
+});
+
+    // ===== DELETE ===== 
   app.delete(`${P}/clients/:id`, async (c) => {
     const user = await getUser(c.req.header("Authorization"));
     if (!user) return unauthorized(c);
@@ -311,6 +354,64 @@
     return c.json({ ok: true });
   });
 
+
+  // ─── Financial ─────────────────────────────────────────
+
+app.get(`${P}/financial`, async (c) => {
+  const user = await getUser(c.req.header("Authorization"));
+  if (!user) return unauthorized(c);
+
+  const { data, error } = await svc()
+    .from("af_financial_entries")
+    .select("*")
+    .eq("workshop_id", user.id)
+    .order("created_at", { ascending: false });
+
+  if (error) return serverError(c, error.message);
+
+  return c.json(data ?? []);
+});
+
+app.post(`${P}/financial`, async (c) => {
+  const user = await getUser(c.req.header("Authorization"));
+  if (!user) return unauthorized(c);
+
+  const body = await c.req.json();
+
+  const { data, error } = await svc()
+    .from("af_financial_entries")
+    .insert({
+      workshop_id: user.id,
+      description: body.description,
+      amount: body.amount,
+      type: body.type,
+      category: body.category ?? "",
+    })
+    .select()
+    .single();
+
+  if (error) return serverError(c, error.message);
+
+  return c.json(data);
+});
+
+app.delete(`${P}/financial/:id`, async (c) => {
+  const user = await getUser(c.req.header("Authorization"));
+  if (!user) return unauthorized(c);
+
+  const id = c.req.param("id");
+
+  const { error } = await svc()
+    .from("af_financial_entries")
+    .delete()
+    .eq("id", id)
+    .eq("workshop_id", user.id);
+
+  if (error) return serverError(c, error.message);
+
+  return c.json({ ok: true });
+});
+
   // ─── Service Orders ───────────────────────────────────────────────────────────
 
   app.get(`${P}/orders`, async (c) => {
@@ -357,6 +458,7 @@
     if (!vCheck) return c.json({ error: "Veículo não encontrado para este cliente" }, 404);
     const now = new Date().toISOString();
     const orderInsert: Record<string, any> = {
+      public_token: crypto.randomUUID(),
       workshop_id: user.id,
       client_id: body.client_id,
       vehicle_id: body.vehicle_id,
@@ -410,6 +512,8 @@
     if (!data) return c.json({ error: "Not found" }, 404);
     return c.json(data);
   });
+
+  
 
   app.delete(`${P}/orders/:id`, async (c) => {
     const user = await getUser(c.req.header("Authorization"));
