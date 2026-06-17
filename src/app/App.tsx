@@ -5,12 +5,14 @@ import {
   Plus, Search, MessageCircle, ChevronRight, X, Edit2, Trash2,
   Wrench, CheckCircle, Clock, AlertCircle, Menu, ArrowLeft, Phone,
   Calendar, Gauge, DollarSign, FileText, Eye, RefreshCw, Building2,
-  Download, Upload, Image as ImageIcon, Send,
+  Download, Upload, Image as ImageIcon, Send,TrendingUp,
+Target,
 } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import * as API from "../lib/api";
 import type { Profile, Client, Vehicle, ServiceOrder, OrderStatus, FinancialEntry } from "../lib/api";
 import jsPDF from "jspdf";
+
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -167,8 +169,20 @@ function Btn({
   );
 }
 
-function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return <div className={`bg-card border border-border rounded-lg ${className}`}>{children}</div>;
+function Card({
+  children,
+  className = "",
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div
+      className={`bg-[#0B0F14]/80 backdrop-blur-md border border-green-500/10 rounded-xl shadow-[0_8px_32px_rgba(0,0,0,0.25)] hover:-translate-y-1 hover:shadow-[0_0_25px_rgba(34,197,94,0.08)] transition-all duration-300 ${className}`}
+    >
+      {children}
+    </div>
+  );
 }
 
 function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
@@ -278,7 +292,7 @@ function LandingPage({
         </div>
       </section>
 
-      <main className="max-w-6xl mx-auto px-4 py-10">
+      <main className="w-full px-8 py-5 pb-8">
         <section className="grid lg:grid-cols-2 gap-10 items-center min-h-[70vh]">
           <div>
             <Card className="max-w-2xl border-primary/20 mb-8">
@@ -641,9 +655,14 @@ function Sidebar({ profile, page, onNav, onLogout, open, onClose }: {
   return (
     <>
       {open && <div className="fixed inset-0 bg-black/50 z-30 lg:hidden" onClick={onClose} />}
-      <aside className={`fixed top-0 left-0 h-full w-64 bg-sidebar border-r border-sidebar-border flex flex-col z-40 transition-transform duration-200 lg:translate-x-0 ${open ? "translate-x-0" : "-translate-x-full"}`}>
-        <div className="px-4 py-4 border-b border-sidebar-border">
+      <aside className={`fixed top-0 left-0 h-full w-64 bg-[#070A0D]/90 backdrop-blur-xl border-r border-green-500/10 flex flex-col z-40 transition-transform duration-200 lg:translate-x-0 shadow-[20px_0_80px_rgba(34,197,94,0.06)] ${open ? "translate-x-0" : "-translate-x-full"}`}>
+        <div className="relative px-4 py-4 border-b border-green-500/10 overflow-hidden">
+  <div className="absolute inset-0 bg-gradient-to-br from-green-500/10 via-transparent to-transparent pointer-events-none" />
+  <div className="relative z-10">
+    
+  </div>
           <Logo size="sm" src={profile?.logo_url} />
+          
           {profile && (
             <div className="mt-1.5 flex items-center gap-1.5 text-xs text-muted-foreground pl-9">
               <Building2 size={10} />
@@ -661,7 +680,7 @@ function Sidebar({ profile, page, onNav, onLogout, open, onClose }: {
                 onClick={() => { onNav(p); onClose(); }}
                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-all ${
                   active
-                    ? "bg-primary/15 text-primary border border-primary/20"
+                    ? "bg-green-500/15 text-green-400 border border-green-500/25 shadow-[0_0_25px_rgba(34,197,94,0.12)]"
                     : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                 }`}
               >
@@ -840,14 +859,21 @@ return (
     <div className="text-2xl font-bold text-green-500">
       {fmtMoney(monthlyRevenue)}
     </div>
-  </Card>
+
+  <div className="flex items-center gap-2 mb-2">
+  
+  <div className="text-xs text-muted-foreground">
+    Faturamento do Mês
+  </div>
+</div>
+</Card>
 
   <Card className="p-4">
-    <div className="text-xs text-muted-foreground">Ticket Médio</div>
-    <div className="text-2xl font-bold text-primary">
-      {fmtMoney(averageTicket)}
-    </div>
-  </Card>
+  <div className="text-xs text-muted-foreground">Ticket Médio</div>
+  <div className="text-2xl font-bold text-primary">
+    {fmtMoney(averageTicket)}
+  </div>
+</Card>
 
   <Card className="p-4">
     <div className="text-xs text-muted-foreground">OS Finalizadas no Mês</div>
@@ -863,12 +889,12 @@ return (
     </div>
   </Card>
 
-  <Card className="p-4">
-    <div className="text-xs text-muted-foreground">OS Ativas</div>
-    <div className="text-2xl font-bold text-amber-400">
-      {activeOrders}
-    </div>
-  </Card>
+ <Card className="p-4">
+  <div className="text-xs text-muted-foreground">OS Ativas</div>
+  <div className="text-2xl font-bold text-amber-400">
+    {activeOrders}
+  </div>
+</Card>
 
   <Card className="p-4">
   <div className="text-xs text-muted-foreground">
@@ -1085,17 +1111,17 @@ function FinancialPage({
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card className="p-4">
-          <div className="text-sm text-muted-foreground">
-            Faturamento Total
-          </div>
+  <div className="flex items-center gap-2 mb-2">
+    <DollarSign size={16} className="text-green-500" />
+    <div className="text-xs text-muted-foreground">
+      Faturamento Total
+    </div>
+  </div>
 
-          <div className="text-2xl font-bold">
-            {totalRevenue.toLocaleString("pt-BR", {
-              style: "currency",
-              currency: "BRL",
-            })}
-          </div>
-        </Card>
+  <div className="text-2xl font-bold text-green-500">
+    {fmtMoney(totalRevenue)}
+  </div>
+</Card>
 
         <Card className="p-4">
           <div className="text-sm text-muted-foreground">Receitas</div>
@@ -3174,8 +3200,16 @@ if (isPaid(updated)) {
 }
 
 return (
+  <div
+    className="min-h-screen bg-[#05070A] dark relative overflow-hidden"
+    style={{ fontFamily: "var(--font-body, 'DM Sans', sans-serif)" }}
+  >
+    {/* Background premium do sistema logado */}
+    <div className="fixed left-[-280px] top-[8%] w-[720px] h-[720px] rounded-full bg-green-500/10 blur-[220px] pointer-events-none z-0" />
+    <div className="fixed right-[-280px] bottom-[5%] w-[720px] h-[720px] rounded-full bg-emerald-500/15 blur-[220px] pointer-events-none z-0" />
+    <div className="fixed inset-0 opacity-[0.025] pointer-events-none z-0 bg-[linear-gradient(rgba(34,197,94,1)_1px,transparent_1px),linear-gradient(90deg,rgba(34,197,94,1)_1px,transparent_1px)] bg-[size:80px_80px]" />
 
-    <div className="min-h-screen bg-background dark" style={{ fontFamily: "var(--font-body, 'DM Sans', sans-serif)" }}>
+    <div className="relative z-20">
       <Sidebar
         profile={profile}
         page={page}
@@ -3184,72 +3218,71 @@ return (
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
       />
-
-      <div className="lg:pl-64 min-h-screen flex flex-col">
-        {/* Mobile header */}
-        <header className="lg:hidden sticky top-0 z-20 bg-sidebar border-b border-sidebar-border px-4 py-3 flex items-center justify-between">
-          <button onClick={() => setSidebarOpen(true)} className="text-muted-foreground hover:text-foreground p-0.5">
-            <Menu size={20} />
-          </button>
-          <Logo size="sm" />
-          <div className="w-8" />
-        </header>
-
-        <main className="flex-1 px-4 py-5 max-w-4xl mx-auto w-full pb-8">
-          {page === "dashboard" && (
-            <Dashboard clients={clients} vehicles={vehicles} orders={orders} onNav={nav} onViewOrder={viewOrder} />
-          )}
-          {page === "clients" && (
-            <ClientsPage
-  clients={clients}
-  onReload={loadAll}
-/>
-          )}
-          {page === "vehicles" && (
-  <VehiclesPage vehicles={vehicles} clients={clients} onReload={loadAll} />
-)}
-
-{page === "orders" && (
-  <OrdersPage orders={orders} clients={clients} vehicles={vehicles} onReload={loadAll} onView={viewOrder} />
-)}
-
-{page === "order-detail" && activeOrder && (
-  <OrderDetail
-    profile={profile}
-    order={activeOrder}
-    clients={clients}
-    vehicles={vehicles}
-    onBack={() => nav("orders")}
-    onReload={loadAll}
-  />
-)}
-{page === "history" && (
-  <HistoryPage
-    orders={orders}
-    clients={clients}
-    vehicles={vehicles}
-    onView={(order) => {
-      setActiveOrder(order);
-nav("order-detail");
-    }}
-  />
-)}
-
-{page === "financial" && (
-  <FinancialPage
-    orders={orders}
-    entries={financialEntries}
-    onReload={loadAll}
-  />
-)}
-
-{page === "settings" && (
-  <SettingsPage
-    profile={profile}
-  />
-)}
-        </main>
-      </div>
     </div>
-  );
+
+    <div className="relative z-10 lg:pl-64 min-h-screen flex flex-col">
+      {/* Mobile header */}
+      <header className="lg:hidden sticky top-0 z-20 bg-sidebar/90 backdrop-blur-md border-b border-sidebar-border px-4 py-3 flex items-center justify-between">
+        <button onClick={() => setSidebarOpen(true)} className="text-muted-foreground hover:text-foreground p-0.5">
+          <Menu size={20} />
+        </button>
+        <Logo size="sm" />
+        <div className="w-8" />
+      </header>
+
+      <main className="flex-1 px-4 py-5 max-w-6xl mx-auto w-full pb-8">
+        {page === "dashboard" && (
+          <Dashboard clients={clients} vehicles={vehicles} orders={orders} onNav={nav} onViewOrder={viewOrder} />
+        )}
+
+        {page === "clients" && (
+          <ClientsPage clients={clients} onReload={loadAll} />
+        )}
+
+        {page === "vehicles" && (
+          <VehiclesPage vehicles={vehicles} clients={clients} onReload={loadAll} />
+        )}
+
+        {page === "orders" && (
+          <OrdersPage orders={orders} clients={clients} vehicles={vehicles} onReload={loadAll} onView={viewOrder} />
+        )}
+
+        {page === "order-detail" && activeOrder && (
+          <OrderDetail
+            profile={profile}
+            order={activeOrder}
+            clients={clients}
+            vehicles={vehicles}
+            onBack={() => nav("orders")}
+            onReload={loadAll}
+          />
+        )}
+
+        {page === "history" && (
+          <HistoryPage
+            orders={orders}
+            clients={clients}
+            vehicles={vehicles}
+            onView={(order) => {
+              setActiveOrder(order);
+              nav("order-detail");
+            }}
+          />
+        )}
+
+        {page === "financial" && (
+          <FinancialPage
+            orders={orders}
+            entries={financialEntries}
+            onReload={loadAll}
+          />
+        )}
+
+        {page === "settings" && (
+          <SettingsPage profile={profile} />
+        )}
+      </main>
+    </div>
+  </div>
+);
 }
