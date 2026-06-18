@@ -404,13 +404,48 @@ function LoginScreen({ onGoRegister }: { onGoRegister: () => void }) {
   const [loading, setLoading] = useState(false);
 
   async function handle(e: React.FormEvent) {
-    e.preventDefault();
-    setError("");
-    setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) setError(error.message === "Invalid login credentials" ? "E-mail ou senha incorretos." : error.message);
-    setLoading(false);
+  e.preventDefault();
+  setError("");
+  setLoading(true);
+
+  const { error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  });
+
+  if (error) {
+    setError(
+      error.message === "Invalid login credentials"
+        ? "E-mail ou senha incorretos."
+        : "Não foi possível entrar. Verifique seus dados e tente novamente."
+    );
   }
+
+  setLoading(false);
+}
+
+async function handleForgotPassword() {
+  setError("");
+
+  if (!email) {
+    setError("Digite seu e-mail acima para recuperar a senha.");
+    return;
+  }
+
+  setLoading(true);
+
+  const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: "https://www.autoflowoficina.online?reset-password=true",
+  });
+
+  if (resetError) {
+    setError("Não foi possível enviar o e-mail de recuperação. Tente novamente.");
+  } else {
+    setError("Enviamos um link de recuperação para o seu e-mail.");
+  }
+
+  setLoading(false);
+}
 
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center px-4">
@@ -424,6 +459,14 @@ function LoginScreen({ onGoRegister }: { onGoRegister: () => void }) {
           <form onSubmit={handle} className="flex flex-col gap-4">
             <Input label="E-mail" type="email" placeholder="email@oficina.com.br" value={email} onChange={e => setEmail(e.target.value)} required autoComplete="email" />
             <Input label="Senha" type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} required autoComplete="current-password" />
+             <button
+  type="button"
+  onClick={handleForgotPassword}
+  className="text-xs text-primary hover:underline text-right"
+>
+  Esqueci minha senha
+</button>
+            
             <AuthError msg={error} />
             <Btn type="submit" variant="primary" className="w-full justify-center" loading={loading}>
               {!loading && "Entrar"}
@@ -3061,14 +3104,137 @@ export default function App() {
     setSidebarOpen(false);
   }
 
+
+
+  // ── Reset password ────────────────────────────────────────────────────────────────
+
+function ResetPasswordScreen() {
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  async function handleUpdatePassword(e: React.FormEvent) {
+    e.preventDefault();
+    setError("");
+    setSuccess("");
+
+    if (password.length < 6) {
+      setError("A senha precisa ter pelo menos 6 caracteres.");
+      return;
+    }
+
+    if (!/[A-Z]/.test(password)) {
+      setError("A senha precisa ter pelo menos uma letra maiúscula.");
+      return;
+    }
+
+    if (!/[0-9]/.test(password)) {
+      setError("A senha precisa ter pelo menos um número.");
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setError("As senhas não conferem.");
+      return;
+    }
+
+    setLoading(true);
+
+    const { error } = await supabase.auth.updateUser({
+      password,
+    });
+
+    if (error) {
+      setError("Não foi possível alterar sua senha. Tente novamente.");
+    } else {
+      setSuccess("Senha alterada com sucesso. Você já pode entrar novamente.");
+      setTimeout(() => {
+        window.location.href = "/";
+      }, 2000);
+    }
+
+    setLoading(false);
+  }
+
+  return (
+    <div className="min-h-screen bg-background flex flex-col items-center justify-center px-4">
+      <div className="w-full max-w-sm">
+        <div className="text-center mb-8">
+          <Logo />
+          <p className="text-sm text-muted-foreground mt-2">
+            Crie uma nova senha para acessar sua conta
+          </p>
+        </div>
+
+        <Card className="p-6">
+          <h1 className="font-heading font-bold text-xl mb-5 text-foreground">
+            Redefinir senha
+          </h1>
+
+          <form onSubmit={handleUpdatePassword} className="flex flex-col gap-4">
+            <Input
+              label="Nova senha"
+              type="password"
+              placeholder="Digite sua nova senha"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              autoComplete="new-password"
+            />
+
+            <Input
+              label="Confirmar senha"
+              type="password"
+              placeholder="Confirme sua nova senha"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              required
+              autoComplete="new-password"
+            />
+
+            <AuthError msg={error || success} />
+
+            <Btn
+              type="submit"
+              variant="primary"
+              className="w-full justify-center"
+              loading={loading}
+            >
+              {!loading && "Salvar nova senha"}
+            </Btn>
+          </form>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+
+
   // ── Render ────────────────────────────────────────────────────────────────
+
+const isResetPasswordPage =
+  window.location.search.includes("reset-password=true") ||
+  window.location.hash.includes("type=recovery") ||
+  window.location.hash.includes("access_token");
+
 
 if (publicOrderToken) {
   return <PublicOrderPage token={publicOrderToken} />;
 }
 if (sessionLoading) return <LoadingScreen />;
 
-  if (!session) {
+console.log("SEARCH:", window.location.search);
+console.log("RESET PAGE:", isResetPasswordPage);
+
+if (isResetPasswordPage) {
+  console.log("ENTROU NO RESET");
+  return <ResetPasswordScreen />;
+}
+
+if (!session) {
     if (authPage === "register") {
       return <RegisterScreen onGoLogin={() => setAuthPage("login")} />;
     }
