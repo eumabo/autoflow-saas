@@ -2471,6 +2471,35 @@ const [toast, setToast] = useState<{
     (e: React.ChangeEvent<HTMLInputElement>) =>
       setForm((p) => ({ ...p, [k]: e.target.value }));
 
+  async function handleCepChange(
+  e: React.ChangeEvent<HTMLInputElement>
+) {
+  const cep = e.target.value.replace(/\D/g, "");
+
+  setForm((p) => ({
+    ...p,
+    zip_code: e.target.value,
+  }));
+
+  if (cep.length !== 8) return;
+
+  try {
+    const res = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+    const data = await res.json();
+
+    if (data.erro) return;
+
+    setForm((p) => ({
+      ...p,
+      zip_code: e.target.value,
+      city: data.localidade || "",
+      state: data.uf || "",
+    }));
+  } catch (err) {
+    console.error("Erro ao buscar CEP", err);
+  }
+}
+
    async function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
   const file = e.target.files?.[0];
   if (!file) return;
@@ -2601,10 +2630,10 @@ const [toast, setToast] = useState<{
           />
 
           <Input
-            label="CEP"
-            value={form.zip_code}
-            onChange={set("zip_code")}
-          />
+  label="CEP"
+  value={form.zip_code}
+  onChange={handleCepChange}
+/>
         </div>
 
         <div className="mt-4">
