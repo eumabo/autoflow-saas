@@ -264,23 +264,18 @@ function LandingPage({
   onGoRegister: () => void;
 }) {
   return (
-   <div className="min-h-screen text-foreground bg-[#05070A] bg-[radial-gradient(circle_at_20%_10%,rgba(34,197,94,0.16),transparent_28%),radial-gradient(circle_at_80%_30%,rgba(22,163,74,0.10),transparent_26%),radial-gradient(circle_at_50%_100%,rgba(34,197,94,0.08),transparent_35%),linear-gradient(135deg,rgba(255,255,255,0.035)_0,rgba(255,255,255,0)_35%)] relative overflow-hidden">
+    <div className="min-h-screen text-foreground bg-[#05070A] bg-[radial-gradient(circle_at_20%_10%,rgba(34,197,94,0.16),transparent_28%),radial-gradient(circle_at_80%_30%,rgba(22,163,74,0.10),transparent_26%),radial-gradient(circle_at_50%_100%,rgba(34,197,94,0.08),transparent_35%),linear-gradient(135deg,rgba(255,255,255,0.035)_0,rgba(255,255,255,0)_35%)] relative overflow-hidden">
+      <div className="fixed left-[-200px] top-1/4 w-[500px] h-[500px] rounded-full bg-green-500/10 blur-[180px] pointer-events-none" />
+      <div className="fixed right-[-200px] top-1/3 w-[500px] h-[500px] rounded-full bg-green-500/10 blur-[180px] pointer-events-none" />
+      <div className="fixed inset-0 opacity-[0.02] pointer-events-none bg-[linear-gradient(rgba(34,197,94,1)_1px,transparent_1px),linear-gradient(90deg,rgba(34,197,94,1)_1px,transparent_1px)] bg-[size:80px_80px]" />
 
-  {/* Glow esquerdo */}
-  <div className="fixed left-[-200px] top-1/4 w-[500px] h-[500px] rounded-full bg-green-500/10 blur-[180px] pointer-events-none" />
-
-  {/* Glow direito */}
-  <div className="fixed right-[-200px] top-1/3 w-[500px] h-[500px] rounded-full bg-green-500/10 blur-[180px] pointer-events-none" />
-
-  <div className="fixed inset-0 opacity-[0.02] pointer-events-none bg-[linear-gradient(rgba(34,197,94,1)_1px,transparent_1px),linear-gradient(90deg,rgba(34,197,94,1)_1px,transparent_1px)] bg-[size:80px_80px]" />
-
-  <section className="max-w-7xl mx-auto px-4 pt-6">
-    <div className="relative overflow-hidden rounded-3xl border border-primary/20 shadow-2xl shadow-green-500/10">
-      <img
-        src="/autoflow-banner.png?v=1"
-        alt="AutoFlow - Gestão completa para oficinas mecânicas"
-        className="w-full h-auto object-cover block"
-      />
+      <section className="max-w-7xl mx-auto px-4 pt-6">
+        <div className="relative overflow-hidden rounded-3xl border border-primary/20 shadow-2xl shadow-green-500/10">
+          <img
+            src="/autoflow-banner.png?v=1"
+            alt="AutoFlow - Gestão completa para oficinas mecânicas"
+            className="w-full h-auto object-cover block"
+          />
 
           <button
             type="button"
@@ -292,31 +287,46 @@ function LandingPage({
         </div>
       </section>
 
-      <main className="w-full px-8 py-5 pb-8">
+      <main className="w-full px-8 py-4 pb-8">
         <section className="grid lg:grid-cols-2 gap-10 items-center min-h-[70vh]">
           <div>
-            <Card className="max-w-2xl border-primary/20 mb-8">
-              <div className="p-5 text-center">
-                <div className="text-primary font-semibold text-sm">
-                  PLANO FUNDADORES
-                </div>
 
-                <div className="text-4xl font-bold mt-2">
-                  R$ 29,90/mês
-                </div>
+<Card className="max-w-lg border-primary/20 mb-8">
+  <div className="p-6">
+    <div className="text-primary font-semibold text-sm uppercase tracking-wider">
+      Plano Fundadores
+    </div>
 
-                <div className="text-muted-foreground mt-2">
-                  Valor promocional para os primeiros clientes.
-                </div>
-              </div>
-            </Card>
+    <div className="flex items-end gap-2 mt-2">
+      <span className="text-5xl font-bold">
+        R$ 29,90
+      </span>
 
-            <h1 className="font-heading font-bold text-4xl lg:text-6xl leading-tight text-foreground tracking-tight">
-              Gestão completa para oficinas mecânicas.
+      <span className="text-muted-foreground mb-2">
+        /mês
+      </span>
+    </div>
+
+    <div className="mt-4 space-y-2 text-sm">
+      <div>✓ Clientes ilimitados</div>
+      <div>✓ Veículos ilimitados</div>
+      <div>✓ Ordens de Serviço</div>
+      <div>✓ Controle Financeiro</div>
+    </div>
+
+    <p className="text-xs text-muted-foreground mt-4">
+      Valor promocional para os primeiros clientes do AutoFlow.
+    </p>
+  </div>
+</Card>
+
+            <h1 className="text-5xl md:text-6xl font-bold tracking-tight">
+              Gestão completa para oficinas modernas.
             </h1>
 
-            <p className="text-muted-foreground text-lg mt-5 max-w-xl">
-              Controle clientes, veículos, ordens de serviço, financeiro, PDFs e acompanhamento online em um só sistema.
+            <p className="text-xl text-muted-foreground max-w-2xl mt-4">
+              Controle clientes, veículos, ordens de serviço, financeiro e
+              acompanhamento online em um único sistema.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-3 mt-7">
@@ -329,9 +339,12 @@ function LandingPage({
               </Btn>
             </div>
 
-            <p className="text-xs text-muted-foreground mt-4">
-              Ideal para oficinas que querem sair do papel, WhatsApp bagunçado e planilhas perdidas.
+            <p className="text-sm text-muted-foreground mt-4 max-w-xl">
+              Projetado para oficinas que buscam mais organização, agilidade e
+              profissionalismo no atendimento.
             </p>
+
+          
           </div>
 
           <Card className="p-5">
@@ -340,59 +353,182 @@ function LandingPage({
             </div>
 
             <h2 className="font-heading font-bold text-2xl mb-5">
-              Oficina organizada em minutos
+              Tudo que você precisa para gerenciar sua oficina
             </h2>
 
             <div className="grid grid-cols-2 gap-3">
               {[
-                ["Clientes", "Cadastro completo"],
-                ["Veículos", "Histórico por placa"],
-                ["OS", "Ordens profissionais"],
-                ["PDF", "Documento pronto"],
-                ["Financeiro", "Receitas e despesas"],
-                ["Link público", "Cliente acompanha online"],
+                ["Clientes", "Cadastro e histórico completo"],
+                ["Veículos", "Informações sempre organizadas"],
+                ["Ordens de Serviço", "Controle profissional dos serviços"],
+                ["PDF Profissional", "Pronto para impressão e envio"],
+                ["Financeiro", "Receitas, despesas e faturamento"],
+                ["Acompanhamento Online", "Cliente acompanha o andamento da OS"],
               ].map(([title, desc]) => (
-                <div key={title} className="p-4 rounded-lg bg-secondary/40 border border-border">
+                <div
+                  key={title}
+                  className="p-4 rounded-lg bg-secondary/40 border border-border"
+                >
                   <div className="text-primary font-bold text-sm">{title}</div>
-                  <div className="text-xs text-muted-foreground mt-1">{desc}</div>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    {desc}
+                  </div>
                 </div>
               ))}
             </div>
           </Card>
         </section>
 
+     
+       <section className="py-16">
+  <div className="text-center mb-8">
+    <h2 className="font-heading font-bold text-3xl">
+      Veja o AutoFlow em ação
+    </h2>
+
+    <p className="text-muted-foreground mt-2">
+      Dashboard real do sistema utilizado pelas oficinas.
+    </p>
+  </div>
+
+  <Card className="overflow-hidden border-primary/20 max-w-6xl mx-auto">
+    <img
+  src="public/dashboard-real.png"
+  alt="Dashboard AutoFlow"
+  className="w-full object-cover"
+/>
+  </Card>
+</section>
+
         <section className="py-16">
           <div className="text-center mb-8">
             <h2 className="font-heading font-bold text-3xl">
-              Tudo que sua oficina precisa em um só lugar
+              Recursos que simplificam o dia a dia da oficina
             </h2>
 
             <p className="text-muted-foreground mt-2">
-              Simples para usar no dia a dia e profissional para apresentar ao cliente.
+              Ferramentas pensadas para organizar processos, economizar tempo e
+              profissionalizar o atendimento.
             </p>
           </div>
 
           <div className="grid md:grid-cols-3 gap-4">
             {[
-              "Cadastro de clientes e veículos",
-              "Ordens de serviço organizadas",
-              "Controle financeiro da oficina",
-              "PDF profissional para impressão",
-              "Envio por WhatsApp",
-              "Acompanhamento online da OS",
-            ].map((item) => (
-              <Card key={item} className="p-4">
-                <CheckCircle size={18} className="text-primary mb-3" />
-                <p className="text-sm font-medium">{item}</p>
-              </Card>
+  ["Cadastro de clientes e veículos", "Organize informações e histórico completo."],
+  ["Ordens de serviço organizadas", "Acompanhe cada serviço em tempo real."],
+  ["Controle financeiro da oficina", "Receitas, despesas e faturamento."],
+  ["PDF profissional para impressão", "Documentos prontos para entregar ao cliente."],
+  ["Envio por WhatsApp", "Compartilhe atualizações rapidamente."],
+  ["Acompanhamento online da OS", "Cliente acompanha o andamento da ordem."],
+]
+.map(([title, desc]) => (
+  <Card key={title} className="p-4">
+    <CheckCircle size={18} className="text-primary mb-3" />
+
+    <p className="font-medium">{title}</p>
+
+    <p className="text-xs text-muted-foreground mt-2">
+      {desc}
+    </p>
+  </Card>
+
             ))}
           </div>
         </section>
       </main>
+      
+        <section className="py-20">
+  <Card className="max-w-4xl mx-auto text-center p-10 border-primary/20">
+    <h2 className="text-4xl font-bold">
+      Pronto para organizar sua oficina?
+    </h2>
 
-      <footer className="border-t border-border py-6 text-center text-xs text-muted-foreground">
-        AutoFlow © 2026 — Desenvolvido por Vortan Systems
-      </footer>
+    <p className="text-muted-foreground mt-4 max-w-2xl mx-auto">
+      Comece hoje mesmo a controlar clientes, veículos,
+      ordens de serviço e financeiro em um único lugar.
+    </p>
+
+    <div className="mt-8">
+      <Btn
+        variant="primary"
+        size="lg"
+        onClick={onGoRegister}
+      >
+        Começar Agora
+      </Btn>
+    </div>
+  </Card>
+</section>
+
+
+       <section className="py-16">
+  <div className="max-w-5xl mx-auto">
+    <div className="text-center mb-8">
+      <h2 className="font-heading font-bold text-3xl">
+        Perguntas frequentes
+      </h2>
+
+      <p className="text-muted-foreground mt-2">
+        Tudo que você precisa saber antes de começar.
+      </p>
+    </div>
+
+    <div className="grid md:grid-cols-2 gap-4">
+      {[
+        [
+          "Precisa instalar?",
+          "Não. O AutoFlow funciona direto pelo navegador, sem instalação.",
+        ],
+        [
+          "Funciona no celular?",
+          "Sim. Você pode acessar pelo computador, tablet ou celular.",
+        ],
+        [
+          "Os dados ficam salvos?",
+          "Sim. As informações ficam armazenadas online com segurança.",
+        ],
+        [
+          "Tem suporte?",
+          "Sim. Clientes do plano fundador contam com suporte dedicado.",
+        ],
+      ].map(([title, desc]) => (
+  <Card key={title} className="p-4">
+    <CheckCircle size={18} className="text-primary mb-3" />
+
+    <p className="font-medium">{title}</p>
+
+    <p className="text-xs text-muted-foreground mt-2">
+      {desc}
+    </p>
+  </Card>
+))}
+    </div>
+  </div>
+</section>
+
+      <footer className="border-t border-border py-8">
+  <div className="max-w-7xl mx-auto px-8 flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
+    <div className="text-center md:text-left">
+      <div className="font-bold text-foreground">AutoFlow</div>
+      <div>Gestão completa para oficinas modernas.</div>
+    </div>
+
+    <div className="text-center">
+      <div>Contato</div>
+      <a
+        href="mailto:contato.autoflow@gmail.com"
+        className="text-primary hover:underline"
+      >
+        contato.autoflow@gmail.com
+      </a>
+    </div>
+
+    <div className="text-center md:text-right text-xs">
+      <div>Desenvolvido por Vortan Systems</div>
+      <div>© 2026 AutoFlow</div>
+    </div>
+  </div>
+</footer>
     </div>
   );
 }
