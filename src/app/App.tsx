@@ -5,8 +5,8 @@ import {
   Plus, Search, MessageCircle, ChevronRight, X, Edit2, Trash2,
   Wrench, CheckCircle, Clock, AlertCircle, Menu, ArrowLeft, Phone,
   Calendar, Gauge, DollarSign, FileText, Eye, RefreshCw, Building2,
-  Download, Upload, Image as ImageIcon, Send,TrendingUp,
-Target,
+  Download, Upload, Image as ImageIcon, Send,TrendingUp, 
+Target, 
 } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import * as API from "../lib/api";
@@ -523,11 +523,26 @@ function RegisterScreen({ onGoLogin }: { onGoLogin: () => void }) {
     });
 
     if (error) {
-      localStorage.removeItem("autoflow_pending_profile");
-      setError(error.message);
-      setLoading(false);
-      return;
-    }
+  localStorage.removeItem("autoflow_pending_profile");
+
+  if (
+    error.message.toLowerCase().includes("password") ||
+    error.message.toLowerCase().includes("senha")
+  ) {
+    setError(
+      "A senha precisa ter pelo menos 6 caracteres, uma letra maiúscula e um número."
+    );
+  } else if (
+    error.message.toLowerCase().includes("user already registered")
+  ) {
+    setError("Já existe uma conta cadastrada com este e-mail.");
+  } else {
+    setError("Não foi possível concluir o cadastro. Tente novamente.");
+  }
+
+  setLoading(false);
+  return;
+}
 
     setPendingEmail(form.email);
     setLoading(false);
@@ -732,19 +747,88 @@ function Sidebar({ profile, page, onNav, onLogout, open, onClose }: {
               </button>
             );
           })}
+          
+          
+
+            <button
+  type="button"
+  onClick={() => {
+    window.open(
+      "https://wa.me/5527999826504?text=Olá,%20preciso%20de%20suporte%20com%20o%20AutoFlow.",
+      "_blank",
+      "noopener,noreferrer" /* CONTATO SUPORTE 5527996126147*/
+    );
+    onClose();
+  }}
+  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium text-green-400 hover:bg-green-500/10 border border-green-500/15 transition-all mt-2"
+>   
+  <MessageCircle size={16} />
+  Suporte 24h
+</button>
         </nav>
 
         <div className="px-2 py-3 border-t border-sidebar-border">
+            
           {profile && (
-            <div className="px-3 py-2 mb-1">
-              <div className="text-xs font-medium text-foreground truncate">{profile.owner_name}</div>
-            </div>
-          )}
+  <div className="mx-2 mb-3 p-3 rounded-xl border border-green-500/10 bg-green-500/[0.03]">
+    
+    <div className="flex items-center gap-3">
+      <div className="w-10 h-10 rounded-full bg-green-500/15 border border-green-500/20 flex items-center justify-center text-green-400 font-semibold">
+        {profile.owner_name?.charAt(0)?.toUpperCase()}
+      </div>
+
+      <div className="min-w-0">
+        <div className="text-sm font-medium text-foreground truncate">
+          {profile.owner_name}
+        </div>
+
+        <div className="text-xs text-muted-foreground truncate">
+          {profile.workshop_name}
+        </div>
+      </div>
+    </div>
+
+    <div className="mt-3 flex justify-center">
+      <span className="text-[10px] px-2 py-1 rounded-full bg-green-500/10 border border-green-500/20 text-green-400">
+        Plano Fundadores
+      </span>
+    </div>
+
+  </div>
+)}
+
+          <div className="px-3 pb-3 text-center">
+  <div className="text-[10px] text-muted-foreground">
+    AutoFlow v1.0.0
+  </div>
+
+  <div className="flex justify-center gap-3 mt-2 text-[10px]">
+    <a
+      href="https://instagram.com/autoflowoficina"
+      target="_blank"
+      rel="noreferrer"
+      className="text-muted-foreground hover:text-green-400 transition-colors"
+    >
+      Instagram
+    </a>
+
+    <a
+      href="https://www.autoflowoficina.online"
+      target="_blank"
+      rel="noreferrer"
+      className="text-muted-foreground hover:text-green-400 transition-colors"
+    >
+      Site
+    </a>
+  </div>
+</div>
+
           <button
             onClick={onLogout}
-            className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all"
-          >
+            className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all"
+          > 
             <LogOut size={15} /> Sair
+            
           </button>
         </div>
       </aside>
