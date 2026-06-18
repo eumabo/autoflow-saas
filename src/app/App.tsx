@@ -393,7 +393,7 @@ function LandingPage({
 
   <Card className="overflow-hidden border-primary/20 max-w-6xl mx-auto">
     <img
-  src="public/dashboard-real.png"
+  src="/dashboard-real.png"
   alt="Dashboard AutoFlow"
   className="w-full object-cover"
 />
