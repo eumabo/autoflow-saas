@@ -269,6 +269,12 @@ function LandingPage({
       <div className="fixed right-[-200px] top-1/3 w-[500px] h-[500px] rounded-full bg-green-500/10 blur-[180px] pointer-events-none" />
       <div className="fixed inset-0 opacity-[0.02] pointer-events-none bg-[linear-gradient(rgba(34,197,94,1)_1px,transparent_1px),linear-gradient(90deg,rgba(34,197,94,1)_1px,transparent_1px)] bg-[size:80px_80px]" />
 
+      <div className="max-w-7xl mx-auto px-4 pt-6 flex justify-end">
+  <Btn variant="secondary" onClick={onGoLogin}>
+    Entrar
+  </Btn>
+</div>
+
       <section className="max-w-7xl mx-auto px-4 pt-6">
         <div className="relative overflow-hidden rounded-3xl border border-primary/20 shadow-2xl shadow-green-500/10">
           <img
@@ -277,13 +283,7 @@ function LandingPage({
             className="w-full h-auto object-cover block"
           />
 
-          <button
-            type="button"
-            onClick={onGoLogin}
-            className="absolute top-6 right-6 text-sm text-white/80 hover:text-white bg-black/35 border border-white/15 rounded-lg px-4 py-2 backdrop-blur-sm"
-          >
-            Entrar
-          </button>
+         
         </div>
       </section>
 
