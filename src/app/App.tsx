@@ -1891,7 +1891,12 @@ function OrdersPage({ orders, clients, vehicles, onReload, onView }: {
     if (!form.vehicle_id) { showToast("Selecione um veículo.", "error"); return; }
     setLoading(true);
     try {
-      await API.createOrder(form);
+      await API.createOrder({
+  ...form,
+  value: String(
+  Number(String(form.value || "0").replace(/\./g, "").replace(",", "."))
+),
+});
       await onReload();
       setModal(false);
       showToast("Ordem de serviço criada!", "success");
@@ -2180,11 +2185,13 @@ function OrderDetail({ profile, order, clients, vehicles, onBack, onReload }: {
     try {
       const previousStatus = current.status;
       const patch: Partial<ServiceOrder> & Record<string, any> = {
-        services_performed: form.services_performed,
-        value: form.value,
-        status: form.status,
-        notes: form.notes,
-      };
+  services_performed: form.services_performed,
+  value: String(
+    Number(String(form.value || "0").replace(/\./g, "").replace(",", "."))
+  ),
+  status: form.status,
+  notes: form.notes,
+};
 
       if (form.delivery_date) patch.delivery_date = form.delivery_date;
       if (form.checklist) patch.checklist = form.checklist;
