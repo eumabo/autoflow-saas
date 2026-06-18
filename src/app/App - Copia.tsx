@@ -1899,7 +1899,7 @@ function OrdersPage({ orders, clients, vehicles, onReload, onView }: {
   function openAdd() {
   const firstClient = clients[0];
   const firstVehicle = firstClient
-    ? vehicles.find(v => v.client_id === firstClient.id)
+    ? vehicles.find((v) => v.client_id === firstClient.id)
     : null;
 
   setForm({
@@ -2049,6 +2049,7 @@ function OrdersPage({ orders, clients, vehicles, onReload, onView }: {
             </Select>
             <Textarea
   label="Problema relatado"
+  
   value={form.reported_issue}
   onChange={set("reported_issue")}
   rows={3}
@@ -2060,9 +2061,6 @@ function OrdersPage({ orders, clients, vehicles, onReload, onView }: {
   value={form.employee_name}
   onChange={set("employee_name")}
 />
-
-
-
             <Textarea label="Serviços previstos" placeholder="Revisão, troca de óleo..." value={form.services_performed} onChange={set("services_performed")} rows={2} />
             <div className="grid grid-cols-2 gap-3">
               <Input label="Valor (R$)" placeholder="0,00" value={form.value} onChange={set("value")} />
@@ -2114,7 +2112,7 @@ function OrderDetail({ profile, order, clients, vehicles, onBack, onReload }: {
   vehicles: Vehicle[];
   onBack: () => void;
   onReload: () => Promise<void>;
-}) { 
+}) {
   const client = clients.find(c => c.id === order.client_id);
   const vehicle = vehicles.find(v => v.id === order.vehicle_id);
   const workshopName = profile?.workshop_name || "Oficina";
@@ -2129,14 +2127,14 @@ function OrderDetail({ profile, order, clients, vehicles, onBack, onReload }: {
   client_id: order.client_id,
   vehicle_id: order.vehicle_id,
   reported_issue: order.reported_issue || "",
-  services_performed: order.services_performed || "",
   employee_name: (order as any).employee_name || "",
+  services_performed: order.services_performed || "",
   value: order.value || "0",
   status: order.status,
   notes: order.notes || "",
   delivery_date: (order as any).delivery_date || "",
   checklist: (order as any).checklist || "",
-}); 
+});
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [photos, setPhotos] = useState<OrderPhoto[]>([]);
@@ -2149,76 +2147,74 @@ function OrderDetail({ profile, order, clients, vehicles, onBack, onReload }: {
   function showToast(msg: string, type: "error" | "success") {
   setToast({ msg, type });
   setTimeout(() => setToast(null), 3500);
-}
+}  
 
-async function loadPhotos() {
-  const { data, error } = await supabase
-    .from("af_order_photos")
-    .select("*")
-    .eq("order_id", order.id)
-    .order("created_at", { ascending: false });
+  async function loadPhotos() {
+    const { data, error } = await supabase
+      .from("af_order_photos")
+      .select("*")
+      .eq("order_id", order.id)
+      .order("created_at", { ascending: false });
 
-  if (error) {
-    console.warn("Fotos da OS indisponíveis:", error.message);
-    return;
+    if (error) {
+      console.warn("Fotos da OS indisponíveis:", error.message);
+      return;
+    }
+
+    setPhotos((data ?? []) as OrderPhoto[]);
   }
 
-  setPhotos((data ?? []) as OrderPhoto[]);
-}
+  useEffect(() => {
+    loadPhotos();
+  }, [order.id]);
 
-useEffect(() => {
-  loadPhotos();
-}, [order.id]);
+  function buildUpdateMessage(includePdfText = false) {
+    const statusText =
+      form.status === "aguardando"
+        ? "Aguardando aprovação"
+        : form.status === "em_manutencao"
+        ? "Em manutenção"
+        : "Finalizado";
 
-function buildUpdateMessage(includePdfText = false) {
-  const statusText =
-    form.status === "aguardando"
-      ? "Aguardando aprovação"
-      : form.status === "em_manutencao"
-      ? "Em manutenção"
-      : "Finalizado";
-
-  return (
-    `Olá, ${client?.name || "cliente"}.\n\n` +
-    `Sua Ordem de Serviço foi atualizada.\n\n` +
-    `Veículo: ${vehicle?.brand || ""} ${vehicle?.model || ""} (${vehicle?.plate || "-"})\n` +
-    `Status: ${statusText}\n` +
-    `Valor: ${fmtMoney(form.value)}\n` +
-    (getPublicOrderUrl(current) ? `Link de acompanhamento: ${getPublicOrderUrl(current)}\n` : "") +
-    (form.delivery_date ? `Previsão de entrega: ${new Date(form.delivery_date).toLocaleDateString("pt-BR")}\n` : "") +
-    `\nProblema relatado:\n${form.reported_issue || "-"}\n\n` +
-    `Serviços realizados:\n${form.services_performed || "Em andamento"}\n\n` +
-    (form.employee_name ? `Responsável: ${form.employee_name}\n\n` : "") +
-    (includePdfText
-      ? `O PDF anexado é a via digital da sua Ordem de Serviço. Ele contém os dados do veículo, problema relatado, serviços, status e valor registrado pela oficina.\n\n`
-      : "") +
-    `Em caso de dúvidas, estamos à disposição.\n\n` +
-    `Obrigado pela preferência.\n\n` +
-    `${workshopSignature}`
-  );
-}
-
-function openWhatsApp(message: string) {
-  const num = (client?.whatsapp || client?.phone || "").replace(/\D/g, "");
-
-  if (!num) {
-    showToast("Cliente sem WhatsApp cadastrado.", "error");
-    return;
+    return (
+      `Olá, ${client?.name || "cliente"}.\n\n` +
+      `Sua Ordem de Serviço foi atualizada.\n\n` +
+      `Veículo: ${vehicle?.brand || ""} ${vehicle?.model || ""} (${vehicle?.plate || "-"})\n` +
+      `Status: ${statusText}\n` +
+      `Valor: ${fmtMoney(form.value)}\n` +
+      (getPublicOrderUrl(current) ? `Link de acompanhamento: ${getPublicOrderUrl(current)}\n` : "") +
+      (form.delivery_date ? `Previsão de entrega: ${new Date(form.delivery_date).toLocaleDateString("pt-BR")}\n` : "") +
+      `\nServiços realizados:\n${form.services_performed || "Em andamento"}\n\n` +
+      (includePdfText
+        ? `O PDF anexado é a via digital da sua Ordem de Serviço. Ele contém os dados do veículo, problema relatado, serviços, status e valor registrado pela oficina.\n\n`
+        : "") +
+      `Em caso de dúvidas, estamos à disposição.\n\n` +
+      `Obrigado pela preferência.\n\n` +
+      `${workshopSignature}`
+    );
   }
 
-  window.open(`https://wa.me/55${num}?text=${encodeURIComponent(message)}`, "_blank");
-}
+  function openWhatsApp(message: string) {
+    const num = (client?.whatsapp || client?.phone || "").replace(/\D/g, "");
 
-function sendUpdateWhatsApp() {
-  openWhatsApp(buildUpdateMessage(false));
-}
+    if (!num) {
+      showToast("Cliente sem WhatsApp cadastrado.", "error");
+      return;
+    }
 
-async function sendPdfWhatsApp() {
+    window.open(`https://wa.me/55${num}?text=${encodeURIComponent(message)}`, "_blank");
+  }
+
+  function sendUpdateWhatsApp() {
+    openWhatsApp(buildUpdateMessage(false));
+  }
+
+  async function sendPdfWhatsApp() {
   await generatePDF();
   openWhatsApp(buildUpdateMessage(true));
 }
 
-async function save(e: React.FormEvent) {
+  async function save(e: React.FormEvent) {
   e.preventDefault();
   setLoading(true);
 
@@ -2234,51 +2230,56 @@ async function save(e: React.FormEvent) {
       ),
       status: form.status,
       notes: form.notes,
-      delivery_date: form.delivery_date,
-      checklist: form.checklist,
     };
 
-    const updatedOrder = await API.updateOrder(order.id, patch);
+    if (form.delivery_date) patch.delivery_date = form.delivery_date;
+    if (form.checklist) patch.checklist = form.checklist;
 
-    setCurrent(updatedOrder);
-    setForm({
-      client_id: updatedOrder.client_id,
-      vehicle_id: updatedOrder.vehicle_id,
-      reported_issue: updatedOrder.reported_issue || "",
-      services_performed: updatedOrder.services_performed || "",
-      employee_name: (updatedOrder as any).employee_name || "",
-      value: updatedOrder.value || "0",
-      status: updatedOrder.status,
-      notes: updatedOrder.notes || "",
-      delivery_date: (updatedOrder as any).delivery_date || "",
-      checklist: (updatedOrder as any).checklist || "",
-    });
 
-    setEditing(false);
-    await onReload();
-    showToast("Ordem atualizada!", "success");
+      if (form.delivery_date) patch.delivery_date = form.delivery_date;
+if (form.checklist) patch.checklist = form.checklist;
 
-    if (previousStatus !== "finalizado" && updatedOrder.status === "finalizado") {
-      openWhatsApp(buildFinishedMessage(updatedOrder));
+const updated = await API.updateOrder(order.id, patch);
+
+setCurrent(updated);
+setForm({
+  client_id: updated.client_id,
+  vehicle_id: updated.vehicle_id,
+  reported_issue: updated.reported_issue || "",
+  employee_name: (updated as any).employee_name || "",
+  services_performed: updated.services_performed || "",
+  value: updated.value || "0",
+  status: updated.status,
+  notes: updated.notes || "",
+  delivery_date: (updated as any).delivery_date || "",
+  checklist: (updated as any).checklist || "",
+});
+
+setEditing(false);
+await onReload();
+      showToast("Ordem atualizada!", "success");
+
+      if (previousStatus !== "finalizado" && updated.status === "finalizado") {
+          openWhatsApp(buildFinishedMessage(updated));
+      }
+    } catch (err: any) {
+      showToast(err.message, "error");
     }
-  } catch (err: any) {
-    showToast(err.message, "error");
-  } finally {
+
     setLoading(false);
   }
-}
 
   async function quickStatus(status: OrderStatus) {
     try {
       const previousStatus = current.status;
-      const updatedStatus = await API.updateOrder(order.id, { status });
-     setCurrent(updatedStatus);
-      setForm(p => ({ ...p, status: updatedStatus.status }));
+      const updated = await API.updateOrder(order.id, { status });
+      setCurrent(updated);
+      setForm(p => ({ ...p, status: updated.status }));
       await onReload();
       showToast(`Status: ${STATUS_LABEL[status]}`, "success");
 
       if (previousStatus !== "finalizado" && status === "finalizado") {
-        openWhatsApp(buildFinishedMessage(updatedStatus));
+        openWhatsApp(buildFinishedMessage(updated));
       }
     } catch (err: any) {
       showToast(err.message, "error");
@@ -2585,20 +2586,8 @@ function buildFinishedMessage(orderData: ServiceOrder) {
         <p className="text-sm text-foreground leading-relaxed">{current.reported_issue || "—"}</p>
       </Card>
 
-
-   <Card>
-  <div className="text-xs text-muted-foreground">FUNCIONÁRIO RESPONSÁVEL</div>
-  <div className="font-medium">
-    {(current as any).employee_name || "Não informado"}
-  </div>
-</Card>
-
-
       {editing ? (
         <form onSubmit={save}>
-
-  
-
           <Card className="p-4 space-y-4">
             <Textarea label="Serviços executados" value={form.services_performed} onChange={set("services_performed")} rows={3} placeholder="Descreva os serviços realizados..." />
               
@@ -2754,7 +2743,7 @@ const [toast, setToast] = useState<{
 } | null>(null);
   
 
-  const setSettings = (k: keyof typeof form) =>
+  const set = (k: keyof typeof form) =>
     (e: React.ChangeEvent<HTMLInputElement>) =>
       setForm((p) => ({ ...p, [k]: e.target.value }));
 
@@ -2877,43 +2866,43 @@ const [toast, setToast] = useState<{
           <Input
             label="Nome da Oficina"
             value={form.workshop_name}
-            onChange={setSettings("workshop_name")}
+            onChange={set("workshop_name")}
           />
 
           <Input
             label="Responsável"
             value={form.owner_name}
-           onChange={setSettings("owner_name")}
+            onChange={set("owner_name")}
           />
 
           <Input
             label="Telefone"
             value={form.phone}
-            onChange={setSettings("phone")}
+            onChange={set("phone")}
           />
 
           <Input
             label="WhatsApp"
             value={form.whatsapp}
-            onChange={setSettings("whatsapp")}
+            onChange={set("whatsapp")}
           />
 
           <Input
             label="Instagram"
             value={form.instagram}
-            onChange={setSettings("instagram")}
+            onChange={set("instagram")}
           />
 
           <Input
             label="Cidade"
             value={form.city}
-            onChange={setSettings("city")}
+            onChange={set("city")}
           />
 
           <Input
             label="Estado"
             value={form.state}
-            onChange={setSettings("state")}
+            onChange={set("state")}
           />
 
           <Input

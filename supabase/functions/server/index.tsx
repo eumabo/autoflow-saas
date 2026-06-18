@@ -463,6 +463,7 @@ app.delete(`${P}/financial/:id`, async (c) => {
       client_id: body.client_id,
       vehicle_id: body.vehicle_id,
       reported_issue: body.reported_issue.trim(),
+      employee_name: body.employee_name?.trim() ?? "",
       services_performed: body.services_performed ?? "",
       value: body.value ?? "0",
       status: body.status ?? "aguardando",
@@ -491,7 +492,7 @@ app.delete(`${P}/financial/:id`, async (c) => {
     if (blocked) return blocked;
     const id = c.req.param("id");
     const body = await c.req.json();
-    const allowed = ["reported_issue", "services_performed", "value", "status", "notes", "delivery_date", "checklist"];
+    const allowed = ["reported_issue", "employee_name", "services_performed", "value", "status", "notes", "delivery_date", "checklist"];
     const patch: Record<string, any> = { updated_at: new Date().toISOString() };
     for (const key of allowed) {
       if (body[key] !== undefined) patch[key] = body[key];

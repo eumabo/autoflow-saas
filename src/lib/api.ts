@@ -52,6 +52,7 @@ export interface ServiceOrder {
   client_id: string;
   vehicle_id: string;
   reported_issue: string;
+  employee_name?: string;
   services_performed: string;
   value: string;
   status: OrderStatus;
