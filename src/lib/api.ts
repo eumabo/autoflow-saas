@@ -105,6 +105,8 @@ async function apiFetch<T>(
   path: string,
   options: RequestInit = {},
 ): Promise<T> {
+ 
+
   if (!API_BASE) {
     throw new Error("API_BASE não configurada. Verifique VITE_API_BASE.");
   }
@@ -202,8 +204,8 @@ export async function getOrders(): Promise<ServiceOrder[]> {
 }
 
 export async function createOrder(data: Omit<ServiceOrder, "id" | "workshop_id" | "created_at" | "updated_at">): Promise<ServiceOrder> {
-  console.log("CREATE ORDER ENVIANDO:", data);
-  alert("API ENVIANDO: " + JSON.stringify(data));
+
+
 
   return apiFetch<ServiceOrder>("/orders", {
     method: "POST",

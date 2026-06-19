@@ -1928,7 +1928,7 @@ function OrdersPage({ orders, clients, vehicles, onReload, onView }: {
 
   try {
 
-    alert(JSON.stringify(form, null, 2));
+
 
     await API.createOrder({
       ...form,
