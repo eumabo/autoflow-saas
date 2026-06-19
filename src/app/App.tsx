@@ -2598,10 +2598,15 @@ function buildFinishedMessage(orderData: ServiceOrder) {
       </Card>
 
 
-   <Card>
-  <div className="text-xs text-muted-foreground">FUNCIONÁRIO RESPONSÁVEL</div>
+  <Card className="p-4">
+  <div className="text-xs text-muted-foreground mb-2">
+    
+     <span> °  </span>
+      FUNCIONÁRIO RESPONSÁVEL
+  </div>
+
   <div className="font-medium">
-    {(current as any).employee_name || "Não informado"}
+    {order.employee_name}
   </div>
 </Card>
 
