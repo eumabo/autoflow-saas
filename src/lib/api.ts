@@ -202,7 +202,13 @@ export async function getOrders(): Promise<ServiceOrder[]> {
 }
 
 export async function createOrder(data: Omit<ServiceOrder, "id" | "workshop_id" | "created_at" | "updated_at">): Promise<ServiceOrder> {
-  return apiFetch<ServiceOrder>("/orders", { method: "POST", body: JSON.stringify(data) });
+  console.log("CREATE ORDER ENVIANDO:", data);
+  alert("API ENVIANDO: " + JSON.stringify(data));
+
+  return apiFetch<ServiceOrder>("/orders", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
 }
 
 export async function updateOrder(id: string, data: Partial<ServiceOrder>): Promise<ServiceOrder> {

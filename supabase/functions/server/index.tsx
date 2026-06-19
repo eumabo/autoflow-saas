@@ -457,6 +457,7 @@ app.delete(`${P}/financial/:id`, async (c) => {
       .maybeSingle();
     if (!vCheck) return c.json({ error: "Veículo não encontrado para este cliente" }, 404);
     const now = new Date().toISOString();
+    console.log("BODY RECEBIDO:", body);
     const orderInsert: Record<string, any> = {
       public_token: crypto.randomUUID(),
       workshop_id: user.id,

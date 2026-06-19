@@ -1917,25 +1917,37 @@ function OrdersPage({ orders, clients, vehicles, onReload, onView }: {
 }
 
   async function save(e: React.FormEvent) {
-    e.preventDefault();
-    if (!form.vehicle_id) { showToast("Selecione um veículo.", "error"); return; }
-    setLoading(true);
-    try {
-      await API.createOrder({
-  ...form,
-  employee_name: form.employee_name,
-  value: String(
-    Number(String(form.value || "0").replace(/\./g, "").replace(",", "."))
-  ),
-} as any);
-      await onReload();
-      setModal(false);
-      showToast("Ordem de serviço criada!", "success");
-    } catch (err: any) {
-      showToast(err.message, "error");
-    }
-    setLoading(false);
+  e.preventDefault();
+
+  if (!form.vehicle_id) {
+    showToast("Selecione um veículo.", "error");
+    return;
   }
+
+  setLoading(true);
+
+  try {
+
+    alert(JSON.stringify(form, null, 2));
+
+    await API.createOrder({
+      ...form,
+      employee_name: form.employee_name,
+      value: String(
+        Number(String(form.value || "0").replace(/\./g, "").replace(",", "."))
+      ),
+    } as any);
+
+    await onReload();
+    setModal(false);
+    showToast("Ordem de serviço criada!", "success");
+
+  } catch (err: any) {
+    showToast(err.message, "error");
+  }
+
+  setLoading(false);
+}
 
   async function del(id: string) {
     try {
