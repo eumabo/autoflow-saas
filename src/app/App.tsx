@@ -805,6 +805,10 @@ function OnboardingScreen({ user, onDone }: { user: User; onDone: (p: Profile) =
     setLoading(false);
   }
 
+async function handleLogout() {
+  await supabase.auth.signOut();
+  window.location.reload();
+}
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center px-4">
       <div className="w-full max-w-sm">
@@ -822,28 +826,14 @@ function OnboardingScreen({ user, onDone }: { user: User; onDone: (p: Profile) =
             </Btn>
           </form>
         </Card>
-    <button
-  onClick={async () => {
-    await supabase.auth.signOut();
-    window.location.href = "/login";
-  }}
- ></button>
+   <button
+  type="button"
+  onClick={handleLogout}
+  className="text-green-600 hover:text-green-500 text-sm"
+>
+  Sair
+</button>
 
- <div className="flex justify-center mt-4">
-  <button
-    type="button"
-    onClick={async () => {
-      await supabase.auth.signOut();
-      window.location.href = "/login";
-    }}
-    className="text-green-600 hover:text-green-500 text-sm"
-  >
-    Sair
-  </button>
-</div>
-
-
-  
       </div>
     </div>
   );
@@ -3401,9 +3391,12 @@ export default function App() {
       }
 
       if (!p) {
-  await supabase.auth.signOut();
-  setAuthPage("login");
+  console.warn("Perfil não encontrado ou falhou ao carregar.");
+
+  setProfile(null);
   setDataLoaded(true);
+
+  // NÃO deslogar automaticamente aqui
   return;
 } else {
   setProfile(p);
@@ -3465,10 +3458,11 @@ export default function App() {
   }
 
   async function logout() {
-    await supabase.auth.signOut();
-    setPage("dashboard");
-    setSidebarOpen(false);
-  }
+  await supabase.auth.signOut();
+  setAuthPage("login");
+  setPage("dashboard");
+  setSidebarOpen(false);
+}
 
 
 
