@@ -890,7 +890,7 @@ function Sidebar({ profile, page, onNav, onLogout, open, onClose }: {
   type="button"
   onClick={() => {
     window.open(
-      "https://wa.me/5527999826504?text=Olá,%20preciso%20de%20suporte%20com%20o%20AutoFlow.",
+      "https://wa.me/5527996126147?text=Olá,%20preciso%20de%20suporte%20com%20o%20AutoFlow.",
       "_blank",
       "noopener,noreferrer" /* CONTATO SUPORTE 5527996126147*/
     );
@@ -2246,7 +2246,7 @@ async function save(e: React.FormEvent) {
       ),
       status: form.status,
       notes: form.notes,
-      delivery_date: form.delivery_date,
+      delivery_date: form.delivery_date || null,
       checklist: form.checklist,
     };
 
