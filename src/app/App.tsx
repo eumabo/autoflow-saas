@@ -3652,7 +3652,7 @@ if (!session) {
     Sua conta está criada. Para acessar o painel, finalize a assinatura.
   </p>
 
-  <Btn
+   {/* <Btn
     variant="primary"
     className="w-full justify-center"
     onClick={async () => {
@@ -3694,11 +3694,69 @@ if (!session) {
     }}
   >
     Assinar agora
-  </Btn>
+  </Btn> */}
+
+  <Btn
+  variant="primary"
+  className="w-full justify-center"
+  onClick={() => {
+    window.open(
+      "https://mpago.la/17ordQN",
+      "_blank",
+      "noopener,noreferrer"
+    );
+  }}
+>
+  Assinar plano mensal
+</Btn>
+
+<Btn
+  variant="primary"
+  className="w-full justify-center mt-3"
+  onClick={async () => {
+    try {
+      const session = (await supabase.auth.getSession()).data.session;
+
+      if (!session) {
+        alert("Sessão expirada. Faça login novamente.");
+        return;
+      }
+
+      const res = await fetch(
+        "https://kddlzartfawqjnrafzdb.supabase.co/functions/v1/rapid-action/billing/create-checkout",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
+        }
+      );
+
+      if (!res.ok) {
+        alert("Não foi possível gerar o pagamento agora.");
+        return;
+      }
+
+      const data = await res.json();
+      const checkoutUrl = data?.checkout_url || data?.init_point || data?.url;
+
+      if (checkoutUrl) {
+        window.open(checkoutUrl, "_blank", "noopener,noreferrer");
+      } else {
+        alert("Checkout não retornou link.");
+      }
+    } catch {
+      alert("Erro ao conectar com pagamento.");
+    }
+  }}
+>
+  Pagar apenas este mês
+</Btn>
 
   <Btn
     variant="secondary"
-    className="w-full justify-center mt-2"
+    className="w-full max-w-[230px] mx-auto justify-center mt-3 text-sm"
     loading={checkingPayment}
     onClick={async () => {
       setCheckingPayment(true);
