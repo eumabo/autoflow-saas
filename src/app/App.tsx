@@ -14,6 +14,7 @@ import type { Profile, Client, Vehicle, ServiceOrder, OrderStatus, FinancialEntr
 import jsPDF from "jspdf";
 
 
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type Page = "billing" | "dashboard" | "clients" | "vehicles" | "orders" | "history" | "order-detail" | "settings" | "financial";
@@ -259,10 +260,15 @@ function AuthError({ msg }: { msg: string }) {
 function LandingPage({
   onGoLogin,
   onGoRegister,
+  onGoTerms,
+  onGoPrivacy,
 }: {
   onGoLogin: () => void;
   onGoRegister: () => void;
+  onGoTerms: () => void;
+  onGoPrivacy: () => void;
 }) {
+
   return (
     <div className="min-h-screen text-foreground bg-[#05070A] bg-[radial-gradient(circle_at_20%_10%,rgba(34,197,94,0.16),transparent_28%),radial-gradient(circle_at_80%_30%,rgba(22,163,74,0.10),transparent_26%),radial-gradient(circle_at_50%_100%,rgba(34,197,94,0.08),transparent_35%),linear-gradient(135deg,rgba(255,255,255,0.035)_0,rgba(255,255,255,0)_35%)] relative overflow-hidden">
       <div className="fixed left-[-200px] top-1/4 w-[500px] h-[500px] rounded-full bg-green-500/10 blur-[180px] pointer-events-none" />
@@ -514,14 +520,39 @@ function LandingPage({
     </div>
 
     <div className="text-center">
-      <div>Contato</div>
-      <a
-        href="mailto:contato.autoflow@gmail.com"
-        className="text-primary hover:underline"
-      >
-        contato.autoflow@gmail.com
-      </a>
-    </div>
+  <div>Contato</div>
+
+  <a
+    href="https://wa.me/5527996126147"
+    target="_blank"
+    className="block text-primary hover:underline"
+  >
+    WhatsApp: (27) 99612-6147
+  </a>
+
+  <a
+    href="mailto:contato.autoflow@gmail.com"
+    className="block text-primary hover:underline"
+  >
+    contato.autoflow@gmail.com
+  </a>
+</div>
+
+
+  {/* termos/politica*/}
+    <button
+  onClick={onGoTerms}
+  className="block hover:text-primary transition-colors"
+>
+  Termos de Uso
+</button>
+
+<button
+  onClick={onGoPrivacy}
+  className="block hover:text-primary transition-colors"
+>
+  Política de Privacidade
+</button>
 
     <div className="text-center md:text-right text-xs">
       <div>Desenvolvido por Vortan Systems</div>
@@ -3287,7 +3318,9 @@ export default function App() {
   const [sessionLoading, setSessionLoading] = useState(true);
   const [profile, setProfile] = useState<Profile | null>(null);
   /*const [needsOnboarding, setNeedsOnboarding] = useState(false);*/
-  const [authPage, setAuthPage] = useState<"landing" | "login" | "register">("landing");
+  const [authPage, setAuthPage] = useState<
+  "landing" | "login" | "register" | "terms" | "privacy"
+>("landing");
   const [page, setPage] = useState<Page>("dashboard");
   const [activeOrder, setActiveOrder] = useState<ServiceOrder | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -3568,21 +3601,31 @@ if (isResetPasswordPage) {
 }
 
 if (!session) {
-    if (authPage === "register") {
-      return <RegisterScreen onGoLogin={() => setAuthPage("login")} />;
-    }
-
-    if (authPage === "login") {
-      return <LoginScreen onGoRegister={() => setAuthPage("register")} />;
-    }
-
-    return (
-      <LandingPage
-        onGoLogin={() => setAuthPage("login")}
-        onGoRegister={() => setAuthPage("register")}
-      />
-    );
+  if (authPage === "register") {
+    return <RegisterScreen onGoLogin={() => setAuthPage("login")} />;
   }
+
+  if (authPage === "login") {
+    return <LoginScreen onGoRegister={() => setAuthPage("register")} />;
+  }
+
+  if (authPage === "terms") {
+    return <TermsPage onBack={() => setAuthPage("landing")} />;
+  }
+
+  if (authPage === "privacy") {
+    return <PrivacyPage onBack={() => setAuthPage("landing")} />;
+  }
+
+  return (
+    <LandingPage
+  onGoLogin={() => setAuthPage("login")}
+  onGoRegister={() => setAuthPage("register")}
+  onGoTerms={() => setAuthPage("terms")}
+  onGoPrivacy={() => setAuthPage("privacy")}
+/>
+  );
+}
 /*
   if (needsOnboarding) {
     return (
@@ -3784,4 +3827,376 @@ return (
     </div>
   </div>
 );
+}
+
+
+
+function TermsPage({ onBack }: { onBack: () => void }) {
+  const sections = [
+    {
+      title: "1. Aceite dos Termos",
+      body:
+        "Ao acessar ou utilizar o AutoFlow, o usuário declara estar de acordo com estes Termos de Uso. Caso não concorde com alguma condição, recomendamos que não utilize a plataforma.",
+    },
+    {
+      title: "2. Sobre o AutoFlow",
+      body:
+        "O AutoFlow é uma plataforma de gestão para oficinas mecânicas, criada para auxiliar no controle de clientes, veículos, ordens de serviço, financeiro e comunicação com clientes.",
+    },
+    {
+      title: "3. Responsabilidades do usuário",
+      body:
+        "O usuário é responsável pela veracidade das informações cadastradas no sistema, incluindo dados de clientes, veículos, serviços, valores, observações e movimentações financeiras.",
+    },
+    {
+      title: "4. Assinatura e acesso",
+      body:
+        "O acesso ao sistema pode depender de assinatura ativa. Em caso de inadimplência, expiração do plano ou uso indevido, o acesso à plataforma poderá ser limitado ou suspenso.",
+    },
+    {
+      title: "5. Uso adequado da plataforma",
+      body:
+        "O usuário se compromete a utilizar o AutoFlow apenas para fins lícitos, profissionais e relacionados à gestão da oficina, não podendo tentar violar, copiar, explorar ou prejudicar o funcionamento do sistema.",
+    },
+    {
+      title: "6. Alterações nos Termos",
+      body:
+        "Estes Termos podem ser atualizados a qualquer momento para refletir melhorias, mudanças legais ou ajustes operacionais. A versão mais recente estará sempre disponível nesta página.",
+    },
+  ];
+
+  return (
+    <div className="min-h-screen text-foreground bg-[#05070A] relative overflow-hidden">
+      <div className="fixed left-[-220px] top-1/4 w-[520px] h-[520px] rounded-full bg-green-500/10 blur-[180px] pointer-events-none" />
+      <div className="fixed right-[-220px] top-1/3 w-[520px] h-[520px] rounded-full bg-green-500/10 blur-[180px] pointer-events-none" />
+      <div className="fixed inset-0 opacity-[0.025] pointer-events-none bg-[linear-gradient(rgba(34,197,94,1)_1px,transparent_1px),linear-gradient(90deg,rgba(34,197,94,1)_1px,transparent_1px)] bg-[size:80px_80px]" />
+
+      <div className="relative max-w-6xl mx-auto px-4 py-8">
+        <button
+          type="button"
+          onClick={onBack}
+          className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors mb-8"
+        >
+          <ArrowLeft size={16} />
+          Voltar para o início
+        </button>
+
+        <div className="grid lg:grid-cols-[1fr_360px] gap-6 items-start">
+          <div className="space-y-6">
+            <Card className="p-8 border-primary/20 overflow-hidden relative">
+              <div className="absolute top-0 right-0 w-60 h-60 bg-green-500/10 blur-[90px] rounded-full pointer-events-none" />
+
+              <div className="relative">
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-green-500/20 bg-green-500/10 text-green-400 text-xs font-medium mb-5">
+                  <FileText size={14} />
+                  Documento legal AutoFlow
+                </div>
+
+                <h1 className="text-4xl md:text-5xl font-bold tracking-tight">
+                  Termos de Uso
+                </h1>
+
+                <p className="text-muted-foreground mt-4 text-base max-w-3xl leading-relaxed">
+                  Leia com atenção as condições de uso da plataforma AutoFlow.
+                  Este documento explica as principais regras para utilização do
+                  sistema, assinatura, responsabilidades e funcionamento geral.
+                </p>
+
+                <div className="mt-6 flex flex-wrap gap-3 text-xs text-muted-foreground">
+                  <span className="px-3 py-1.5 rounded-full border border-border bg-secondary/30">
+                    Última atualização: 20/06/2026
+                  </span>
+
+                  <span className="px-3 py-1.5 rounded-full border border-border bg-secondary/30">
+                    Aplicável ao AutoFlow
+                  </span>
+                </div>
+              </div>
+            </Card>
+
+            <div className="space-y-4">
+              {sections.map((section) => (
+                <Card key={section.title} className="p-6 border-green-500/10">
+                  <h2 className="text-xl font-semibold text-foreground mb-3">
+                    {section.title}
+                  </h2>
+
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    {section.body}
+                  </p>
+                </Card>
+              ))}
+            </div>
+
+            <Card className="p-6 border-primary/20">
+              <h2 className="text-xl font-semibold mb-3">
+                Contato
+              </h2>
+
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                Em caso de dúvidas sobre estes Termos de Uso, entre em contato
+                com a equipe AutoFlow pelo e-mail{" "}
+                <a
+                  href="mailto:contato.autoflow@gmail.com"
+                  className="text-primary hover:underline"
+                >
+                  contato.autoflow@gmail.com
+                </a>
+                .
+              </p>
+            </Card>
+          </div>
+
+          <div className="lg:sticky lg:top-8 space-y-4">
+            <Card className="p-5 border-primary/20">
+              <Logo size="sm" />
+
+              <div className="text-center -mt-3">
+                <h3 className="font-heading font-bold text-lg">
+                  AutoFlow
+                </h3>
+
+                <p className="text-xs text-muted-foreground mt-1">
+                  Gestão completa para oficinas modernas.
+                </p>
+              </div>
+            </Card>
+
+            <Card className="p-5">
+              <h3 className="font-semibold mb-4">
+                Resumo rápido
+              </h3>
+
+              <div className="space-y-3">
+                {[
+                  "Uso profissional da plataforma",
+                  "Responsabilidade pelos dados cadastrados",
+                  "Acesso vinculado à assinatura ativa",
+                  "Termos podem ser atualizados",
+                ].map((item) => (
+                  <div key={item} className="flex items-start gap-2">
+                    <CheckCircle size={15} className="text-primary mt-0.5 flex-shrink-0" />
+                    <span className="text-sm text-muted-foreground">
+                      {item}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </Card>
+
+            <Card className="p-5 bg-green-500/[0.03] border-green-500/20">
+              <h3 className="font-semibold mb-2">
+                Precisa de ajuda?
+              </h3>
+
+              <p className="text-xs text-muted-foreground mb-4">
+                Fale com o suporte AutoFlow pelo WhatsApp.
+              </p>
+
+              <Btn
+                type="button"
+                variant="primary"
+                className="w-full justify-center"
+                onClick={() =>
+                  window.open(
+                    "https://wa.me/5527996126147?text=Olá,%20tenho%20uma%20dúvida%20sobre%20os%20Termos%20de%20Uso%20do%20AutoFlow.",
+                    "_blank",
+                    "noopener,noreferrer"
+                  )
+                }
+              >
+                <MessageCircle size={15} />
+                Falar com suporte
+              </Btn>
+            </Card>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PrivacyPage({ onBack }: { onBack: () => void }) {
+  const sections = [
+    {
+      title: "1. Informações coletadas",
+      body:
+        "O AutoFlow coleta apenas as informações necessárias para o funcionamento da plataforma, como nome, e-mail, telefone, dados da oficina, clientes, veículos, ordens de serviço e movimentações financeiras cadastradas pelo usuário.",
+    },
+    {
+      title: "2. Uso das informações",
+      body:
+        "As informações são utilizadas para permitir o funcionamento do sistema, autenticação de usuários, organização dos dados da oficina, geração de documentos, comunicação com clientes e melhoria da experiência na plataforma.",
+    },
+    {
+      title: "3. Armazenamento e segurança",
+      body:
+        "Os dados são armazenados em ambiente online e protegidos por medidas técnicas de segurança. Ainda assim, o usuário também deve proteger seu acesso, mantendo e-mail e senha em segurança.",
+    },
+    {
+      title: "4. Compartilhamento de dados",
+      body:
+        "O AutoFlow não vende informações dos usuários a terceiros. Dados poderão ser processados por serviços necessários para funcionamento da plataforma, como autenticação, banco de dados, hospedagem e pagamentos.",
+    },
+    {
+      title: "5. Dados cadastrados pelo usuário",
+      body:
+        "O usuário é responsável pelas informações inseridas na plataforma, incluindo dados de clientes da oficina, veículos, serviços, valores e observações internas.",
+    },
+    {
+      title: "6. Solicitações e contato",
+      body:
+        "O usuário pode entrar em contato com a equipe AutoFlow para solicitar informações, correções ou orientações relacionadas aos seus dados e uso da plataforma.",
+    },
+  ];
+
+  return (
+    <div className="min-h-screen text-foreground bg-[#05070A] relative overflow-hidden">
+      <div className="fixed left-[-220px] top-1/4 w-[520px] h-[520px] rounded-full bg-green-500/10 blur-[180px] pointer-events-none" />
+      <div className="fixed right-[-220px] top-1/3 w-[520px] h-[520px] rounded-full bg-green-500/10 blur-[180px] pointer-events-none" />
+      <div className="fixed inset-0 opacity-[0.025] pointer-events-none bg-[linear-gradient(rgba(34,197,94,1)_1px,transparent_1px),linear-gradient(90deg,rgba(34,197,94,1)_1px,transparent_1px)] bg-[size:80px_80px]" />
+
+      <div className="relative max-w-6xl mx-auto px-4 py-8">
+        <button
+          type="button"
+          onClick={onBack}
+          className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors mb-8"
+        >
+          <ArrowLeft size={16} />
+          Voltar para o início
+        </button>
+
+        <div className="grid lg:grid-cols-[1fr_360px] gap-6 items-start">
+          <div className="space-y-6">
+            <Card className="p-8 border-primary/20 overflow-hidden relative">
+              <div className="absolute top-0 right-0 w-60 h-60 bg-green-500/10 blur-[90px] rounded-full pointer-events-none" />
+
+              <div className="relative">
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-green-500/20 bg-green-500/10 text-green-400 text-xs font-medium mb-5">
+                  <FileText size={14} />
+                  Segurança e privacidade
+                </div>
+
+                <h1 className="text-4xl md:text-5xl font-bold tracking-tight">
+                  Política de Privacidade
+                </h1>
+
+                <p className="text-muted-foreground mt-4 text-base max-w-3xl leading-relaxed">
+                  Esta Política explica como o AutoFlow coleta, utiliza,
+                  armazena e protege as informações necessárias para o
+                  funcionamento da plataforma.
+                </p>
+
+                <div className="mt-6 flex flex-wrap gap-3 text-xs text-muted-foreground">
+                  <span className="px-3 py-1.5 rounded-full border border-border bg-secondary/30">
+                    Última atualização: 20/06/2026
+                  </span>
+
+                  <span className="px-3 py-1.5 rounded-full border border-border bg-secondary/30">
+                    Dados da oficina protegidos
+                  </span>
+                </div>
+              </div>
+            </Card>
+
+            <div className="space-y-4">
+              {sections.map((section) => (
+                <Card key={section.title} className="p-6 border-green-500/10">
+                  <h2 className="text-xl font-semibold text-foreground mb-3">
+                    {section.title}
+                  </h2>
+
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    {section.body}
+                  </p>
+                </Card>
+              ))}
+            </div>
+
+            <Card className="p-6 border-primary/20">
+              <h2 className="text-xl font-semibold mb-3">
+                Canal de contato
+              </h2>
+
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                Para dúvidas relacionadas à privacidade ou dados cadastrados na
+                plataforma, entre em contato pelo e-mail{" "}
+                <a
+                  href="mailto:contato.autoflow@gmail.com"
+                  className="text-primary hover:underline"
+                >
+                  contato.autoflow@gmail.com
+                </a>
+                .
+              </p>
+            </Card>
+          </div>
+
+          <div className="lg:sticky lg:top-8 space-y-4">
+            <Card className="p-5 border-primary/20">
+              <Logo size="sm" />
+
+              <div className="text-center -mt-3">
+                <h3 className="font-heading font-bold text-lg">
+                  AutoFlow
+                </h3>
+
+                <p className="text-xs text-muted-foreground mt-1">
+                  Seus dados organizados com mais segurança.
+                </p>
+              </div>
+            </Card>
+
+            <Card className="p-5">
+              <h3 className="font-semibold mb-4">
+                Compromissos
+              </h3>
+
+              <div className="space-y-3">
+                {[
+                  "Não vendemos dados dos usuários",
+                  "Coletamos apenas o necessário",
+                  "Dados usados para operar o sistema",
+                  "Usuário controla os dados cadastrados",
+                ].map((item) => (
+                  <div key={item} className="flex items-start gap-2">
+                    <CheckCircle size={15} className="text-primary mt-0.5 flex-shrink-0" />
+                    <span className="text-sm text-muted-foreground">
+                      {item}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </Card>
+
+            <Card className="p-5 bg-green-500/[0.03] border-green-500/20">
+              <h3 className="font-semibold mb-2">
+                Dúvidas sobre dados?
+              </h3>
+
+              <p className="text-xs text-muted-foreground mb-4">
+                Fale com o suporte AutoFlow pelo WhatsApp.
+              </p>
+
+              <Btn
+                type="button"
+                variant="primary"
+                className="w-full justify-center"
+                onClick={() =>
+                  window.open(
+                    "https://wa.me/5527996126147?text=Olá,%20tenho%20uma%20dúvida%20sobre%20a%20Política%20de%20Privacidade%20do%20AutoFlow.",
+                    "_blank",
+                    "noopener,noreferrer"
+                  )
+                }
+              >
+                <MessageCircle size={15} />
+                Falar com suporte
+              </Btn>
+            </Card>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
