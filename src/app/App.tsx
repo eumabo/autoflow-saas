@@ -3739,7 +3739,7 @@ if (!session) {
 */
   if (!dataLoaded) return <LoadingScreen />;
 
-  if (profile && !isPaid(profile)) {
+  if (!profile || !isPaid(profile)) {
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center px-4">
       <div className="w-full max-w-sm text-center">
