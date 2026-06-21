@@ -10,19 +10,19 @@
   app.use("*", logger())
 
   app.use(
-    "*",
-    cors({
-  origin: [
-    "http://localhost:5173",
-    "https://autoflowoficina.online",
-    "https://www.autoflowoficina.online",
-    "https://vortanoficina.com.br",
-    "https://www.vortanoficina.com.br",
-  ],
-      allowHeaders: ["authorization", "x-client-info", "apikey", "content-type"],
-      allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    }),
-  );
+  "*",
+  cors({
+    origin: [
+      "http://localhost:5173",
+      "https://autoflowoficina.online",
+      "https://www.autoflowoficina.online",
+      "https://vortanoficina.com.br",
+      "https://www.vortanoficina.com.br",
+    ],
+    allowHeaders: ["authorization", "x-client-info", "apikey", "content-type"],
+    allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  }),
+);
 
   app.options("*", (c) => c.text("", 204))
 
