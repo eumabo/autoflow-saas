@@ -534,6 +534,74 @@ app.delete(`${P}/financial/:id`, async (c) => {
     return c.json({ ok: true });
   });
 
+  
+async function activateSubscriptionAccess(params: {
+  userId: string;
+  email?: string | null;
+  paymentId?: string | null;
+  expiresAt?: Date;
+}) {
+  const expiresAt =
+    params.expiresAt ?? new Date(Date.now() + 32 * 24 * 60 * 60 * 1000);
+
+  const { error: subError } = await svc()
+    .from("subscriptions")
+    .upsert({
+      user_id: params.userId,
+      status: "active",
+      expires_at: expiresAt.toISOString(),
+    });
+
+  if (subError) throw subError;
+
+  const { error: profileError } = await svc()
+    .from("af_profiles")
+    .update({
+      plan: "active",
+      subscription_status: "active",
+      subscription_ends_at: expiresAt.toISOString(),
+      mercadopago_payment_id: params.paymentId ?? null,
+      email: params.email ?? null,
+    })
+    .eq("id", params.userId);
+
+  if (profileError) throw profileError;
+}
+
+async function deactivateSubscriptionAccess(params: {
+  userId: string;
+  status?: string;
+}) {
+  const now = new Date();
+
+  const { error: subError } = await svc()
+    .from("subscriptions")
+    .upsert({
+      user_id: params.userId,
+      status: params.status ?? "inactive",
+      expires_at: now.toISOString(),
+    });
+
+  if (subError) throw subError;
+
+  const { error: profileError } = await svc()
+    .from("af_profiles")
+    .update({
+      plan: "inactive",
+      subscription_status: params.status ?? "inactive",
+      subscription_ends_at: now.toISOString(),
+    })
+    .eq("id", params.userId);
+
+  if (profileError) throw profileError;
+}
+
+function getMonthlyExpiration() {
+  const expiresAt = new Date();
+  expiresAt.setMonth(expiresAt.getMonth() + 1);
+  return expiresAt;
+}
+
 
   app.post(`${P}/billing/create-checkout`, async (c) => {
     const user = await getUser(c.req.header("Authorization"));
@@ -581,7 +649,58 @@ app.delete(`${P}/financial/:id`, async (c) => {
       url: data.init_point,
     });
   });
+ 
+   app.post(`${P}/billing/create-subscription`, async (c) => {
+  try {
+    const user = await getUser(c.req.header("Authorization"));
+    if (!user) return unauthorized(c);
 
+    const accessToken = Deno.env.get("MERCADOPAGO_ACCESS_TOKEN");
+    if (!accessToken) return serverError(c, "Mercado Pago token não configurado");
+
+    const planId = Deno.env.get("MERCADOPAGO_PREAPPROVAL_PLAN_ID");
+    if (!planId) return serverError(c, "ID do plano recorrente não configurado");
+
+    if (!user.email) {
+      return badRequest(c, "Usuário sem e-mail para criar assinatura");
+    }
+
+    const res = await fetch("https://api.mercadopago.com/preapproval", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        preapproval_plan_id: planId,
+        reason: "AutoFlow - Plano Mensal",
+        external_reference: user.id,
+        payer_email: user.email,
+        back_url: "https://www.autoflowoficina.online",
+      }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      return c.json(
+        {
+          error: data?.message ?? "Erro ao criar assinatura recorrente",
+          details: data,
+        },
+        500
+      );
+    }
+
+    return c.json({
+      id: data.id,
+      url: data.init_point,
+      init_point: data.init_point,
+    });
+  } catch (err: any) {
+    return c.json({ ok: false, error: err.message }, 500);
+  }
+});
 
   app.post(`${P}/billing/webhook`, async (c) => {
     try {
