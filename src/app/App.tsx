@@ -3008,8 +3008,61 @@ setTimeout(() => {
 >
   Salvar Alterações
 </Btn>
+
+<Btn
+  variant="secondary"
+  className="w-full justify-center mt-3 border border-red-500/40 bg-red-500/10 text-red-300 hover:bg-red-500/20"
+  onClick={async () => {
+    const confirmCancel = window.confirm(
+      "Tem certeza que deseja cancelar sua assinatura? Você continuará com acesso até o fim do período já pago."
+    );
+
+    if (!confirmCancel) return;
+
+    try {
+      const session = (await supabase.auth.getSession()).data.session;
+
+      if (!session) {
+        alert("Sessão expirada. Faça login novamente.");
+        return;
+      }
+
+      const res = await fetch(
+        "https://kddlzartfawqjnrafzdb.supabase.co/functions/v1/rapid-action/billing/cancel-subscription",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
+        }
+      );
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        if (res.status === 404) {
+          alert("Você não possui uma assinatura mensal recorrente para cancelar.");
+          return;
+        }
+
+        alert(data?.error || "Erro ao cancelar assinatura.");
+        return;
+      }
+
+      alert(data.message || "Assinatura cancelada com sucesso.");
+    } catch (err) {
+      alert("Erro ao cancelar assinatura.");
+    }
+  }}
+>
+  Cancelar assinatura mensal
+</Btn>
         </div>
       </Card>
+
+
+      
     </div>
   );
 }
@@ -3888,6 +3941,7 @@ if (!session) {
   Pagar apenas este mês
 </Btn>
 
+
   <Btn
     variant="secondary"
     className="w-full max-w-[230px] mx-auto justify-center mt-3 text-sm"
@@ -4014,6 +4068,8 @@ return (
   </div>
 );
 }
+
+
 
 
 

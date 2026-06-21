@@ -688,31 +688,23 @@ return c.json({
       return serverError(c, "ID do plano recorrente não configurado");
     }
 
-    if (!user.email) {
-      return badRequest(c, "Usuário sem e-mail para criar assinatura");
-    }
-
-    const res = await fetch("https://api.mercadopago.com/preapproval", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        preapproval_plan_id: planId,
-        reason: "Vortan Oficina - Plano Mensal",
-        external_reference: user.id,
-        payer_email: user.email,
-        back_url: "https://www.vortanoficina.com.br",
-      }),
-    });
+    const res = await fetch(
+      `https://api.mercadopago.com/preapproval_plan/${planId}`,
+      {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
 
     const data = await res.json();
 
     if (!res.ok) {
       return c.json(
         {
-          error: data?.message ?? "Erro ao criar assinatura recorrente",
+          error: data?.message ?? "Erro ao buscar plano recorrente",
           details: data,
         },
         500
@@ -724,7 +716,6 @@ return c.json({
       .upsert({
         user_id: user.id,
         status: "pending",
-        preapproval_id: data.id,
         expires_at: new Date().toISOString(),
       });
 
@@ -860,6 +851,8 @@ app.post(`${P}/billing/cancel-subscription`, async (c) => {
       .from("subscriptions")
       .select("*")
       .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(1)
       .maybeSingle();
 
     if (subError) {
@@ -869,13 +862,14 @@ app.post(`${P}/billing/cancel-subscription`, async (c) => {
     if (!sub?.preapproval_id) {
       return c.json(
         {
-          error: "Assinatura não encontrada",
+          error: "Assinatura recorrente não encontrada.",
         },
         404
       );
     }
 
     const accessToken = Deno.env.get("MERCADOPAGO_ACCESS_TOKEN");
+
     if (!accessToken) {
       return serverError(c, "Mercado Pago token não configurado");
     }
@@ -889,46 +883,69 @@ app.post(`${P}/billing/cancel-subscription`, async (c) => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          status: "cancelled",
+          status: "canceled",
         }),
       }
     );
 
-    const mpData = await mpRes.json();
+    const mpData = await mpRes.json().catch(() => null);
 
     if (!mpRes.ok) {
+      console.error("Erro Mercado Pago cancelamento:", mpData);
+
       return c.json(
         {
-          error: "Erro ao cancelar assinatura",
+          error: "Erro ao cancelar assinatura no Mercado Pago.",
           details: mpData,
         },
         500
       );
     }
 
-    await svc()
+    const expiresAt = sub.expires_at ? new Date(sub.expires_at) : null;
+
+    const stillHasAccess =
+      expiresAt && expiresAt.getTime() > new Date().getTime();
+
+    const { error: updateSubError } = await svc()
       .from("subscriptions")
       .update({
-        status: "cancelled",
+        status: stillHasAccess ? "active" : "canceled",
+        provider_status: "canceled",
+        cancel_at_period_end: true,
+        canceled_at: new Date().toISOString(),
       })
-      .eq("user_id", user.id);
+      .eq("id", sub.id);
 
-    await svc()
+    if (updateSubError) {
+      return serverError(c, updateSubError.message);
+    }
+
+    const { error: profileError } = await svc()
       .from("af_profiles")
       .update({
-        subscription_status: "cancelled",
+        subscription_status: stillHasAccess ? "active" : "canceled",
       })
       .eq("id", user.id);
 
+    if (profileError) {
+      return serverError(c, profileError.message);
+    }
+
     return c.json({
       ok: true,
-      message: "Assinatura cancelada",
+      message: stillHasAccess
+        ? "Assinatura cancelada. Você continuará com acesso até o fim do período pago."
+        : "Assinatura cancelada.",
+      expires_at: sub.expires_at,
     });
   } catch (err: any) {
+    console.error("Erro ao cancelar assinatura:", err);
+
     return c.json(
       {
         ok: false,
-        error: err.message,
+        error: err.message || "Erro interno ao cancelar assinatura.",
       },
       500
     );
