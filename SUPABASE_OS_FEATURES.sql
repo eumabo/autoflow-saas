@@ -1,4 +1,4 @@
--- AutoFlow - recursos novos da Ordem de Serviço
+-- Vortan Oficina - recursos novos da Ordem de Serviço
 -- Rode este SQL uma vez no Supabase SQL Editor.
 
 alter table if exists public.af_service_orders

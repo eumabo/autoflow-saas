@@ -551,7 +551,7 @@ app.delete(`${P}/financial/:id`, async (c) => {
       body: JSON.stringify({
         items: [
           {
-            title: "Assinatura AutoFlow",
+            title: "Assinatura Vortan Oficina",
             quantity: 1,
             currency_id: "BRL",
             unit_price: 29.9,

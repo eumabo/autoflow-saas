@@ -13,7 +13,7 @@ export function PrivacyPage() {
         </p>
 
         <p>
-          Esta Política de Privacidade explica como o AutoFlow coleta, utiliza
+          Esta Política de Privacidade explica como a Vortan Oficina coleta, utiliza
           e protege os dados dos usuários da plataforma.
         </p>
 
@@ -33,7 +33,7 @@ export function PrivacyPage() {
 
         <h2 className="text-xl font-semibold">3. Compartilhamento</h2>
         <p>
-          O AutoFlow não vende dados dos usuários. Informações poderão ser
+          A Vortan Oficina não vende dados dos usuários. Informações poderão ser
           compartilhadas apenas quando necessário para funcionamento do serviço
           ou cumprimento de obrigações legais.
         </p>

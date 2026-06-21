@@ -13,8 +13,8 @@ export function TermsPage() {
         </p>
 
         <p>
-          Ao utilizar o AutoFlow, o usuário concorda com estes Termos de Uso.
-          O AutoFlow é uma plataforma de gestão para oficinas mecânicas,
+          Ao utilizar a Vortan Oficina, o usuário concorda com estes Termos de Uso.
+          A Vortan Oficina é uma plataforma de gestão para oficinas mecânicas,
           desenvolvida para auxiliar no controle de clientes, veículos,
           ordens de serviço, financeiro e relatórios.
         </p>
@@ -28,7 +28,7 @@ export function TermsPage() {
 
         <h2 className="text-xl font-semibold">2. Assinatura e pagamento</h2>
         <p>
-          O acesso ao AutoFlow pode depender de assinatura mensal. Em caso de
+          O acesso aa Vortan Oficina pode depender de assinatura mensal. Em caso de
           inadimplência, o acesso poderá ser suspenso até a regularização do
           pagamento.
         </p>

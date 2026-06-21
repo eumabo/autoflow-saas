@@ -232,7 +232,7 @@ function Logo({ size = "md", src }: { size?: "sm" | "md"; src?: string | null })
   ? "flex justify-center items-center w-full h-24"
   : "flex justify-center items-center w-full h-28"}>
       <img
-        src={src || "/autoflow-logo.png?v=10"}
+        src={src || "/vortanoficina-logo.png?v=10"}
         alt="Logo"
         className={
   small
@@ -284,8 +284,8 @@ function LandingPage({
       <section className="max-w-7xl mx-auto px-4 pt-6">
         <div className="relative overflow-hidden rounded-3xl border border-primary/20 shadow-2xl shadow-green-500/10">
           <img
-            src="/autoflow-banner.png?v=1"
-            alt="AutoFlow - Gestão completa para oficinas mecânicas"
+            src="/vortanoficina-banner.png?v=1"
+            alt="Vortan Oficina - Gestão completa para oficinas mecânicas"
             className="w-full h-auto object-cover block"
           />
 
@@ -321,7 +321,7 @@ function LandingPage({
     </div>
 
     <p className="text-xs text-muted-foreground mt-4">
-      Valor promocional para os primeiros clientes do AutoFlow.
+      Valor promocional para os primeiros clientes da Vortan Oficina.
     </p>
   </div>
 </Card>
@@ -355,7 +355,7 @@ function LandingPage({
 
           <Card className="p-5">
             <div className="text-xs text-muted-foreground mb-2">
-              PAINEL AUTOFLOW
+              PAINEL VORTAN
             </div>
 
             <h2 className="font-heading font-bold text-2xl mb-5">
@@ -389,7 +389,7 @@ function LandingPage({
        <section className="py-16">
   <div className="text-center mb-8">
     <h2 className="font-heading font-bold text-3xl">
-      Veja o AutoFlow em ação
+      Veja a Vortan Oficina em ação
     </h2>
 
     <p className="text-muted-foreground mt-2">
@@ -400,7 +400,7 @@ function LandingPage({
   <Card className="overflow-hidden border-primary/20 max-w-6xl mx-auto">
     <img
   src="/dashboard-real.png"
-  alt="Dashboard AutoFlow"
+  alt="Dashboard Vortan Oficina"
   className="w-full object-cover"
 />
   </Card>
@@ -483,7 +483,7 @@ function LandingPage({
       {[
         [
           "Precisa instalar?",
-          "Não. O AutoFlow funciona direto pelo navegador, sem instalação.",
+          "Não. A Vortan Oficina funciona direto pelo navegador, sem instalação.",
         ],
         [
           "Funciona no celular?",
@@ -515,7 +515,7 @@ function LandingPage({
       <footer className="border-t border-border py-8">
   <div className="max-w-7xl mx-auto px-8 flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
     <div className="text-center md:text-left">
-      <div className="font-bold text-foreground">AutoFlow</div>
+      <div className="font-bold text-foreground">Vortan Oficina</div>
       <div>Gestão completa para oficinas modernas.</div>
     </div>
 
@@ -531,10 +531,10 @@ function LandingPage({
   </a>
 
   <a
-    href="mailto:contato.autoflow@gmail.com"
+    href="mailto:contato.vortanoficina@gmail.com"
     className="block text-primary hover:underline"
   >
-    contato.autoflow@gmail.com
+    contato.vortanoficina@gmail.com
   </a>
 </div>
 
@@ -556,7 +556,7 @@ function LandingPage({
 
     <div className="text-center md:text-right text-xs">
       <div>Desenvolvido por Vortan Systems</div>
-      <div>© 2026 AutoFlow</div>
+      <div>© 2026 Vortan Oficina</div>
     </div>
   </div>
 </footer>
@@ -739,7 +739,7 @@ function RegisterScreen({ onGoLogin }: { onGoLogin: () => void }) {
             </p>
 
             <p className="text-sm text-muted-foreground">
-              Depois de confirmar pelo link recebido, você volta automaticamente para o AutoFlow.
+              Depois de confirmar pelo link recebido, você volta automaticamente para a Vortan Oficina.
             </p>
           </Card>
 
@@ -763,8 +763,8 @@ function RegisterScreen({ onGoLogin }: { onGoLogin: () => void }) {
         <Card className="p-6">
           <form onSubmit={handle} className="flex flex-col gap-4">
             <Input label="Seu nome" placeholder="Ex: João Souza" value={form.name} onChange={set("name")} required />
-            <Input label="Nome da oficina" placeholder="Ex: Oficina do Autoflow" value={form.workshopName} onChange={set("workshopName")} required />
-            <Input label="E-mail" type="email" placeholder="Ex: autoflow@oficina.com.br" value={form.email} onChange={set("email")} required />
+            <Input label="Nome da oficina" placeholder="Ex: Oficina Central" value={form.workshopName} onChange={set("workshopName")} required />
+            <Input label="E-mail" type="email" placeholder="Ex: contato@oficina.com.br" value={form.email} onChange={set("email")} required />
             <Input label="Senha" type="password" placeholder="Mínimo 6 caracteres" value={form.password} onChange={set("password")} required />
             <Input label="Confirmar senha" type="password" placeholder="Repita a senha" value={form.confirm} onChange={set("confirm")} required />
             <AuthError msg={error} />
@@ -819,7 +819,7 @@ async function handleLogout() {
         <Card className="p-6">
           <form onSubmit={handle} className="flex flex-col gap-4">
             <Input label="Seu nome" placeholder="Ex: João Souza" value={form.owner_name} onChange={set("owner_name")} required />
-            <Input label="Nome da oficina" placeholder="Ex: Oficina Autoflow" value={form.workshop_name} onChange={set("workshop_name")} required />
+            <Input label="Nome da oficina" placeholder="Ex: Oficina Central" value={form.workshop_name} onChange={set("workshop_name")} required />
             <AuthError msg={error} />
             <Btn type="submit" variant="primary" className="w-full justify-center" loading={loading}>
               {!loading && "Salvar e continuar"}
@@ -911,7 +911,7 @@ function Sidebar({ profile, page, onNav, onLogout, open, onClose }: {
   type="button"
   onClick={() => {
     window.open(
-      "https://wa.me/5527996126147?text=Olá,%20preciso%20de%20suporte%20com%20o%20AutoFlow.",
+      "https://wa.me/5527996126147?text=Olá,%20preciso%20de%20suporte%20com%20a%20Vortan%20Oficina.",
       "_blank",
       "noopener,noreferrer" /* CONTATO SUPORTE 5527996126147*/
     );
@@ -956,12 +956,12 @@ function Sidebar({ profile, page, onNav, onLogout, open, onClose }: {
 
           <div className="px-3 pb-3 text-center">
   <div className="text-[10px] text-muted-foreground">
-    AutoFlow v1.0.0
+    Vortan Oficina v1.0.0
   </div>
 
   <div className="flex justify-center gap-3 mt-2 text-[10px]">
     <a
-      href="https://instagram.com/autoflowoficina"
+      href="https://instagram.com/vortanoficina"
       target="_blank"
       rel="noreferrer"
       className="text-muted-foreground hover:text-green-400 transition-colors"
@@ -970,7 +970,7 @@ function Sidebar({ profile, page, onNav, onLogout, open, onClose }: {
     </a>
 
     <a
-      href="https://www.autoflowoficina.online"
+      href="https://www.vortanoficina.com.br"
       target="_blank"
       rel="noreferrer"
       className="text-muted-foreground hover:text-green-400 transition-colors"
@@ -2513,9 +2513,9 @@ function buildFinishedMessage(orderData: ServiceOrder) {
     doc.setFontSize(8);
     doc.setTextColor(120, 120, 120);
     doc.text(`Documento gerado por ${workshopName}`, 20, 290);
-    doc.text("Sistema AutoFlow", 155, 290);
+    doc.text("Sistema Vortan Oficina", 155, 290);
 
-    doc.save(`OS-${vehicle?.plate || "AUTOFLOW"}.pdf`);
+    doc.save(`OS-${vehicle?.plate || "VORTAN"}.pdf`);
   }
 
   return (
@@ -3295,7 +3295,7 @@ function PublicOrderPage({ token }: { token: string }) {
 )}
 
         <div className="text-center text-xs text-muted-foreground py-4">
-          Powered by AutoFlow
+          Um produto da Vortan Systems
         </div>
 
       </div>
@@ -3888,12 +3888,12 @@ function TermsPage({ onBack }: { onBack: () => void }) {
     {
       title: "1. Aceite dos Termos",
       body:
-        "Ao acessar ou utilizar o AutoFlow, o usuário declara estar de acordo com estes Termos de Uso. Caso não concorde com alguma condição, recomendamos que não utilize a plataforma.",
+        "Ao acessar ou utilizar a Vortan Oficina, o usuário declara estar de acordo com estes Termos de Uso. Caso não concorde com alguma condição, recomendamos que não utilize a plataforma.",
     },
     {
-      title: "2. Sobre o AutoFlow",
+      title: "2. Sobre a Vortan Oficina",
       body:
-        "O AutoFlow é uma plataforma de gestão para oficinas mecânicas, criada para auxiliar no controle de clientes, veículos, ordens de serviço, financeiro e comunicação com clientes.",
+        "A Vortan Oficina é uma plataforma de gestão para oficinas mecânicas, criada para auxiliar no controle de clientes, veículos, ordens de serviço, financeiro e comunicação com clientes.",
     },
     {
       title: "3. Responsabilidades do usuário",
@@ -3908,7 +3908,7 @@ function TermsPage({ onBack }: { onBack: () => void }) {
     {
       title: "5. Uso adequado da plataforma",
       body:
-        "O usuário se compromete a utilizar o AutoFlow apenas para fins lícitos, profissionais e relacionados à gestão da oficina, não podendo tentar violar, copiar, explorar ou prejudicar o funcionamento do sistema.",
+        "O usuário se compromete a utilizar a Vortan Oficina apenas para fins lícitos, profissionais e relacionados à gestão da oficina, não podendo tentar violar, copiar, explorar ou prejudicar o funcionamento do sistema.",
     },
     {
       title: "6. Alterações nos Termos",
@@ -3941,7 +3941,7 @@ function TermsPage({ onBack }: { onBack: () => void }) {
               <div className="relative">
                 <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-green-500/20 bg-green-500/10 text-green-400 text-xs font-medium mb-5">
                   <FileText size={14} />
-                  Documento legal AutoFlow
+                  Documento legal Vortan Oficina
                 </div>
 
                 <h1 className="text-4xl md:text-5xl font-bold tracking-tight">
@@ -3949,7 +3949,7 @@ function TermsPage({ onBack }: { onBack: () => void }) {
                 </h1>
 
                 <p className="text-muted-foreground mt-4 text-base max-w-3xl leading-relaxed">
-                  Leia com atenção as condições de uso da plataforma AutoFlow.
+                  Leia com atenção as condições de uso da plataforma Vortan Oficina.
                   Este documento explica as principais regras para utilização do
                   sistema, assinatura, responsabilidades e funcionamento geral.
                 </p>
@@ -3960,7 +3960,7 @@ function TermsPage({ onBack }: { onBack: () => void }) {
                   </span>
 
                   <span className="px-3 py-1.5 rounded-full border border-border bg-secondary/30">
-                    Aplicável ao AutoFlow
+                    Aplicável à Vortan Oficina
                   </span>
                 </div>
               </div>
@@ -3987,7 +3987,7 @@ function TermsPage({ onBack }: { onBack: () => void }) {
 
               <p className="text-sm text-muted-foreground leading-relaxed">
                 Em caso de dúvidas sobre estes Termos de Uso, entre em contato
-                com a equipe AutoFlow pelo e-mail{" "}
+                com a equipe Vortan Oficina pelo e-mail{" "}
                 <a
                   href="mailto:contato.autoflow@gmail.com"
                   className="text-primary hover:underline"
@@ -4005,7 +4005,7 @@ function TermsPage({ onBack }: { onBack: () => void }) {
 
               <div className="text-center -mt-3">
                 <h3 className="font-heading font-bold text-lg">
-                  AutoFlow
+                  Vortan Oficina
                 </h3>
 
                 <p className="text-xs text-muted-foreground mt-1">
@@ -4042,7 +4042,7 @@ function TermsPage({ onBack }: { onBack: () => void }) {
               </h3>
 
               <p className="text-xs text-muted-foreground mb-4">
-                Fale com o suporte AutoFlow pelo WhatsApp.
+                Fale com o suporte Vortan Oficina pelo WhatsApp.
               </p>
 
               <Btn
@@ -4051,7 +4051,7 @@ function TermsPage({ onBack }: { onBack: () => void }) {
                 className="w-full justify-center"
                 onClick={() =>
                   window.open(
-                    "https://wa.me/5527996126147?text=Olá,%20tenho%20uma%20dúvida%20sobre%20os%20Termos%20de%20Uso%20do%20AutoFlow.",
+                    "https://wa.me/5527996126147?text=Olá,%20tenho%20uma%20dúvida%20sobre%20os%20Termos%20de%20Uso%20da%20Vortan%20Oficina.",
                     "_blank",
                     "noopener,noreferrer"
                   )
@@ -4073,7 +4073,7 @@ function PrivacyPage({ onBack }: { onBack: () => void }) {
     {
       title: "1. Informações coletadas",
       body:
-        "O AutoFlow coleta apenas as informações necessárias para o funcionamento da plataforma, como nome, e-mail, telefone, dados da oficina, clientes, veículos, ordens de serviço e movimentações financeiras cadastradas pelo usuário.",
+        "A Vortan Oficina coleta apenas as informações necessárias para o funcionamento da plataforma, como nome, e-mail, telefone, dados da oficina, clientes, veículos, ordens de serviço e movimentações financeiras cadastradas pelo usuário.",
     },
     {
       title: "2. Uso das informações",
@@ -4088,7 +4088,7 @@ function PrivacyPage({ onBack }: { onBack: () => void }) {
     {
       title: "4. Compartilhamento de dados",
       body:
-        "O AutoFlow não vende informações dos usuários a terceiros. Dados poderão ser processados por serviços necessários para funcionamento da plataforma, como autenticação, banco de dados, hospedagem e pagamentos.",
+        "A Vortan Oficina não vende informações dos usuários a terceiros. Dados poderão ser processados por serviços necessários para funcionamento da plataforma, como autenticação, banco de dados, hospedagem e pagamentos.",
     },
     {
       title: "5. Dados cadastrados pelo usuário",
@@ -4098,7 +4098,7 @@ function PrivacyPage({ onBack }: { onBack: () => void }) {
     {
       title: "6. Solicitações e contato",
       body:
-        "O usuário pode entrar em contato com a equipe AutoFlow para solicitar informações, correções ou orientações relacionadas aos seus dados e uso da plataforma.",
+        "O usuário pode entrar em contato com a equipe Vortan Oficina para solicitar informações, correções ou orientações relacionadas aos seus dados e uso da plataforma.",
     },
   ];
 
@@ -4134,7 +4134,7 @@ function PrivacyPage({ onBack }: { onBack: () => void }) {
                 </h1>
 
                 <p className="text-muted-foreground mt-4 text-base max-w-3xl leading-relaxed">
-                  Esta Política explica como o AutoFlow coleta, utiliza,
+                  Esta Política explica como a Vortan Oficina coleta, utiliza,
                   armazena e protege as informações necessárias para o
                   funcionamento da plataforma.
                 </p>
@@ -4190,7 +4190,7 @@ function PrivacyPage({ onBack }: { onBack: () => void }) {
 
               <div className="text-center -mt-3">
                 <h3 className="font-heading font-bold text-lg">
-                  AutoFlow
+                  Vortan Oficina
                 </h3>
 
                 <p className="text-xs text-muted-foreground mt-1">
@@ -4227,7 +4227,7 @@ function PrivacyPage({ onBack }: { onBack: () => void }) {
               </h3>
 
               <p className="text-xs text-muted-foreground mb-4">
-                Fale com o suporte AutoFlow pelo WhatsApp.
+                Fale com o suporte Vortan Oficina pelo WhatsApp.
               </p>
 
               <Btn
@@ -4236,7 +4236,7 @@ function PrivacyPage({ onBack }: { onBack: () => void }) {
                 className="w-full justify-center"
                 onClick={() =>
                   window.open(
-                    "https://wa.me/5527996126147?text=Olá,%20tenho%20uma%20dúvida%20sobre%20a%20Política%20de%20Privacidade%20do%20AutoFlow.",
+                    "https://wa.me/5527996126147?text=Olá,%20tenho%20uma%20dúvida%20sobre%20a%20Política%20de%20Privacidade%20da%20Vortan%20Oficina.",
                     "_blank",
                     "noopener,noreferrer"
                   )

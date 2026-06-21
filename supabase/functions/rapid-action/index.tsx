@@ -619,7 +619,7 @@ function getMonthlyExpiration() {
       body: JSON.stringify({
         items: [
           {
-            title: "Assinatura AutoFlow",
+            title: "Assinatura Vortan Oficina",
             quantity: 1,
             currency_id: "BRL",
             unit_price: 29.9,
@@ -673,7 +673,7 @@ function getMonthlyExpiration() {
       },
       body: JSON.stringify({
         preapproval_plan_id: planId,
-        reason: "AutoFlow - Plano Mensal",
+        reason: "Vortan Oficina - Plano Mensal",
         external_reference: user.id,
         payer_email: user.email,
         back_url: "https://www.autoflowoficina.online",
