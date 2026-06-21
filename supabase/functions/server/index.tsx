@@ -562,10 +562,10 @@ app.delete(`${P}/financial/:id`, async (c) => {
           email: user.email,
         },
         back_urls: {
-    success: "https://www.autoflowoficina.online",
-    failure: "https://www.autoflowoficina.online",
-    pending: "https://www.autoflowoficina.online",
-  },
+  success: "https://www.vortanoficina.com.br",
+  failure: "https://www.vortanoficina.com.br",
+  pending: "https://www.vortanoficina.com.br",
+},
         notification_url:
           "https://kddlzartfawqjnrafzdb.supabase.co/functions/v1/rapid-action/billing/webhook",
       }),

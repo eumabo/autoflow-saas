@@ -12,11 +12,13 @@
   app.use(
     "*",
     cors({
-      origin: [
-        "http://localhost:5173",
-        "https://autoflowoficina.online",
-        "https://www.autoflowoficina.online",
-      ],
+  origin: [
+    "http://localhost:5173",
+    "https://autoflowoficina.online",
+    "https://www.autoflowoficina.online",
+    "https://vortanoficina.com.br",
+    "https://www.vortanoficina.com.br",
+  ],
       allowHeaders: ["authorization", "x-client-info", "apikey", "content-type"],
       allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     }),
@@ -631,10 +633,10 @@ function getMonthlyExpiration() {
           email: user.email,
         },
         back_urls: {
-    success: "https://www.autoflowoficina.online",
-    failure: "https://www.autoflowoficina.online",
-    pending: "https://www.autoflowoficina.online",
-  },
+  success: "https://www.vortanoficina.com.br",
+  failure: "https://www.vortanoficina.com.br",
+  pending: "https://www.vortanoficina.com.br",
+},
         notification_url:
           "https://kddlzartfawqjnrafzdb.supabase.co/functions/v1/rapid-action/billing/webhook",
       }),
