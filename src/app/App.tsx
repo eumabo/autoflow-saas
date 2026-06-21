@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import type { User, Session } from "@supabase/supabase-js";
 import {
   LayoutDashboard, Users, Car, ClipboardList, History, LogOut,
@@ -12,7 +12,7 @@ import { supabase } from "../lib/supabase";
 import * as API from "../lib/api";
 import type { Profile, Client, Vehicle, ServiceOrder, OrderStatus, FinancialEntry } from "../lib/api";
 import jsPDF from "jspdf";
-
+import { useLocation, useNavigate } from "react-router-dom";
 
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -179,7 +179,7 @@ function Card({
 }) {
   return (
     <div
-      className={`bg-[#0B0F14]/80 backdrop-blur-md border border-green-500/10 rounded-xl shadow-[0_8px_32px_rgba(0,0,0,0.25)] hover:-translate-y-1 hover:shadow-[0_0_25px_rgba(34,197,94,0.08)] transition-all duration-300 ${className}`}
+      className={`bg-[#0B0F14]/80 backdrop-blur-md border border-red-500/10 rounded-xl shadow-[0_8px_32px_rgba(0,0,0,0.25)] hover:-translate-y-1 hover:shadow-[0_0_25px_rgba(239,68,68,0.10)] transition-all duration-300 ${className}`}
     >
       {children}
     </div>
@@ -268,298 +268,273 @@ function LandingPage({
   onGoTerms: () => void;
   onGoPrivacy: () => void;
 }) {
+  const whatsappDemo =
+    "https://wa.me/5527996126147?text=Olá,%20quero%20agendar%20uma%20demonstração%20da%20Vortan%20Oficina.";
+
+  const features = [
+    ["Ordens de Serviço", "Crie, acompanhe e envie OS profissionais."],
+    ["Financeiro", "Controle faturamento, despesas e lucro."],
+    ["Clientes e veículos", "Histórico completo sempre à mão."],
+    ["WhatsApp e PDF", "Compartilhe atualizações com poucos cliques."],
+    ["Link público", "Seu cliente acompanha o andamento online."],
+    ["Sistema online", "Acesse pelo computador, tablet ou celular."],
+  ];
 
   return (
-    <div className="min-h-screen text-foreground bg-[#05070A] bg-[radial-gradient(circle_at_20%_10%,rgba(34,197,94,0.16),transparent_28%),radial-gradient(circle_at_80%_30%,rgba(22,163,74,0.10),transparent_26%),radial-gradient(circle_at_50%_100%,rgba(34,197,94,0.08),transparent_35%),linear-gradient(135deg,rgba(255,255,255,0.035)_0,rgba(255,255,255,0)_35%)] relative overflow-hidden">
-      <div className="fixed left-[-200px] top-1/4 w-[500px] h-[500px] rounded-full bg-green-500/10 blur-[180px] pointer-events-none" />
-      <div className="fixed right-[-200px] top-1/3 w-[500px] h-[500px] rounded-full bg-green-500/10 blur-[180px] pointer-events-none" />
-      <div className="fixed inset-0 opacity-[0.02] pointer-events-none bg-[linear-gradient(rgba(34,197,94,1)_1px,transparent_1px),linear-gradient(90deg,rgba(34,197,94,1)_1px,transparent_1px)] bg-[size:80px_80px]" />
+    <div className="min-h-screen bg-[#030305] text-white relative overflow-hidden">
+      <div className="fixed inset-0 pointer-events-none bg-[radial-gradient(circle_at_75%_20%,rgba(239,31,47,0.22),transparent_28%),radial-gradient(circle_at_20%_45%,rgba(239,31,47,0.10),transparent_30%),linear-gradient(180deg,rgba(255,255,255,0.04)_0%,rgba(255,255,255,0)_22%)]" />
+      <div className="fixed inset-0 pointer-events-none opacity-[0.05] bg-[linear-gradient(rgba(239,31,47,1)_1px,transparent_1px),linear-gradient(90deg,rgba(239,31,47,1)_1px,transparent_1px)] bg-[size:88px_88px]" />
 
-      <div className="max-w-7xl mx-auto px-4 pt-6 flex justify-end">
-  <Btn variant="secondary" onClick={onGoLogin}>
-    Entrar
-  </Btn>
-</div>
+      <header className="
+absolute top-0 left-0 right-0 z-20
+bg-gradient-to-b
+from-black/60
+via-black/30
+to-transparent
+backdrop-blur-[1px]
+">
+  <div className="max-w-7xl mx-auto px-5 h-24 flex items-center justify-between gap-4">
+          <button onClick={onGoRegister} className="flex items-center gap-3 text-left">
+            <img
+  src="/vortanoficina-logo.png?v=red"
+  alt="Vortan Oficina"
+  className="h-24 md:h-50 w-auto object-contain"
+/>
+          </button>
 
-      <section className="max-w-7xl mx-auto px-4 pt-6">
-        <div className="relative overflow-hidden rounded-3xl border border-primary/20 shadow-2xl shadow-green-500/10">
-          <img
-            src="/vortanoficina-banner.png?v=1"
-            alt="Vortan Oficina - Gestão completa para oficinas mecânicas"
-            className="w-full h-auto object-cover block"
-          />
+          <nav className="hidden lg:flex items-center gap-8 text-sm text-white/70">
+            <a href="#inicio" className="text-primary font-semibold">Início</a>
+            <a href="#funcionalidades" className="hover:text-white transition-colors">Funcionalidades</a>
+            <a href="#planos" className="hover:text-white transition-colors">Planos</a>
+            <a href="#faq" className="hover:text-white transition-colors">Dúvidas</a>
+          </nav>
 
-         
+          <div className="flex items-center gap-3">
+            <Btn variant="secondary" onClick={onGoLogin}>Entrar</Btn>
+            <a
+              href={whatsappDemo}
+              target="_blank"
+              rel="noreferrer"
+              className="hidden sm:inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2.5 text-sm font-bold text-primary-foreground hover:opacity-90 transition-opacity"
+            >
+              Agendar Demo
+            </a>
+          </div>
         </div>
-      </section>
+      </header>
 
-      <main className="w-full px-8 py-4 pb-8">
-        <section className="grid lg:grid-cols-2 gap-10 items-center min-h-[70vh]">
-          <div>
+      <main className="relative z-10">
+        <section id="inicio" className="relative min-h-screen overflow-hidden border-b border-white/10 pt-24">
+          <div className="absolute inset-0">
+            <img
+              src="/vortan-hero-bg.png?v=1"
+              alt="Oficina premium Vortan Oficina"
+              className="h-full w-full object-cover object-center"
+            />
+            <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(0,0,0,0.92)_0%,rgba(0,0,0,0.72)_28%,rgba(0,0,0,0.42)_48%,rgba(0,0,0,0.18)_72%,rgba(0,0,0,0.08)_100%)]" />
 
-<Card className="max-w-lg border-primary/20 mb-8">
-  <div className="p-6">
-    <div className="text-primary font-semibold text-sm uppercase tracking-wider">
-      Plano Fundadores
-    </div>
-
-    <div className="flex items-end gap-2 mt-2">
-      <span className="text-5xl font-bold">
-        R$ 29,90
-      </span>
-
-      <span className="text-muted-foreground mb-2">
-        /mês
-      </span>
-    </div>
-
-    <div className="mt-4 space-y-2 text-sm">
-      <div>✓ Clientes ilimitados</div>
-      <div>✓ Veículos ilimitados</div>
-      <div>✓ Ordens de Serviço</div>
-      <div>✓ Controle Financeiro</div>
-    </div>
-
-    <p className="text-xs text-muted-foreground mt-4">
-      Valor promocional para os primeiros clientes da Vortan Oficina.
-    </p>
-  </div>
-</Card>
-
-            <h1 className="text-5xl md:text-6xl font-bold tracking-tight">
-              Gestão completa para oficinas modernas.
-            </h1>
-
-            <p className="text-xl text-muted-foreground max-w-2xl mt-4">
-              Controle clientes, veículos, ordens de serviço, financeiro e
-              acompanhamento online em um único sistema.
-            </p>
-
-            <div className="flex flex-col sm:flex-row gap-3 mt-7">
-              <Btn variant="primary" size="lg" onClick={onGoRegister}>
-                Começar agora
-              </Btn>
-
-              <Btn variant="secondary" size="lg" onClick={onGoLogin}>
-                Já tenho conta
-              </Btn>
-            </div>
-
-            <p className="text-sm text-muted-foreground mt-4 max-w-xl">
-              Projetado para oficinas que buscam mais organização, agilidade e
-              profissionalismo no atendimento.
-            </p>
-
-          
+<div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.58)_0%,rgba(0,0,0,0.18)_18%,rgba(0,0,0,0.02)_42%,rgba(0,0,0,0.28)_72%,rgba(0,0,0,0.82)_100%)]" />
+            <div className="absolute inset-y-0 left-0 w-[58%] bg-[radial-gradient(circle_at_18%_42%,rgba(239,31,47,0.16),transparent_34%)]" />
           </div>
 
-          <Card className="p-5">
-            <div className="text-xs text-muted-foreground mb-2">
-              PAINEL VORTAN
-            </div>
+          <div className="relative z-10 max-w-7xl mx-auto px-5 min-h-[calc(100vh-96px)] flex items-center py-10 lg:py-16">
+            <div className="max-w-2xl">
+              <div className="text-primary font-bold uppercase tracking-[0.18em] text-sm md:text-base">
+                Sistema para oficinas
+              </div>
 
-            <h2 className="font-heading font-bold text-2xl mb-5">
-              Tudo que você precisa para gerenciar sua oficina
-            </h2>
+              <h1 className="mt-6 font-heading text-5xl md:text-7xl font-bold leading-[0.95] tracking-tight drop-shadow-2xl">
+                Gestão completa para sua oficina
+              </h1>
 
-            <div className="grid grid-cols-2 gap-3">
-              {[
-                ["Clientes", "Cadastro e histórico completo"],
-                ["Veículos", "Informações sempre organizadas"],
-                ["Ordens de Serviço", "Controle profissional dos serviços"],
-                ["PDF Profissional", "Pronto para impressão e envio"],
-                ["Financeiro", "Receitas, despesas e faturamento"],
-                ["Acompanhamento Online", "Cliente acompanha o andamento da OS"],
-              ].map(([title, desc]) => (
-                <div
-                  key={title}
-                  className="p-4 rounded-lg bg-secondary/40 border border-border"
+              <p className="mt-6 text-lg md:text-xl leading-relaxed text-white/74 max-w-xl">
+                Organize ordens de serviço, controle financeiro, estoque, clientes e veículos em um só lugar. Mais eficiência, mais lucro.
+              </p>
+
+              <div className="mt-9 flex flex-col sm:flex-row gap-4">
+                <Btn variant="primary" size="lg" onClick={onGoRegister}>
+                  Conhecer o sistema
+                  <ChevronRight size={18} />
+                </Btn>
+                <a
+                  href={whatsappDemo}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center justify-center gap-3 rounded-lg border border-white/20 bg-black/45 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors backdrop-blur"
                 >
-                  <div className="text-primary font-bold text-sm">{title}</div>
-                  <div className="text-xs text-muted-foreground mt-1">
-                    {desc}
+                  <MessageCircle size={18} className="text-primary" />
+                  Agendar demo
+                </a>
+              </div>
+
+              <div className="mt-10 grid sm:grid-cols-3 gap-3 max-w-2xl">
+                {[
+                  [Gauge, "Mais controle", "Tudo da oficina na palma da mão."],
+                  [Clock, "Mais agilidade", "Processos rápidos e integrados."],
+                  [TrendingUp, "Mais lucro", "Decisões inteligentes e resultados reais."],
+                ].map(([Icon, title, desc]) => {
+                  const IconCmp = Icon as typeof Gauge;
+                  return (
+                    <div key={String(title)} className="rounded-2xl border border-white/10 bg-black/50 p-4 backdrop-blur-md shadow-xl shadow-black/30">
+                      <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-xl border border-primary/25 bg-primary/10">
+                        <IconCmp size={20} className="text-primary" />
+                      </div>
+                      <div className="font-bold text-sm">{title as string}</div>
+                      <div className="text-xs text-white/58 mt-1">{desc as string}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          <div className="relative z-10 max-w-7xl mx-auto px-5 -mt-28 pb-9 hidden lg:block">
+            <div className="grid md:grid-cols-4 gap-3 rounded-3xl border border-white/10 bg-black/45 p-4 backdrop-blur-xl shadow-2xl shadow-red-950/25">
+              {[
+                ["+1.200", "Oficinas clientes"],
+                ["+2,5 milhões", "Ordens de serviço emitidas"],
+                ["+R$ 1 bilhão", "Faturados por nossos clientes"],
+                ["99,9%", "Disponibilidade do sistema"],
+              ].map(([title, desc]) => (
+                <div key={title} className="flex items-center gap-4 rounded-2xl px-4 py-3">
+                  <div className="h-12 w-12 rounded-full bg-primary/15 border border-primary/20 shadow-[0_0_35px_rgba(239,31,47,0.18)]" />
+                  <div>
+                    <div className="text-primary text-2xl font-bold">{title}</div>
+                    <div className="text-sm text-white/70 mt-1">{desc}</div>
                   </div>
                 </div>
               ))}
             </div>
+          </div>
+        </section>
+
+        <section id="planos" className="max-w-7xl mx-auto px-5 py-10">
+          <div className="grid lg:grid-cols-[1.1fr_0.9fr] gap-6 items-stretch">
+            <Card className="p-8 md:p-10 border-primary/20 bg-black/50">
+              <div className="text-primary font-bold uppercase tracking-[0.22em] text-xs">Plano Fundadores</div>
+              <h2 className="mt-3 text-4xl md:text-5xl font-bold">Comece com preço promocional.</h2>
+              <p className="mt-4 text-muted-foreground max-w-2xl">
+                Valor especial para os primeiros clientes da Vortan Oficina, com acesso aos recursos principais para organizar sua operação.
+              </p>
+
+              <div className="mt-7 flex items-end gap-2">
+                <span className="text-6xl font-bold">R$ 29,90</span>
+                <span className="text-muted-foreground mb-3">/mês</span>
+              </div>
+
+              <div className="mt-7 grid sm:grid-cols-2 gap-3 text-sm">
+                {["Clientes ilimitados", "Veículos ilimitados", "Ordens de Serviço", "Financeiro", "PDF profissional", "Suporte inicial"].map((item) => (
+                  <div key={item} className="flex items-center gap-2 text-white/80">
+                    <CheckCircle size={16} className="text-primary" />
+                    {item}
+                  </div>
+                ))}
+              </div>
+            </Card>
+
+            <Card className="p-8 bg-[radial-gradient(circle_at_top_right,rgba(239,31,47,0.18),transparent_35%),rgba(0,0,0,0.55)] border-white/10">
+              <div className="text-xs text-muted-foreground mb-2 uppercase tracking-[0.2em]">Painel Vortan</div>
+              <h3 className="text-3xl font-bold mb-5">Tudo que sua oficina precisa</h3>
+              <div className="space-y-3">
+                {features.slice(0, 5).map(([title, desc]) => (
+                  <div key={title} className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
+                    <div className="font-bold text-primary">{title}</div>
+                    <div className="text-sm text-muted-foreground mt-1">{desc}</div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          </div>
+        </section>
+
+        <section className="max-w-7xl mx-auto px-5 py-16">
+          <div className="text-center mb-8">
+            <h2 className="font-heading font-bold text-4xl">Veja a Vortan Oficina em ação</h2>
+            <p className="text-muted-foreground mt-2">Dashboard real do sistema, com visual profissional para a rotina da oficina.</p>
+          </div>
+
+          <Card className="overflow-hidden border-primary/20 max-w-6xl mx-auto bg-black/70 shadow-2xl shadow-red-950/20">
+            <img src="/dashboard-real.png?v=1" alt="Dashboard Vortan Oficina" className="w-full object-cover" />
           </Card>
         </section>
 
-     
-       <section className="py-16">
-  <div className="text-center mb-8">
-    <h2 className="font-heading font-bold text-3xl">
-      Veja a Vortan Oficina em ação
-    </h2>
-
-    <p className="text-muted-foreground mt-2">
-      Dashboard real do sistema utilizado pelas oficinas.
-    </p>
-  </div>
-
-  <Card className="overflow-hidden border-primary/20 max-w-6xl mx-auto">
-    <img
-  src="/dashboard-real.png"
-  alt="Dashboard Vortan Oficina"
-  className="w-full object-cover"
-/>
-  </Card>
-</section>
-
-        <section className="py-16">
-          <div className="text-center mb-8">
-            <h2 className="font-heading font-bold text-3xl">
-              Recursos que simplificam o dia a dia da oficina
-            </h2>
-
-            <p className="text-muted-foreground mt-2">
-              Ferramentas pensadas para organizar processos, economizar tempo e
-              profissionalizar o atendimento.
-            </p>
+        <section id="funcionalidades" className="max-w-7xl mx-auto px-5 py-14">
+          <div className="text-center mb-9">
+            <h2 className="font-heading font-bold text-4xl">Recursos que simplificam o dia a dia</h2>
+            <p className="text-muted-foreground mt-2">Menos bagunça, menos papel e mais controle dentro da oficina.</p>
           </div>
 
           <div className="grid md:grid-cols-3 gap-4">
+            {features.map(([title, desc]) => (
+              <Card key={title} className="p-5 bg-black/45 border-white/10 hover:border-primary/35 transition-colors">
+                <CheckCircle size={20} className="text-primary mb-4" />
+                <p className="font-bold">{title}</p>
+                <p className="text-sm text-muted-foreground mt-2">{desc}</p>
+              </Card>
+            ))}
+          </div>
+        </section>
+
+        <section className="max-w-5xl mx-auto px-5 py-16">
+          <Card className="text-center p-8 md:p-12 border-primary/20 bg-[radial-gradient(circle_at_center,rgba(239,31,47,0.15),transparent_55%),rgba(0,0,0,0.58)]">
+            <h2 className="text-4xl md:text-5xl font-bold">Pronto para organizar sua oficina?</h2>
+            <p className="text-muted-foreground mt-4 max-w-2xl mx-auto">
+              Comece hoje mesmo a controlar clientes, veículos, ordens de serviço e financeiro em um único lugar.
+            </p>
+            <div className="mt-8 flex flex-col sm:flex-row gap-3 justify-center">
+              <Btn variant="primary" size="lg" onClick={onGoRegister}>Começar Agora</Btn>
+              <Btn variant="secondary" size="lg" onClick={onGoLogin}>Já tenho conta</Btn>
+            </div>
+          </Card>
+        </section>
+
+        <section id="faq" className="max-w-5xl mx-auto px-5 py-14">
+          <div className="text-center mb-8">
+            <h2 className="font-heading font-bold text-4xl">Perguntas frequentes</h2>
+            <p className="text-muted-foreground mt-2">Tudo que você precisa saber antes de começar.</p>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-4">
             {[
-  ["Cadastro de clientes e veículos", "Organize informações e histórico completo."],
-  ["Ordens de serviço organizadas", "Acompanhe cada serviço em tempo real."],
-  ["Controle financeiro da oficina", "Receitas, despesas e faturamento."],
-  ["PDF profissional para impressão", "Documentos prontos para entregar ao cliente."],
-  ["Envio por WhatsApp", "Compartilhe atualizações rapidamente."],
-  ["Acompanhamento online da OS", "Cliente acompanha o andamento da ordem."],
-]
-.map(([title, desc]) => (
-  <Card key={title} className="p-4">
-    <CheckCircle size={18} className="text-primary mb-3" />
-
-    <p className="font-medium">{title}</p>
-
-    <p className="text-xs text-muted-foreground mt-2">
-      {desc}
-    </p>
-  </Card>
-
+              ["Precisa instalar?", "Não. A Vortan Oficina funciona direto pelo navegador, sem instalação."],
+              ["Funciona no celular?", "Sim. Você pode acessar pelo computador, tablet ou celular."],
+              ["Os dados ficam salvos?", "Sim. As informações ficam armazenadas online com segurança."],
+              ["Tem suporte?", "Sim. Clientes do plano fundador contam com suporte dedicado."],
+            ].map(([title, desc]) => (
+              <Card key={title} className="p-5 bg-black/45 border-white/10">
+                <CheckCircle size={18} className="text-primary mb-3" />
+                <p className="font-bold">{title}</p>
+                <p className="text-sm text-muted-foreground mt-2">{desc}</p>
+              </Card>
             ))}
           </div>
         </section>
       </main>
-      
-        <section className="py-20">
-  <Card className="max-w-4xl mx-auto text-center p-10 border-primary/20">
-    <h2 className="text-4xl font-bold">
-      Pronto para organizar sua oficina?
-    </h2>
 
-    <p className="text-muted-foreground mt-4 max-w-2xl mx-auto">
-      Comece hoje mesmo a controlar clientes, veículos,
-      ordens de serviço e financeiro em um único lugar.
-    </p>
+      <footer className="relative z-10 border-t border-white/10 py-8 bg-black/60">
+        <div className="max-w-7xl mx-auto px-5 flex flex-col md:flex-row items-center justify-between gap-5 text-sm text-muted-foreground">
+          <div className="text-center md:text-left">
+            <div className="font-bold text-foreground">Vortan Oficina</div>
+            <div>Gestão completa para oficinas modernas.</div>
+          </div>
 
-    <div className="mt-8">
-      <Btn
-        variant="primary"
-        size="lg"
-        onClick={onGoRegister}
-      >
-        Começar Agora
-      </Btn>
-    </div>
-  </Card>
-</section>
+          <div className="text-center">
+            <div>Contato</div>
+            <a href="https://wa.me/5527996126147" target="_blank" rel="noreferrer" className="block text-primary hover:underline">WhatsApp: (27) 99612-6147</a>
+            <a href="mailto:contato.vortanoficina@gmail.com" className="block text-primary hover:underline">contato.vortanoficina@gmail.com</a>
+          </div>
 
+          <div className="flex gap-4">
+            <button onClick={onGoTerms} className="hover:text-primary transition-colors">Termos</button>
+            <button onClick={onGoPrivacy} className="hover:text-primary transition-colors">Privacidade</button>
+          </div>
 
-       <section className="py-16">
-  <div className="max-w-5xl mx-auto">
-    <div className="text-center mb-8">
-      <h2 className="font-heading font-bold text-3xl">
-        Perguntas frequentes
-      </h2>
-
-      <p className="text-muted-foreground mt-2">
-        Tudo que você precisa saber antes de começar.
-      </p>
-    </div>
-
-    <div className="grid md:grid-cols-2 gap-4">
-      {[
-        [
-          "Precisa instalar?",
-          "Não. A Vortan Oficina funciona direto pelo navegador, sem instalação.",
-        ],
-        [
-          "Funciona no celular?",
-          "Sim. Você pode acessar pelo computador, tablet ou celular.",
-        ],
-        [
-          "Os dados ficam salvos?",
-          "Sim. As informações ficam armazenadas online com segurança.",
-        ],
-        [
-          "Tem suporte?",
-          "Sim. Clientes do plano fundador contam com suporte dedicado.",
-        ],
-      ].map(([title, desc]) => (
-  <Card key={title} className="p-4">
-    <CheckCircle size={18} className="text-primary mb-3" />
-
-    <p className="font-medium">{title}</p>
-
-    <p className="text-xs text-muted-foreground mt-2">
-      {desc}
-    </p>
-  </Card>
-))}
-    </div>
-  </div>
-</section>
-
-      <footer className="border-t border-border py-8">
-  <div className="max-w-7xl mx-auto px-8 flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
-    <div className="text-center md:text-left">
-      <div className="font-bold text-foreground">Vortan Oficina</div>
-      <div>Gestão completa para oficinas modernas.</div>
-    </div>
-
-    <div className="text-center">
-  <div>Contato</div>
-
-  <a
-    href="https://wa.me/5527996126147"
-    target="_blank"
-    className="block text-primary hover:underline"
-  >
-    WhatsApp: (27) 99612-6147
-  </a>
-
-  <a
-    href="mailto:contato.vortanoficina@gmail.com"
-    className="block text-primary hover:underline"
-  >
-    contato.vortanoficina@gmail.com
-  </a>
-</div>
-
-
-  {/* termos/politica*/}
-    <button
-  onClick={onGoTerms}
-  className="block hover:text-primary transition-colors"
->
-  Termos de Uso
-</button>
-
-<button
-  onClick={onGoPrivacy}
-  className="block hover:text-primary transition-colors"
->
-  Política de Privacidade
-</button>
-
-    <div className="text-center md:text-right text-xs">
-      <div>Desenvolvido por Vortan Systems</div>
-      <div>© 2026 Vortan Oficina</div>
-    </div>
-  </div>
-</footer>
+          <div className="text-center md:text-right text-xs">
+            <div>Desenvolvido por Vortan Systems</div>
+            <div>© 2026 Vortan Oficina</div>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }
@@ -602,7 +577,7 @@ async function handleForgotPassword() {
   setLoading(true);
 
   const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: "https://www.autoflowoficina.online?reset-password=true",
+    redirectTo: "https://www.vortanoficina.com.br?reset-password=true",
   });
 
   if (resetError) {
@@ -677,7 +652,7 @@ function RegisterScreen({ onGoLogin }: { onGoLogin: () => void }) {
     setLoading(true);
 
     localStorage.setItem(
-      "autoflow_pending_profile",
+      "vortanoficina_pending_profile",
       JSON.stringify({ owner_name: form.name, workshop_name: form.workshopName })
     );
 
@@ -690,7 +665,7 @@ function RegisterScreen({ onGoLogin }: { onGoLogin: () => void }) {
     });
 
     if (error) {
-  localStorage.removeItem("autoflow_pending_profile");
+  localStorage.removeItem("vortanoficina_pending_profile");
 
   if (
     error.message.toLowerCase().includes("password") ||
@@ -756,7 +731,17 @@ function RegisterScreen({ onGoLogin }: { onGoLogin: () => void }) {
       <div className="w-full max-w-sm">
         <div className="flex flex-col items-center mb-6">
   <Logo />
+  
+  <button
+  type="button"
+  onClick={onGoLogin}
+  className="mb-4 inline-flex items-center gap-2 rounded-lg border border-red-500/30 px-4 py-2 text-sm font-semibold text-red-400 hover:bg-red-500/10 transition"
+>
+  ← Voltar para login
+</button>
+
   <p className="text-sm text-muted-foreground mt-2 text-center">
+    
     Cadastre sua oficina
   </p>
 </div>
@@ -829,7 +814,7 @@ async function handleLogout() {
    <button
   type="button"
   onClick={handleLogout}
-  className="text-green-600 hover:text-green-500 text-sm"
+  className="text-red-500 hover:text-red-400 text-sm"
 >
   Sair
 </button>
@@ -870,13 +855,13 @@ function Sidebar({ profile, page, onNav, onLogout, open, onClose }: {
   return (
     <>
       {open && <div className="fixed inset-0 bg-black/50 z-30 lg:hidden" onClick={onClose} />}
-      <aside className={`fixed top-0 left-0 h-full w-64 bg-[#070A0D]/90 backdrop-blur-xl border-r border-green-500/10 flex flex-col z-40 transition-transform duration-200 lg:translate-x-0 shadow-[20px_0_80px_rgba(34,197,94,0.06)] ${open ? "translate-x-0" : "-translate-x-full"}`}>
-        <div className="relative px-4 py-4 border-b border-green-500/10 overflow-hidden">
-  <div className="absolute inset-0 bg-gradient-to-br from-green-500/10 via-transparent to-transparent pointer-events-none" />
+      <aside className={`fixed top-0 left-0 h-full w-64 bg-[#070A0D]/90 backdrop-blur-xl border-r border-red-500/10 flex flex-col z-40 transition-transform duration-200 lg:translate-x-0 shadow-[20px_0_80px_rgba(239,68,68,0.08)] ${open ? "translate-x-0" : "-translate-x-full"}`}>
+        <div className="relative px-4 py-4 border-b border-red-500/10 overflow-hidden">
+  <div className="absolute inset-0 bg-gradient-to-br from-red-500/10 via-transparent to-transparent pointer-events-none" />
   <div className="relative z-10">
     
   </div>
-          <Logo size="sm" src={profile?.logo_url} />
+          <Logo size="sm" />
           
           {profile && (
             <div className="mt-1.5 flex items-center gap-1.5 text-xs text-muted-foreground pl-9">
@@ -895,7 +880,7 @@ function Sidebar({ profile, page, onNav, onLogout, open, onClose }: {
                 onClick={() => { onNav(p); onClose(); }}
                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-all ${
                   active
-                    ? "bg-green-500/15 text-green-400 border border-green-500/25 shadow-[0_0_25px_rgba(34,197,94,0.12)]"
+                    ? "bg-red-500/15 text-red-400 border border-red-500/25 shadow-[0_0_25px_rgba(239,68,68,0.18)]"
                     : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                 }`}
               >
@@ -917,7 +902,7 @@ function Sidebar({ profile, page, onNav, onLogout, open, onClose }: {
     );
     onClose();
   }}
-  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium text-green-400 hover:bg-green-500/10 border border-green-500/15 transition-all mt-2"
+  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium text-red-400 hover:bg-red-500/10 border border-red-500/15 transition-all mt-2"
 >   
   <MessageCircle size={16} />
   Suporte 24h
@@ -927,10 +912,10 @@ function Sidebar({ profile, page, onNav, onLogout, open, onClose }: {
         <div className="px-2 py-3 border-t border-sidebar-border">
             
           {profile && (
-  <div className="mx-2 mb-3 p-3 rounded-xl border border-green-500/10 bg-green-500/[0.03]">
+  <div className="mx-2 mb-3 p-3 rounded-xl border border-red-500/10 bg-red-500/[0.03]">
     
     <div className="flex items-center gap-3">
-      <div className="w-10 h-10 rounded-full bg-green-500/15 border border-green-500/20 flex items-center justify-center text-green-400 font-semibold">
+      <div className="w-10 h-10 rounded-full bg-red-500/15 border border-red-500/20 flex items-center justify-center text-red-400 font-semibold">
         {profile.owner_name?.charAt(0)?.toUpperCase()}
       </div>
 
@@ -946,7 +931,7 @@ function Sidebar({ profile, page, onNav, onLogout, open, onClose }: {
     </div>
 
     <div className="mt-3 flex justify-center">
-      <span className="text-[10px] px-2 py-1 rounded-full bg-green-500/10 border border-green-500/20 text-green-400">
+      <span className="text-[10px] px-2 py-1 rounded-full bg-red-500/10 border border-red-500/20 text-red-400">
         Plano Fundadores
       </span>
     </div>
@@ -964,7 +949,7 @@ function Sidebar({ profile, page, onNav, onLogout, open, onClose }: {
       href="https://instagram.com/vortanoficina"
       target="_blank"
       rel="noreferrer"
-      className="text-muted-foreground hover:text-green-400 transition-colors"
+      className="text-muted-foreground hover:text-red-400 transition-colors"
     >
       Instagram
     </a>
@@ -973,7 +958,7 @@ function Sidebar({ profile, page, onNav, onLogout, open, onClose }: {
       href="https://www.vortanoficina.com.br"
       target="_blank"
       rel="noreferrer"
-      className="text-muted-foreground hover:text-green-400 transition-colors"
+      className="text-muted-foreground hover:text-red-400 transition-colors"
     >
       Site
     </a>
@@ -1061,11 +1046,10 @@ const recent = [...orders]
 
   function exportClients() {
     downloadCSV("clientes.csv", clients.map(c => ({
-      id: c.id,
       nome: c.name,
       telefone: c.phone,
       whatsapp: c.whatsapp,
-      criado_em: c.created_at,
+      criado_em: new Date(c.created_at).toLocaleDateString("pt-BR"),
     })));
   }
 
@@ -1073,14 +1057,14 @@ const recent = [...orders]
     downloadCSV("veiculos.csv", vehicles.map(v => {
       const client = clients.find(c => c.id === v.client_id);
       return {
-        id: v.id,
+    
         cliente: client?.name ?? "",
         placa: v.plate,
         marca: v.brand,
         modelo: v.model,
         ano: v.year,
         quilometragem: v.mileage,
-        criado_em: v.created_at,
+        criado_em: new Date(v.created_at).toLocaleDateString("pt-BR"),
       };
     }));
   }
@@ -1090,7 +1074,7 @@ const recent = [...orders]
       const client = clients.find(c => c.id === o.client_id);
       const vehicle = vehicles.find(v => v.id === o.vehicle_id);
       return {
-        id: o.id,
+      
         cliente: client?.name ?? "",
         veiculo: vehicle ? `${vehicle.brand} ${vehicle.model}` : "",
         placa: vehicle?.plate ?? "",
@@ -1100,7 +1084,7 @@ const recent = [...orders]
         valor: o.value,
         data_prevista_entrega: (o as any).delivery_date ?? "",
         observacoes: o.notes,
-        criado_em: o.created_at,
+        criado_em: new Date(o.created_at).toLocaleDateString("pt-BR"),
         atualizado_em: o.updated_at,
       };
     }));
@@ -1112,14 +1096,13 @@ const recent = [...orders]
       const vehicle = vehicles.find(v => v.id === o.vehicle_id);
       const value = Number(String(o.value || "0").replace(",", "."));
       return {
-        os_id: o.id,
-        cliente: client?.name ?? "",
-        placa: vehicle?.plate ?? "",
-        status: STATUS_LABEL[o.status],
-        valor: value.toFixed(2).replace(".", ","),
-        recebido: o.status === "finalizado" ? "Sim" : "Não",
-        data_referencia: o.updated_at,
-      };
+  cliente: client?.name ?? "",
+  placa: vehicle?.plate ?? "",
+  status: STATUS_LABEL[o.status],
+  valor: value.toFixed(2).replace(".", ","),
+  recebido: o.status === "finalizado" ? "Sim" : "Não",
+  data_referencia: new Date(o.updated_at).toLocaleString("pt-BR"),
+};
     }));
   }
 
@@ -1155,7 +1138,7 @@ return (
 
   <Card className="p-4">
   <div className="text-xs text-muted-foreground">Ticket Médio</div>
-  <div className="text-2xl font-bold text-primary">
+  <div className="text-2xl font-bold text-green-500">
     {fmtMoney(averageTicket)}
   </div>
 </Card>
@@ -1262,7 +1245,7 @@ return (
                       {vehicle ? `${vehicle.brand} ${vehicle.model} · ${vehicle.plate}` : "—"} · {fmt(o.created_at)}
                     </div>
                   </div>
-                  <div className="text-sm font-mono font-medium text-primary flex-shrink-0">{fmtMoney(o.value)}</div>
+                  <div className="text-sm font-mono font-medium text-green-500 flex-shrink-0">{fmtMoney(o.value)}</div>
                 </button>
               );
             })}
@@ -1436,7 +1419,7 @@ function FinancialPage({
         <Card className="p-4">
           <div className="text-sm text-muted-foreground">Lucro</div>
 
-          <div className="text-2xl font-bold text-primary">
+          <div className={profit >= 0 ? "text-2xl font-bold text-green-600" : "text-2xl font-bold text-red-600"}>
             {profit.toLocaleString("pt-BR", {
               style: "currency",
               currency: "BRL",
@@ -1680,7 +1663,7 @@ function ClientsPage({ clients, onReload }: {
                   <div className="text-sm font-medium text-foreground">{c.name}</div>
                   <div className="flex items-center gap-3 mt-0.5 flex-wrap">
                     {c.phone && <span className="text-xs text-muted-foreground flex items-center gap-1"><Phone size={10} />{c.phone}</span>}
-                    {c.whatsapp && <span className="text-xs text-emerald-400 flex items-center gap-1"><MessageCircle size={10} />{c.whatsapp}</span>}
+                    {c.whatsapp && <span className="text-xs text-red-400 flex items-center gap-1"><MessageCircle size={10} />{c.whatsapp}</span>}
                   </div>
                 </div>
                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -2055,7 +2038,7 @@ function OrdersPage({ orders, clients, vehicles, onReload, onView }: {
                     {o.reported_issue && <div className="text-xs text-muted-foreground/60 mt-0.5 truncate">{o.reported_issue}</div>}
                   </div>
                   <div className="flex-shrink-0 text-right">
-                    <div className="text-sm font-mono font-medium text-primary">{fmtMoney(o.value)}</div>
+                    <div className="text-sm font-mono font-medium text-green-500">{fmtMoney(o.value)}</div>
                     <div className="text-xs text-muted-foreground">{fmt(o.created_at)}</div>
                   </div>
                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -2593,7 +2576,7 @@ function buildFinishedMessage(orderData: ServiceOrder) {
           <div className="text-xs text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5"><Users size={10} /> Cliente</div>
           <div className="text-sm font-medium text-foreground">{client?.name ?? "—"}</div>
           {client?.phone && <div className="text-xs text-muted-foreground mt-1 flex items-center gap-1"><Phone size={10} />{client.phone}</div>}
-          {client?.whatsapp && <div className="text-xs text-emerald-400 mt-1 flex items-center gap-1"><MessageCircle size={10} />{client.whatsapp}</div>}
+          {client?.whatsapp && <div className="text-xs text-red-400 mt-1 flex items-center gap-1"><MessageCircle size={10} />{client.whatsapp}</div>}
         </Card>
 
         <Card className="p-4">
@@ -3055,7 +3038,7 @@ console.log("STATUS DAS OS:", orders.map(o => o.status));
               const vehicle = vehicles.find(v => v.id === o.vehicle_id);
               return (
                 <button key={o.id} onClick={() => onView(o)} className="w-full px-4 py-3 flex items-center gap-3 hover:bg-secondary/40 transition-colors text-left">
-                  <div className="w-1 h-10 rounded-full bg-emerald-400/40 flex-shrink-0" />
+                  <div className="w-1 h-10 rounded-full bg-red-400/40 flex-shrink-0" />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-sm font-medium text-foreground">{client?.name ?? "—"}</span>
@@ -3065,7 +3048,7 @@ console.log("STATUS DAS OS:", orders.map(o => o.status));
                     {o.services_performed && <div className="text-xs text-muted-foreground/50 mt-0.5 truncate">{o.services_performed}</div>}
                   </div>
                   <div className="flex-shrink-0 text-right">
-                    <div className="text-sm font-mono font-medium text-primary">{fmtMoney(o.value)}</div>
+                    <div className="text-sm font-mono font-medium text-green-500">{fmtMoney(o.value)}</div>
                     <div className="text-xs text-muted-foreground">{fmt(o.updated_at)}</div>
                   </div>
                 </button>
@@ -3321,32 +3304,114 @@ export default function App() {
   const [financialEntries, setFinancialEntries] = useState<FinancialEntry[]>([]);
   const [dataLoaded, setDataLoaded] = useState(false);
   const [checkingPayment, setCheckingPayment] = useState(false);
-  const publicOrderToken = window.location.pathname.startsWith("/os/")
+
+const navigate = useNavigate();
+const location = useLocation();
+
+const publicOrderToken = window.location.pathname.startsWith("/os/")
   ? window.location.pathname.replace("/os/", "").trim()
   : null;
 
-  // Auth state
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-    });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-    });
-    return () => subscription.unsubscribe();
-  }, []);useEffect(() => {
+ // Auth state
+useEffect(() => {
   supabase.auth.getSession().then(({ data: { session } }) => {
     setSession(session);
     setSessionLoading(false);
   });
 
-  const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-    setSession(session);
-    setSessionLoading(false);
-  });
+  const { data: { subscription } } = supabase.auth.onAuthStateChange(
+    (_event, session) => {
+      setSession(session);
+      setSessionLoading(false);
+    }
+  );
 
   return () => subscription.unsubscribe();
 }, []);
+
+useEffect(() => {
+  const path = location.pathname;
+
+  if (path.startsWith("/os/")) return;
+
+  if (path === "/login") {
+    setAuthPage("login");
+    return;
+  }
+
+  if (path === "/cadastrar") {
+    setAuthPage("register");
+    return;
+  }
+
+  if (path === "/dashboard") {
+    setPage("dashboard");
+    return;
+  }
+
+  if (path === "/") {
+    setAuthPage("landing");
+    return;
+  }
+}, [location.pathname]);
+
+useEffect(() => {
+  if (sessionLoading) return;
+
+  if (!session && location.pathname === "/dashboard") {
+    navigate("/login", { replace: true });
+    return;
+  }
+
+  if (
+    session &&
+    (location.pathname === "/login" || location.pathname === "/cadastrar")
+  ) {
+    navigate("/dashboard", { replace: true });
+  }
+}, [session, sessionLoading, location.pathname, navigate]);
+
+useEffect(() => {
+  const path = location.pathname;
+
+  if (path.startsWith("/os/")) return;
+
+  if (path === "/login") {
+    setAuthPage("login");
+    return;
+  }
+
+  if (path === "/cadastrar") {
+    setAuthPage("register");
+    return;
+  }
+
+  if (path === "/dashboard") {
+    setPage("dashboard");
+    return;
+  }
+
+  if (path === "/") {
+    setAuthPage("landing");
+    return;
+  }
+}, [location.pathname]);
+
+useEffect(() => {
+  if (sessionLoading) return;
+
+  if (!session && location.pathname === "/dashboard") {
+    navigate("/login", { replace: true });
+    return;
+  }
+
+  if (
+    session &&
+    (location.pathname === "/login" || location.pathname === "/cadastrar")
+  ) {
+    navigate("/dashboard", { replace: true });
+  }
+}, [session, sessionLoading, location.pathname, navigate]);
 
   // Setup DB + load data when session available
   useEffect(() => {
@@ -3373,7 +3438,7 @@ export default function App() {
       let p = prof.status === "fulfilled" ? prof.value : null;
 
       if (!p) {
-        const pendingProfileRaw = localStorage.getItem("autoflow_pending_profile");
+        const pendingProfileRaw = localStorage.getItem("vortanoficina_pending_profile");
 
         if (pendingProfileRaw) {
           try {
@@ -3383,9 +3448,9 @@ export default function App() {
             };
 
             p = await API.upsertProfile(pendingProfile);
-            localStorage.removeItem("autoflow_pending_profile");
+            localStorage.removeItem("vortanoficina_pending_profile");
           } catch {
-            localStorage.removeItem("autoflow_pending_profile");
+            localStorage.removeItem("vortanoficina_pending_profile");
           }
         }
       }
@@ -3462,8 +3527,8 @@ export default function App() {
   setAuthPage("login");
   setPage("dashboard");
   setSidebarOpen(false);
+  navigate("/login", { replace: true });
 }
-
 
 
   // ── Reset password ────────────────────────────────────────────────────────────────
@@ -3596,27 +3661,27 @@ if (isResetPasswordPage) {
 
 if (!session) {
   if (authPage === "register") {
-    return <RegisterScreen onGoLogin={() => setAuthPage("login")} />;
+    return <RegisterScreen onGoLogin={() => navigate("/login")} />;
   }
 
   if (authPage === "login") {
-    return <LoginScreen onGoRegister={() => setAuthPage("register")} />;
+    return <LoginScreen onGoRegister={() => navigate("/cadastrar")} />;
   }
 
   if (authPage === "terms") {
-    return <TermsPage onBack={() => setAuthPage("landing")} />;
+    return <TermsPage onBack={() => navigate("/")} />;
   }
 
   if (authPage === "privacy") {
-    return <PrivacyPage onBack={() => setAuthPage("landing")} />;
+    return <PrivacyPage onBack={() => navigate("/")} />;
   }
 
   return (
     <LandingPage
-  onGoLogin={() => setAuthPage("login")}
-  onGoRegister={() => setAuthPage("register")}
-  onGoTerms={() => setAuthPage("terms")}
-  onGoPrivacy={() => setAuthPage("privacy")}
+  onGoLogin={() => navigate("/login")}
+  onGoRegister={() => navigate("/cadastrar")}
+  onGoTerms={() => navigate("/termos")}
+  onGoPrivacy={() => navigate("/privacidade")}
 />
   );
 }
@@ -3799,9 +3864,9 @@ return (
     style={{ fontFamily: "var(--font-body, 'DM Sans', sans-serif)" }}
   >
     {/* Background premium do sistema logado */}
-    <div className="fixed left-[-280px] top-[8%] w-[720px] h-[720px] rounded-full bg-green-500/10 blur-[220px] pointer-events-none z-0" />
-    <div className="fixed right-[-280px] bottom-[5%] w-[720px] h-[720px] rounded-full bg-emerald-500/15 blur-[220px] pointer-events-none z-0" />
-    <div className="fixed inset-0 opacity-[0.025] pointer-events-none z-0 bg-[linear-gradient(rgba(34,197,94,1)_1px,transparent_1px),linear-gradient(90deg,rgba(34,197,94,1)_1px,transparent_1px)] bg-[size:80px_80px]" />
+    <div className="fixed left-[-280px] top-[8%] w-[720px] h-[720px] rounded-full bg-red-500/10 blur-[220px] pointer-events-none z-0" />
+    <div className="fixed right-[-280px] bottom-[5%] w-[720px] h-[720px] rounded-full bg-red-500/15 blur-[220px] pointer-events-none z-0" />
+    <div className="fixed inset-0 opacity-[0.025] pointer-events-none z-0 bg-[linear-gradient(rgba(239,68,68,1)_1px,transparent_1px),linear-gradient(90deg,rgba(239,68,68,1)_1px,transparent_1px)] bg-[size:80px_80px]" />
 
     <div className="relative z-20">
       <Sidebar
@@ -3905,23 +3970,36 @@ function TermsPage({ onBack }: { onBack: () => void }) {
       body:
         "O acesso ao sistema pode depender de assinatura ativa. Em caso de inadimplência, expiração do plano ou uso indevido, o acesso à plataforma poderá ser limitado ou suspenso.",
     },
+
     {
-      title: "5. Uso adequado da plataforma",
+  title: "5. Cobrança recorrente e cancelamento",
+  body:
+    "Ao contratar um plano da Vortan Oficina, o usuário autoriza a cobrança recorrente da assinatura pelo método de pagamento escolhido. O cancelamento poderá ser solicitado a qualquer momento, permanecendo o acesso ativo até o término do período já pago.",
+},
+{
+  title: "6. Inadimplência e suspensão",
+  body:
+    "Em caso de falha na cobrança, pagamento recusado, vencimento não quitado ou qualquer situação de inadimplência, a Vortan Oficina poderá limitar ou suspender o acesso à plataforma até a regularização dos valores pendentes. Após período prolongado de inadimplência, a assinatura poderá ser cancelada.",
+},
+
+    {
+      title: "7. Uso adequado da plataforma",
       body:
         "O usuário se compromete a utilizar a Vortan Oficina apenas para fins lícitos, profissionais e relacionados à gestão da oficina, não podendo tentar violar, copiar, explorar ou prejudicar o funcionamento do sistema.",
     },
     {
-      title: "6. Alterações nos Termos",
+      title: "8. Alterações nos Termos",
       body:
         "Estes Termos podem ser atualizados a qualquer momento para refletir melhorias, mudanças legais ou ajustes operacionais. A versão mais recente estará sempre disponível nesta página.",
     },
+    
   ];
 
   return (
     <div className="min-h-screen text-foreground bg-[#05070A] relative overflow-hidden">
-      <div className="fixed left-[-220px] top-1/4 w-[520px] h-[520px] rounded-full bg-green-500/10 blur-[180px] pointer-events-none" />
-      <div className="fixed right-[-220px] top-1/3 w-[520px] h-[520px] rounded-full bg-green-500/10 blur-[180px] pointer-events-none" />
-      <div className="fixed inset-0 opacity-[0.025] pointer-events-none bg-[linear-gradient(rgba(34,197,94,1)_1px,transparent_1px),linear-gradient(90deg,rgba(34,197,94,1)_1px,transparent_1px)] bg-[size:80px_80px]" />
+      <div className="fixed left-[-220px] top-1/4 w-[520px] h-[520px] rounded-full bg-red-500/10 blur-[180px] pointer-events-none" />
+      <div className="fixed right-[-220px] top-1/3 w-[520px] h-[520px] rounded-full bg-red-500/10 blur-[180px] pointer-events-none" />
+      <div className="fixed inset-0 opacity-[0.025] pointer-events-none bg-[linear-gradient(rgba(239,68,68,1)_1px,transparent_1px),linear-gradient(90deg,rgba(239,68,68,1)_1px,transparent_1px)] bg-[size:80px_80px]" />
 
       <div className="relative max-w-6xl mx-auto px-4 py-8">
         <button
@@ -3936,10 +4014,10 @@ function TermsPage({ onBack }: { onBack: () => void }) {
         <div className="grid lg:grid-cols-[1fr_360px] gap-6 items-start">
           <div className="space-y-6">
             <Card className="p-8 border-primary/20 overflow-hidden relative">
-              <div className="absolute top-0 right-0 w-60 h-60 bg-green-500/10 blur-[90px] rounded-full pointer-events-none" />
+              <div className="absolute top-0 right-0 w-60 h-60 bg-red-500/10 blur-[90px] rounded-full pointer-events-none" />
 
               <div className="relative">
-                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-green-500/20 bg-green-500/10 text-green-400 text-xs font-medium mb-5">
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-red-500/20 bg-red-500/10 text-red-400 text-xs font-medium mb-5">
                   <FileText size={14} />
                   Documento legal Vortan Oficina
                 </div>
@@ -3968,7 +4046,7 @@ function TermsPage({ onBack }: { onBack: () => void }) {
 
             <div className="space-y-4">
               {sections.map((section) => (
-                <Card key={section.title} className="p-6 border-green-500/10">
+                <Card key={section.title} className="p-6 border-red-500/10">
                   <h2 className="text-xl font-semibold text-foreground mb-3">
                     {section.title}
                   </h2>
@@ -3989,10 +4067,10 @@ function TermsPage({ onBack }: { onBack: () => void }) {
                 Em caso de dúvidas sobre estes Termos de Uso, entre em contato
                 com a equipe Vortan Oficina pelo e-mail{" "}
                 <a
-                  href="mailto:contato.autoflow@gmail.com"
+                  href="mailto:contato.vortanoficina@gmail.com"
                   className="text-primary hover:underline"
                 >
-                  contato.autoflow@gmail.com
+                  contato.vortanoficina@gmail.com
                 </a>
                 .
               </p>
@@ -4036,7 +4114,7 @@ function TermsPage({ onBack }: { onBack: () => void }) {
               </div>
             </Card>
 
-            <Card className="p-5 bg-green-500/[0.03] border-green-500/20">
+            <Card className="p-5 bg-red-500/[0.03] border-red-500/20">
               <h3 className="font-semibold mb-2">
                 Precisa de ajuda?
               </h3>
@@ -4104,9 +4182,9 @@ function PrivacyPage({ onBack }: { onBack: () => void }) {
 
   return (
     <div className="min-h-screen text-foreground bg-[#05070A] relative overflow-hidden">
-      <div className="fixed left-[-220px] top-1/4 w-[520px] h-[520px] rounded-full bg-green-500/10 blur-[180px] pointer-events-none" />
-      <div className="fixed right-[-220px] top-1/3 w-[520px] h-[520px] rounded-full bg-green-500/10 blur-[180px] pointer-events-none" />
-      <div className="fixed inset-0 opacity-[0.025] pointer-events-none bg-[linear-gradient(rgba(34,197,94,1)_1px,transparent_1px),linear-gradient(90deg,rgba(34,197,94,1)_1px,transparent_1px)] bg-[size:80px_80px]" />
+      <div className="fixed left-[-220px] top-1/4 w-[520px] h-[520px] rounded-full bg-red-500/10 blur-[180px] pointer-events-none" />
+      <div className="fixed right-[-220px] top-1/3 w-[520px] h-[520px] rounded-full bg-red-500/10 blur-[180px] pointer-events-none" />
+      <div className="fixed inset-0 opacity-[0.025] pointer-events-none bg-[linear-gradient(rgba(239,68,68,1)_1px,transparent_1px),linear-gradient(90deg,rgba(239,68,68,1)_1px,transparent_1px)] bg-[size:80px_80px]" />
 
       <div className="relative max-w-6xl mx-auto px-4 py-8">
         <button
@@ -4121,10 +4199,10 @@ function PrivacyPage({ onBack }: { onBack: () => void }) {
         <div className="grid lg:grid-cols-[1fr_360px] gap-6 items-start">
           <div className="space-y-6">
             <Card className="p-8 border-primary/20 overflow-hidden relative">
-              <div className="absolute top-0 right-0 w-60 h-60 bg-green-500/10 blur-[90px] rounded-full pointer-events-none" />
+              <div className="absolute top-0 right-0 w-60 h-60 bg-red-500/10 blur-[90px] rounded-full pointer-events-none" />
 
               <div className="relative">
-                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-green-500/20 bg-green-500/10 text-green-400 text-xs font-medium mb-5">
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-red-500/20 bg-red-500/10 text-red-400 text-xs font-medium mb-5">
                   <FileText size={14} />
                   Segurança e privacidade
                 </div>
@@ -4153,7 +4231,7 @@ function PrivacyPage({ onBack }: { onBack: () => void }) {
 
             <div className="space-y-4">
               {sections.map((section) => (
-                <Card key={section.title} className="p-6 border-green-500/10">
+                <Card key={section.title} className="p-6 border-red-500/10">
                   <h2 className="text-xl font-semibold text-foreground mb-3">
                     {section.title}
                   </h2>
@@ -4174,10 +4252,10 @@ function PrivacyPage({ onBack }: { onBack: () => void }) {
                 Para dúvidas relacionadas à privacidade ou dados cadastrados na
                 plataforma, entre em contato pelo e-mail{" "}
                 <a
-                  href="mailto:contato.autoflow@gmail.com"
+                  href="mailto:contato.vortanoficina@gmail.com"
                   className="text-primary hover:underline"
                 >
-                  contato.autoflow@gmail.com
+                  contato.vortanoficina@gmail.com
                 </a>
                 .
               </p>
@@ -4221,7 +4299,7 @@ function PrivacyPage({ onBack }: { onBack: () => void }) {
               </div>
             </Card>
 
-            <Card className="p-5 bg-green-500/[0.03] border-green-500/20">
+            <Card className="p-5 bg-red-500/[0.03] border-red-500/20">
               <h3 className="font-semibold mb-2">
                 Dúvidas sobre dados?
               </h3>

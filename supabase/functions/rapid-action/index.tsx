@@ -641,6 +641,14 @@ function getMonthlyExpiration() {
 
     const data = await res.json();
 
+    await svc()
+  .from("subscriptions")
+  .upsert({
+    user_id: user.id,
+    preapproval_id: data.id,
+    status: "pending",
+  });
+
     if (!res.ok) {
       return c.json({ error: data?.message ?? "Erro ao criar checkout" }, 500);
     }
@@ -772,5 +780,64 @@ function getMonthlyExpiration() {
       return c.json({ ok: false, error: err.message }, 500);
     }
   });
+
+
+  app.post(`${P}/billing/cancel-subscription`, async (c) => {
+  const user = await getUser(c.req.header("Authorization"));
+  if (!user) return unauthorized(c);
+
+  const { data: sub } = await svc()
+    .from("subscriptions")
+    .select("*")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (!sub?.preapproval_id) {
+    return c.json(
+      { error: "Assinatura não encontrada" },
+      404
+    );
+  }
+
+  const accessToken = Deno.env.get("MERCADOPAGO_ACCESS_TOKEN");
+
+  const mpRes = await fetch(
+    `https://api.mercadopago.com/preapproval/${sub.preapproval_id}`,
+    {
+      method: "PUT",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        status: "cancelled",
+      }),
+    }
+  );
+
+  const mpData = await mpRes.json();
+
+  if (!mpRes.ok) {
+    return c.json(
+      {
+        error: "Erro ao cancelar assinatura",
+        details: mpData,
+      },
+      500
+    );
+  }
+
+  await svc()
+    .from("subscriptions")
+    .update({
+      status: "cancelled",
+    })
+    .eq("user_id", user.id);
+
+  return c.json({
+    ok: true,
+    message: "Assinatura cancelada",
+  });
+});
 
   Deno.serve(app.fetch);
