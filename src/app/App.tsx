@@ -269,7 +269,7 @@ function LandingPage({
   onGoPrivacy: () => void;
 }) {
   const whatsappDemo =
-    "https://wa.me/5527996126147?text=Olá,%20quero%20agendar%20uma%20demonstração%20da%20Vortan%20Oficina.";
+    "https://wa.me/5527996126147?text=Olá,%20tenho%20interesse%20na%20Vortan%20Oficina%20e%20gostaria%20de%20falar%20com%20um%20consultor.";
 
   const features = [
     ["Ordens de Serviço", "Crie, acompanhe e envie OS profissionais."],
@@ -317,7 +317,7 @@ backdrop-blur-[1px]
               rel="noreferrer"
               className="hidden sm:inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2.5 text-sm font-bold text-primary-foreground hover:opacity-90 transition-opacity"
             >
-              Agendar Demo
+              Falar com um consultor
             </a>
           </div>
         </div>
@@ -363,7 +363,7 @@ backdrop-blur-[1px]
                   className="inline-flex items-center justify-center gap-3 rounded-lg border border-white/20 bg-black/45 px-6 py-3 text-sm font-bold text-white hover:bg-white/10 transition-colors backdrop-blur"
                 >
                   <MessageCircle size={18} className="text-primary" />
-                  Agendar demo
+                  Falar com um consultor
                 </a>
               </div>
 
