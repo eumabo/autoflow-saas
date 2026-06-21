@@ -603,6 +603,7 @@ function getMonthlyExpiration() {
 }
 
 
+
   app.post(`${P}/billing/create-checkout`, async (c) => {
     const user = await getUser(c.req.header("Authorization"));
     if (!user) return unauthorized(c);
@@ -639,35 +640,51 @@ function getMonthlyExpiration() {
       }),
     });
 
+
+
+
     const data = await res.json();
 
-    await svc()
+if (!res.ok) {
+  return c.json(
+    {
+      error: data?.message ?? "Erro ao criar assinatura recorrente",
+      details: data,
+    },
+    500
+  );
+}
+
+await svc()
   .from("subscriptions")
   .upsert({
     user_id: user.id,
-    preapproval_id: data.id,
     status: "pending",
+    preapproval_id: data.id,
+    expires_at: new Date().toISOString(),
   });
 
-    if (!res.ok) {
-      return c.json({ error: data?.message ?? "Erro ao criar checkout" }, 500);
-    }
+return c.json({
+  id: data.id,
+  url: data.init_point,
+  init_point: data.init_point,
+});
 
-    return c.json({
-      url: data.init_point,
-    });
-  });
- 
+ });
    app.post(`${P}/billing/create-subscription`, async (c) => {
   try {
     const user = await getUser(c.req.header("Authorization"));
     if (!user) return unauthorized(c);
 
     const accessToken = Deno.env.get("MERCADOPAGO_ACCESS_TOKEN");
-    if (!accessToken) return serverError(c, "Mercado Pago token não configurado");
+    if (!accessToken) {
+      return serverError(c, "Mercado Pago token não configurado");
+    }
 
     const planId = Deno.env.get("MERCADOPAGO_PREAPPROVAL_PLAN_ID");
-    if (!planId) return serverError(c, "ID do plano recorrente não configurado");
+    if (!planId) {
+      return serverError(c, "ID do plano recorrente não configurado");
+    }
 
     if (!user.email) {
       return badRequest(c, "Usuário sem e-mail para criar assinatura");
@@ -684,7 +701,7 @@ function getMonthlyExpiration() {
         reason: "Vortan Oficina - Plano Mensal",
         external_reference: user.id,
         payer_email: user.email,
-        back_url: "https://www.autoflowoficina.online",
+        back_url: "https://www.vortanoficina.com.br",
       }),
     });
 
@@ -700,144 +717,220 @@ function getMonthlyExpiration() {
       );
     }
 
+    await svc()
+      .from("subscriptions")
+      .upsert({
+        user_id: user.id,
+        status: "pending",
+        preapproval_id: data.id,
+        expires_at: new Date().toISOString(),
+      });
+
     return c.json({
       id: data.id,
       url: data.init_point,
       init_point: data.init_point,
     });
   } catch (err: any) {
-    return c.json({ ok: false, error: err.message }, 500);
-  }
-});
-
-  app.post(`${P}/billing/webhook`, async (c) => {
-    try {
-      const body = await c.req.json();
-
-      const paymentId = body?.data?.id || body?.id;
-
-      if (!paymentId) {
-        return c.json({ ok: false, error: "Pagamento sem ID" }, 400);
-      }
-
-      const accessToken = Deno.env.get("MERCADOPAGO_ACCESS_TOKEN");
-      if (!accessToken) return serverError(c, "Mercado Pago token não configurado");
-
-      const paymentRes = await fetch(
-        `https://api.mercadopago.com/v1/payments/${paymentId}`,
-        {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-        }
-      );
-
-      const payment = await paymentRes.json();
-
-      if (payment.status !== "approved") {
-        return c.json({ ok: true, ignored: true, status: payment.status });
-      }
-
-      const userId = payment.external_reference;
-
-      if (!userId) {
-        return c.json({ ok: false, error: "Sem external_reference" }, 400);
-      }
-
-      const expiresAt = new Date();
-      expiresAt.setMonth(expiresAt.getMonth() + 1);
-
-      const { error } = await svc()
-        .from("subscriptions")
-        .upsert({
-          user_id: userId,
-          status: "active",
-          expires_at: expiresAt.toISOString(),
-        });
-
-      if (error) {
-        return c.json({ ok: false, error: error.message }, 500);
-      }
-      const { error: profileError } = await svc()
-    .from("af_profiles")
-    .update({
-    plan: "active",
-    subscription_status: "active",
-    subscription_ends_at: new Date(
-      Date.now() + 30 * 24 * 60 * 60 * 1000
-    ).toISOString(),
-    mercadopago_payment_id: String(payment.id),
-    email: payment.payer?.email ?? null,
-  })
-    .eq("id", userId);
-
-  if (profileError) {
-    return c.json({ ok: false, error: profileError.message }, 500);
-  }
-
-      return c.json({ ok: true });
-    } catch (err: any) {
-      return c.json({ ok: false, error: err.message }, 500);
-    }
-  });
-
-
-  app.post(`${P}/billing/cancel-subscription`, async (c) => {
-  const user = await getUser(c.req.header("Authorization"));
-  if (!user) return unauthorized(c);
-
-  const { data: sub } = await svc()
-    .from("subscriptions")
-    .select("*")
-    .eq("user_id", user.id)
-    .maybeSingle();
-
-  if (!sub?.preapproval_id) {
-    return c.json(
-      { error: "Assinatura não encontrada" },
-      404
-    );
-  }
-
-  const accessToken = Deno.env.get("MERCADOPAGO_ACCESS_TOKEN");
-
-  const mpRes = await fetch(
-    `https://api.mercadopago.com/preapproval/${sub.preapproval_id}`,
-    {
-      method: "PUT",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        status: "cancelled",
-      }),
-    }
-  );
-
-  const mpData = await mpRes.json();
-
-  if (!mpRes.ok) {
     return c.json(
       {
-        error: "Erro ao cancelar assinatura",
-        details: mpData,
+        ok: false,
+        error: err.message,
       },
       500
     );
   }
-
-  await svc()
-    .from("subscriptions")
-    .update({
-      status: "cancelled",
-    })
-    .eq("user_id", user.id);
-
-  return c.json({
-    ok: true,
-    message: "Assinatura cancelada",
-  });
 });
 
-  Deno.serve(app.fetch);
+app.post(`${P}/billing/webhook`, async (c) => {
+  try {
+    const body = await c.req.json();
+
+    const paymentId = body?.data?.id || body?.id;
+
+    if (!paymentId) {
+      return c.json(
+        {
+          ok: false,
+          error: "Pagamento sem ID",
+        },
+        400
+      );
+    }
+
+    const accessToken = Deno.env.get("MERCADOPAGO_ACCESS_TOKEN");
+    if (!accessToken) {
+      return serverError(c, "Mercado Pago token não configurado");
+    }
+
+    const paymentRes = await fetch(
+      `https://api.mercadopago.com/v1/payments/${paymentId}`,
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      }
+    );
+
+    const payment = await paymentRes.json();
+
+    if (payment.status !== "approved") {
+      return c.json({
+        ok: true,
+        ignored: true,
+        status: payment.status,
+      });
+    }
+
+    const userId = payment.external_reference;
+
+    if (!userId) {
+      return c.json(
+        {
+          ok: false,
+          error: "Sem external_reference",
+        },
+        400
+      );
+    }
+
+    const expiresAt = new Date();
+    expiresAt.setMonth(expiresAt.getMonth() + 1);
+
+    const { error: subError } = await svc()
+      .from("subscriptions")
+      .upsert({
+        user_id: userId,
+        status: "active",
+        expires_at: expiresAt.toISOString(),
+        mercadopago_payment_id: String(payment.id),
+      });
+
+    if (subError) {
+      return c.json(
+        {
+          ok: false,
+          error: subError.message,
+        },
+        500
+      );
+    }
+
+    const { error: profileError } = await svc()
+      .from("af_profiles")
+      .update({
+        plan: "active",
+        subscription_status: "active",
+        subscription_ends_at: expiresAt.toISOString(),
+        mercadopago_payment_id: String(payment.id),
+        email: payment.payer?.email ?? null,
+      })
+      .eq("id", userId);
+
+    if (profileError) {
+      return c.json(
+        {
+          ok: false,
+          error: profileError.message,
+        },
+        500
+      );
+    }
+
+    return c.json({ ok: true });
+  } catch (err: any) {
+    return c.json(
+      {
+        ok: false,
+        error: err.message,
+      },
+      500
+    );
+  }
+});
+
+app.post(`${P}/billing/cancel-subscription`, async (c) => {
+  try {
+    const user = await getUser(c.req.header("Authorization"));
+    if (!user) return unauthorized(c);
+
+    const { data: sub, error: subError } = await svc()
+      .from("subscriptions")
+      .select("*")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (subError) {
+      return serverError(c, subError.message);
+    }
+
+    if (!sub?.preapproval_id) {
+      return c.json(
+        {
+          error: "Assinatura não encontrada",
+        },
+        404
+      );
+    }
+
+    const accessToken = Deno.env.get("MERCADOPAGO_ACCESS_TOKEN");
+    if (!accessToken) {
+      return serverError(c, "Mercado Pago token não configurado");
+    }
+
+    const mpRes = await fetch(
+      `https://api.mercadopago.com/preapproval/${sub.preapproval_id}`,
+      {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          status: "cancelled",
+        }),
+      }
+    );
+
+    const mpData = await mpRes.json();
+
+    if (!mpRes.ok) {
+      return c.json(
+        {
+          error: "Erro ao cancelar assinatura",
+          details: mpData,
+        },
+        500
+      );
+    }
+
+    await svc()
+      .from("subscriptions")
+      .update({
+        status: "cancelled",
+      })
+      .eq("user_id", user.id);
+
+    await svc()
+      .from("af_profiles")
+      .update({
+        subscription_status: "cancelled",
+      })
+      .eq("id", user.id);
+
+    return c.json({
+      ok: true,
+      message: "Assinatura cancelada",
+    });
+  } catch (err: any) {
+    return c.json(
+      {
+        ok: false,
+        error: err.message,
+      },
+      500
+    );
+  }
+});
+
+Deno.serve(app.fetch);

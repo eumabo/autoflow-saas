@@ -15,6 +15,7 @@ import jsPDF from "jspdf";
 import { useLocation, useNavigate } from "react-router-dom";
 
 
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type Page = "billing" | "dashboard" | "clients" | "vehicles" | "orders" | "history" | "order-detail" | "settings" | "financial";
@@ -280,6 +281,29 @@ function LandingPage({
     ["Sistema online", "Acesse pelo computador, tablet ou celular."],
   ];
 
+  const stats = [
+  {
+    title: "OS digitais",
+    text: "Crie, acompanhe e organize ordens de serviço",
+    icon: ClipboardList,
+  },
+  {
+    title: "Clientes",
+    text: "Tenha histórico completo de cada cliente",
+    icon: Users,
+  },
+  {
+    title: "Veículos",
+    text: "Consulte placas, modelos e serviços anteriores",
+    icon: Car,
+  },
+  {
+    title: "WhatsApp",
+    text: "Envie atualizações direto para o cliente",
+    icon: MessageCircle,
+  },
+];
+
   return (
     <div className="min-h-screen bg-[#030305] text-white relative overflow-hidden">
       <div className="fixed inset-0 pointer-events-none bg-[radial-gradient(circle_at_75%_20%,rgba(239,31,47,0.22),transparent_28%),radial-gradient(circle_at_20%_45%,rgba(239,31,47,0.10),transparent_30%),linear-gradient(180deg,rgba(255,255,255,0.04)_0%,rgba(255,255,255,0)_22%)]" />
@@ -390,20 +414,23 @@ backdrop-blur-[1px]
 
           <div className="relative z-10 max-w-7xl mx-auto px-5 -mt-28 pb-9 hidden lg:block">
             <div className="grid md:grid-cols-4 gap-3 rounded-3xl border border-white/10 bg-black/45 p-4 backdrop-blur-xl shadow-2xl shadow-red-950/25">
-              {[
-                ["+1.200", "Oficinas clientes"],
-                ["+2,5 milhões", "Ordens de serviço emitidas"],
-                ["+R$ 1 bilhão", "Faturados por nossos clientes"],
-                ["99,9%", "Disponibilidade do sistema"],
-              ].map(([title, desc]) => (
-                <div key={title} className="flex items-center gap-4 rounded-2xl px-4 py-3">
-                  <div className="h-12 w-12 rounded-full bg-primary/15 border border-primary/20 shadow-[0_0_35px_rgba(239,31,47,0.18)]" />
-                  <div>
-                    <div className="text-primary text-2xl font-bold">{title}</div>
-                    <div className="text-sm text-white/70 mt-1">{desc}</div>
-                  </div>
-                </div>
-              ))}
+              {stats.map(({ title, text, icon: Icon }) => (
+  <div key={title} className="flex items-center gap-4 rounded-2xl px-4 py-3">
+    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/15 border border-primary/20 shadow-[0_0_35px_rgba(239,31,47,0.18)]">
+      <Icon size={23} className="text-primary" />
+    </div>
+
+    <div>
+      <div className="text-primary text-xl font-bold">
+        {title}
+      </div>
+
+      <div className="text-sm text-white/70 mt-1">
+        {text}
+      </div>
+    </div>
+  </div>
+))}
             </div>
           </div>
         </section>
@@ -3344,6 +3371,16 @@ useEffect(() => {
     return;
   }
 
+  if (path === "/termos") {
+    setAuthPage("terms");
+    return;
+  }
+
+  if (path === "/privacidade") {
+    setAuthPage("privacy");
+    return;
+  }
+
   if (path === "/dashboard") {
     setPage("dashboard");
     return;
@@ -3353,7 +3390,7 @@ useEffect(() => {
     setAuthPage("landing");
     return;
   }
-}, [location.pathname]);
+}, [location.pathname]); 
 
 useEffect(() => {
   if (sessionLoading) return;
@@ -3677,13 +3714,13 @@ if (!session) {
   }
 
   return (
-    <LandingPage
-  onGoLogin={() => navigate("/login")}
-  onGoRegister={() => navigate("/cadastrar")}
-  onGoTerms={() => navigate("/termos")}
-  onGoPrivacy={() => navigate("/privacidade")}
-/>
-  );
+  <LandingPage
+    onGoLogin={() => navigate("/login")}
+    onGoRegister={() => navigate("/cadastrar")}
+    onGoTerms={() => navigate("/termos")}
+    onGoPrivacy={() => navigate("/privacidade")}
+  />
+);
 }
 /*
   if (needsOnboarding) {
@@ -3764,12 +3801,44 @@ if (!session) {
   <Btn
   variant="primary"
   className="w-full justify-center"
-  onClick={() => {
-    window.open(
-      "https://mpago.la/17ordQN",
-      "_blank",
-      "noopener,noreferrer"
-    );
+  onClick={async () => {
+    try {
+      const session = (await supabase.auth.getSession()).data.session;
+
+      if (!session) {
+        alert("Sessão expirada. Faça login novamente.");
+        return;
+      }
+
+      const res = await fetch(
+        "https://kddlzartfawqjnrafzdb.supabase.co/functions/v1/rapid-action/billing/create-subscription",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
+        }
+      );
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        alert(data?.error || "Não foi possível criar a assinatura.");
+        return;
+      }
+
+      const url = data?.init_point || data?.url;
+
+      if (!url) {
+        alert("Mercado Pago não retornou o link da assinatura.");
+        return;
+      }
+
+      window.open(url, "_blank", "noopener,noreferrer");
+    } catch {
+      alert("Erro ao conectar com o Mercado Pago.");
+    }
   }}
 >
   Assinar plano mensal
