@@ -123,7 +123,7 @@ app.post(`${P}/profile`, async (c) => {
     return badRequest(c, "Nome da oficina é obrigatório");
   }
 
-  const { data, error } = await svc()
+  const { error } = await svc()
     .from("af_profiles")
     .upsert({
       id: user.id,
@@ -136,9 +136,7 @@ app.post(`${P}/profile`, async (c) => {
       city: body.city ?? "",
       state: body.state ?? "",
       logo_url: body.logo_url ?? "",
-    })
-    .select()
-    .single();
+    });
 
   if (error) return serverError(c, error.message);
 
@@ -152,7 +150,15 @@ app.post(`${P}/profile`, async (c) => {
     return serverError(c, "Erro ao ativar teste grátis");
   }
 
-  return c.json(data);
+  const { data: updatedProfile, error: profileError } = await svc()
+    .from("af_profiles")
+    .select()
+    .eq("id", user.id)
+    .single();
+
+  if (profileError) return serverError(c, profileError.message);
+
+  return c.json(updatedProfile);
 });
 
   // ─── Clients ─────────────────────────────────────────────────────────────────
@@ -559,27 +565,35 @@ app.delete(`${P}/financial/:id`, async (c) => {
 }) {
   const { data: existingSubscription, error: findError } = await svc()
     .from("subscriptions")
-    .select("id, status, trial_used")
+    .select("id, status, trial_used, trial_ends_at")
     .eq("user_id", params.userId)
     .maybeSingle();
 
   if (findError) throw findError;
 
-  if (existingSubscription) return;
+  if (existingSubscription?.status === "active") return;
+  if (existingSubscription?.status === "trial") return;
+  if (existingSubscription?.trial_used === true) return;
 
   const trialEndsAt = new Date();
   trialEndsAt.setDate(trialEndsAt.getDate() + 15);
 
   const { error: subError } = await svc()
     .from("subscriptions")
-    .insert({
-      user_id: params.userId,
-      status: "trial",
-      trial_started_at: new Date().toISOString(),
-      trial_ends_at: trialEndsAt.toISOString(),
-      trial_used: true,
-      updated_at: new Date().toISOString(),
-    });
+    .upsert(
+      {
+        user_id: params.userId,
+        plan_name: "mensal",
+        status: "trial",
+        expires_at: trialEndsAt.toISOString(),
+        trial_started_at: new Date().toISOString(),
+        trial_ends_at: trialEndsAt.toISOString(),
+        trial_used: true,
+      },
+      {
+        onConflict: "user_id",
+      }
+    );
 
   if (subError) throw subError;
 
