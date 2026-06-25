@@ -3166,11 +3166,17 @@ function isPaid(profile: Profile | null) {
     p?.subscription_ends_at &&
     new Date(p.subscription_ends_at) > new Date();
 
-  return Boolean(
-    (p?.subscription_status === "active" || p?.plan === "active") &&
-    notExpired
-  );
+  const isActive =
+    p?.subscription_status === "active" || p?.plan === "active";
+
+  const isTrial =
+    p?.subscription_status === "trial" || p?.plan === "trial";
+
+  return Boolean((isActive || isTrial) && notExpired);
 }
+
+
+
 
 function PublicOrderPage({ token }: { token: string }) {
   const [data, setData] = useState<any>(null);

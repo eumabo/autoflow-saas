@@ -113,30 +113,47 @@
     return c.json(data);
   });
 
-  app.post(`${P}/profile`, async (c) => {
-    const user = await getUser(c.req.header("Authorization"));
-    if (!user) return unauthorized(c);
-    const body = await c.req.json();
-    if (!body.workshop_name?.trim()) return badRequest(c, "Nome da oficina é obrigatório");
-    const { data, error } = await svc()
-      .from("af_profiles")
-      .upsert({
-  id: user.id,
-  workshop_name: body.workshop_name?.trim() ?? "",
-  owner_name: body.owner_name?.trim() ?? "",
-  phone: body.phone ?? "",
-  whatsapp: body.whatsapp ?? "",
-  instagram: body.instagram ?? "",
-  address: body.address ?? "",
-  city: body.city ?? "",
-  state: body.state ?? "",
-  logo_url: body.logo_url ?? "",
-})
-      .select()
-      .single();
-    if (error) return serverError(c, error.message);
-    return c.json(data);
-  });
+app.post(`${P}/profile`, async (c) => {
+  const user = await getUser(c.req.header("Authorization"));
+  if (!user) return unauthorized(c);
+
+  const body = await c.req.json();
+
+  if (!body.workshop_name?.trim()) {
+    return badRequest(c, "Nome da oficina é obrigatório");
+  }
+
+  const { data, error } = await svc()
+    .from("af_profiles")
+    .upsert({
+      id: user.id,
+      workshop_name: body.workshop_name?.trim() ?? "",
+      owner_name: body.owner_name?.trim() ?? "",
+      phone: body.phone ?? "",
+      whatsapp: body.whatsapp ?? "",
+      instagram: body.instagram ?? "",
+      address: body.address ?? "",
+      city: body.city ?? "",
+      state: body.state ?? "",
+      logo_url: body.logo_url ?? "",
+    })
+    .select()
+    .single();
+
+  if (error) return serverError(c, error.message);
+
+  try {
+    await activateTrialAccess({
+      userId: user.id,
+      email: user.email,
+    });
+  } catch (trialError) {
+    console.error("Erro ao criar teste grátis:", trialError);
+    return serverError(c, "Erro ao ativar teste grátis");
+  }
+
+  return c.json(data);
+});
 
   // ─── Clients ─────────────────────────────────────────────────────────────────
 
@@ -536,7 +553,49 @@ app.delete(`${P}/financial/:id`, async (c) => {
     return c.json({ ok: true });
   });
 
-  
+  async function activateTrialAccess(params: {
+  userId: string;
+  email?: string | null;
+}) {
+  const { data: existingSubscription, error: findError } = await svc()
+    .from("subscriptions")
+    .select("id, status, trial_used")
+    .eq("user_id", params.userId)
+    .maybeSingle();
+
+  if (findError) throw findError;
+
+  if (existingSubscription) return;
+
+  const trialEndsAt = new Date();
+  trialEndsAt.setDate(trialEndsAt.getDate() + 15);
+
+  const { error: subError } = await svc()
+    .from("subscriptions")
+    .insert({
+      user_id: params.userId,
+      status: "trial",
+      trial_started_at: new Date().toISOString(),
+      trial_ends_at: trialEndsAt.toISOString(),
+      trial_used: true,
+      updated_at: new Date().toISOString(),
+    });
+
+  if (subError) throw subError;
+
+  const { error: profileError } = await svc()
+    .from("af_profiles")
+    .update({
+      plan: "trial",
+      subscription_status: "trial",
+      subscription_ends_at: trialEndsAt.toISOString(),
+      email: params.email ?? null,
+    })
+    .eq("id", params.userId);
+
+  if (profileError) throw profileError;
+}
+
 async function activateSubscriptionAccess(params: {
   userId: string;
   email?: string | null;
