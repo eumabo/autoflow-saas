@@ -13,7 +13,7 @@ import * as API from "../lib/api";
 import type { Profile, Client, Vehicle, ServiceOrder, OrderStatus, FinancialEntry } from "../lib/api";
 import jsPDF from "jspdf";
 import { useLocation, useNavigate } from "react-router-dom";
-import AdminPage from "./pages/AdminPage";
+import AdminPage from "../pages/AdminPage";
 
 
 
@@ -4254,19 +4254,6 @@ return (
 }
 
 
-function AdminPage() {
-  return (
-    <div className="space-y-6">
-      <h1 className="text-3xl font-bold">
-        Admin Vortan
-      </h1>
-
-      <p className="text-muted-foreground">
-        Área administrativa da plataforma.
-      </p>
-    </div>
-  );
-}
 
 
 function TermsPage({ onBack }: { onBack: () => void }) {
