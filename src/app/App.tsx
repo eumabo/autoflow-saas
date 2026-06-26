@@ -1168,56 +1168,74 @@ return (
   <div className="space-y-5">
 
    {profile?.subscription_status === "trial" && (
-  <div className="mb-6 overflow-hidden rounded-2xl border border-amber-500/20 bg-gradient-to-r from-amber-500/10 via-yellow-500/10 to-orange-500/10 p-6 shadow-lg">
+  <div className="mb-6 overflow-hidden rounded-2xl border border-amber-500/20 bg-gradient-to-br from-amber-500/10 via-yellow-500/5 to-transparent shadow-lg">
 
-    <div className="flex items-start justify-between gap-4">
+    <div className="flex items-center justify-between border-b border-white/10 px-6 py-4">
 
       <div>
         <h2 className="text-xl font-bold text-amber-300">
           🎉 Teste grátis ativo
         </h2>
 
-        <p className="mt-2 text-sm text-muted-foreground">
-          Aproveite todos os recursos da Vortan Oficina durante seu período de avaliação.
+        <p className="mt-1 text-sm text-muted-foreground">
+          Aproveite todos os recursos da Vortan Oficina sem limitações.
         </p>
       </div>
 
-      <div className="rounded-xl bg-amber-500/15 px-4 py-2">
-        <span className="text-sm font-bold text-amber-300">
-          {trialDaysLeft} dias restantes
+      <div className="rounded-full border border-amber-500/30 bg-amber-500/15 px-3 py-1">
+        <span className="text-xs font-bold uppercase tracking-widest text-amber-300">
+          Trial
         </span>
       </div>
 
     </div>
 
-    <div className="mt-6">
+    <div className="px-6 py-5">
 
-      <div className="mb-2 flex justify-between text-xs text-muted-foreground">
-        <span>Período de teste</span>
-        <span>{15 - trialDaysLeft} / 15 dias</span>
+      <div className="mb-2 flex justify-between text-sm">
+        <span className="text-muted-foreground">
+          Progresso do teste
+        </span>
+
+        <span className="font-semibold text-amber-300">
+          {15 - trialDaysLeft} / 15 dias
+        </span>
       </div>
 
-      <div className="h-3 w-full overflow-hidden rounded-full bg-white/10">
+      <div className="h-3 overflow-hidden rounded-full bg-white/10">
         <div
           className="h-full rounded-full bg-gradient-to-r from-yellow-400 via-amber-500 to-orange-500 transition-all duration-700"
           style={{ width: `${trialProgress}%` }}
         />
       </div>
 
-    </div>
+      <div className="mt-5 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
 
-    <div className="mt-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div>
 
-      <p className="text-sm text-muted-foreground">
-        Quando o teste terminar será necessário contratar um plano para continuar utilizando o sistema.
-      </p>
+          <p className="text-lg font-bold text-white">
+            Restam {trialDaysLeft} dias
+          </p>
 
-      <Button
-        onClick={() => onNav("billing")}
-        className="bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-red-400"
-      >
-        Assinar agora
-      </Button>
+          <p className="mt-1 text-xs text-muted-foreground">
+  Expira em{" "}
+  {new Date(profile.subscription_ends_at).toLocaleDateString("pt-BR")}
+</p>
+
+          <p className="mt-1 text-sm text-muted-foreground">
+            Após o término do teste será necessário contratar um plano para continuar utilizando o sistema.
+          </p>
+
+        </div>
+
+        <button
+          onClick={() => onNav("billing")}
+          className="rounded-xl bg-gradient-to-r from-red-600 to-red-500 px-6 py-3 font-semibold text-white transition hover:scale-[1.02]"
+        >
+          Assinar agora
+        </button>
+
+      </div>
 
     </div>
 
