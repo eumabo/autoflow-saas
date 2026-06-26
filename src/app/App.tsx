@@ -13,6 +13,7 @@ import * as API from "../lib/api";
 import type { Profile, Client, Vehicle, ServiceOrder, OrderStatus, FinancialEntry } from "../lib/api";
 import jsPDF from "jspdf";
 import { useLocation, useNavigate } from "react-router-dom";
+import AdminPage from "./pages/AdminPage";
 
 
 
