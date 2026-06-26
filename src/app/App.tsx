@@ -5,7 +5,7 @@ import {
   Plus, Search, MessageCircle, ChevronRight, X, Edit2, Trash2,
   Wrench, CheckCircle, Clock, AlertCircle, Menu, ArrowLeft, Phone,
   Calendar, Gauge, DollarSign, FileText, Eye, RefreshCw, Building2,
-  Download, Upload, Image as ImageIcon, Send,TrendingUp, 
+  Download, Upload, Image as ImageIcon, Send,TrendingUp, Shield,
 Target, 
 } from "lucide-react";
 import { supabase } from "../lib/supabase";
@@ -4249,7 +4249,19 @@ return (
 }
 
 
+function AdminPage() {
+  return (
+    <div className="space-y-6">
+      <h1 className="text-3xl font-bold">
+        Admin Vortan
+      </h1>
 
+      <p className="text-muted-foreground">
+        Área administrativa da plataforma.
+      </p>
+    </div>
+  );
+}
 
 
 function TermsPage({ onBack }: { onBack: () => void }) {
