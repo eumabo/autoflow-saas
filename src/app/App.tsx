@@ -1150,23 +1150,79 @@ const recent = [...orders]
     }));
   }
 
+  const totalTrialDays = 15;
+
+const trialProgress = profile?.subscription_ends_at
+  ? Math.min(
+      100,
+      Math.max(
+        0,
+        ((totalTrialDays - trialDaysLeft) / totalTrialDays) * 100
+      )
+    )
+  : 0;
   
   
 
 return (
   <div className="space-y-5">
 
-    {profile?.subscription_status === "trial" && (
-      <div className="mb-6 rounded-2xl border border-yellow-500/30 bg-yellow-500/10 p-4 text-yellow-100">
-        <p className="text-sm font-semibold">
-          🎉 Você está usando o teste grátis da Vortan Oficina.
-        </p>
+   {profile?.subscription_status === "trial" && (
+  <div className="mb-6 overflow-hidden rounded-2xl border border-amber-500/20 bg-gradient-to-r from-amber-500/10 via-yellow-500/10 to-orange-500/10 p-6 shadow-lg">
 
-        <p className="mt-1 text-sm text-yellow-100/80">
-          Restam <strong>{trialDaysLeft}</strong> dias para o fim do seu teste gratuito.
+    <div className="flex items-start justify-between gap-4">
+
+      <div>
+        <h2 className="text-xl font-bold text-amber-300">
+          🎉 Teste grátis ativo
+        </h2>
+
+        <p className="mt-2 text-sm text-muted-foreground">
+          Aproveite todos os recursos da Vortan Oficina durante seu período de avaliação.
         </p>
       </div>
-    )}
+
+      <div className="rounded-xl bg-amber-500/15 px-4 py-2">
+        <span className="text-sm font-bold text-amber-300">
+          {trialDaysLeft} dias restantes
+        </span>
+      </div>
+
+    </div>
+
+    <div className="mt-6">
+
+      <div className="mb-2 flex justify-between text-xs text-muted-foreground">
+        <span>Período de teste</span>
+        <span>{15 - trialDaysLeft} / 15 dias</span>
+      </div>
+
+      <div className="h-3 w-full overflow-hidden rounded-full bg-white/10">
+        <div
+          className="h-full rounded-full bg-gradient-to-r from-yellow-400 via-amber-500 to-orange-500 transition-all duration-700"
+          style={{ width: `${trialProgress}%` }}
+        />
+      </div>
+
+    </div>
+
+    <div className="mt-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+
+      <p className="text-sm text-muted-foreground">
+        Quando o teste terminar será necessário contratar um plano para continuar utilizando o sistema.
+      </p>
+
+      <Button
+        onClick={() => onNav("billing")}
+        className="bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-red-400"
+      >
+        Assinar agora
+      </Button>
+
+    </div>
+
+  </div>
+)}
 
     <div>
       <h1 className="font-heading font-bold text-2xl text-foreground tracking-wide">
