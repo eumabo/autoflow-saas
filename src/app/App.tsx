@@ -1168,13 +1168,27 @@ return (
   <div className="space-y-5">
 
    {profile?.subscription_status === "trial" && (
-  <div className="mb-6 overflow-hidden rounded-2xl border border-amber-500/20 bg-gradient-to-br from-amber-500/10 via-yellow-500/5 to-transparent shadow-lg">
-
+  <div
+    className={`mb-6 overflow-hidden rounded-2xl border shadow-lg ${
+      trialDaysLeft <= 3
+        ? "border-red-500/30 bg-red-500/10"
+        : trialDaysLeft <= 7
+        ? "border-yellow-500/30 bg-yellow-500/10"
+        : "border-green-500/30 bg-green-500/10"
+    }`}
+  >
     <div className="flex items-center justify-between border-b border-white/10 px-6 py-4">
-
       <div>
-        <h2 className="text-xl font-bold text-amber-300">
-          🎉 Teste grátis ativo
+        <h2
+          className={`text-xl font-bold ${
+            trialDaysLeft <= 3
+              ? "text-red-300"
+              : trialDaysLeft <= 7
+              ? "text-yellow-300"
+              : "text-green-300"
+          }`}
+        >
+          {trialDaysLeft <= 3 ? "⚠️ Seu teste está acabando" : "🎉 Teste grátis ativo"}
         </h2>
 
         <p className="mt-1 text-sm text-muted-foreground">
@@ -1182,63 +1196,83 @@ return (
         </p>
       </div>
 
-      <div className="rounded-full border border-amber-500/30 bg-amber-500/15 px-3 py-1">
-        <span className="text-xs font-bold uppercase tracking-widest text-amber-300">
+      <div
+        className={`rounded-full border px-3 py-1 ${
+          trialDaysLeft <= 3
+            ? "border-red-500/30 bg-red-500/15"
+            : trialDaysLeft <= 7
+            ? "border-yellow-500/30 bg-yellow-500/15"
+            : "border-green-500/30 bg-green-500/15"
+        }`}
+      >
+        <span
+          className={`text-xs font-bold uppercase tracking-widest ${
+            trialDaysLeft <= 3
+              ? "text-red-300"
+              : trialDaysLeft <= 7
+              ? "text-yellow-300"
+              : "text-green-300"
+          }`}
+        >
           Trial
         </span>
       </div>
-
     </div>
 
     <div className="px-6 py-5">
-
       <div className="mb-2 flex justify-between text-sm">
-        <span className="text-muted-foreground">
-          Progresso do teste
-        </span>
+        <span className="text-muted-foreground">Progresso do teste</span>
 
-        <span className="font-semibold text-amber-300">
+        <span className="font-semibold text-muted-foreground">
           {15 - trialDaysLeft} / 15 dias
         </span>
       </div>
 
       <div className="h-3 overflow-hidden rounded-full bg-white/10">
         <div
-          className="h-full rounded-full bg-gradient-to-r from-yellow-400 via-amber-500 to-orange-500 transition-all duration-700"
+          className={`h-full rounded-full bg-gradient-to-r transition-all duration-700 ${
+            trialDaysLeft <= 3
+              ? "from-red-500 to-red-400"
+              : trialDaysLeft <= 7
+              ? "from-yellow-400 to-amber-500"
+              : "from-green-400 to-emerald-500"
+          }`}
           style={{ width: `${trialProgress}%` }}
         />
       </div>
 
       <div className="mt-5 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-
         <div>
-
-          <p className="text-lg font-bold text-white">
+          <p
+            className={`text-lg font-bold ${
+              trialDaysLeft <= 3
+                ? "text-red-300"
+                : trialDaysLeft <= 7
+                ? "text-yellow-300"
+                : "text-green-300"
+            }`}
+          >
             Restam {trialDaysLeft} dias
           </p>
 
           <p className="mt-1 text-xs text-muted-foreground">
-  Expira em{" "}
-  {new Date(profile.subscription_ends_at).toLocaleDateString("pt-BR")}
-</p>
-
-          <p className="mt-1 text-sm text-muted-foreground">
-            Após o término do teste será necessário contratar um plano para continuar utilizando o sistema.
+            Expira em{" "}
+            {new Date(profile.subscription_ends_at).toLocaleDateString("pt-BR")}
           </p>
 
+          <p className="mt-2 text-sm text-muted-foreground">
+            Após o término do teste será necessário contratar um plano para continuar utilizando o sistema.
+          </p>
         </div>
 
         <button
           onClick={() => onNav("billing")}
-          className="rounded-xl bg-gradient-to-r from-red-600 to-red-500 px-6 py-3 font-semibold text-white transition hover:scale-[1.02]"
+          className="rounded-xl bg-gradient-to-r from-red-600 to-red-500 px-6 py-3 font-semibold text-white transition hover:scale-[1.02] hover:from-red-500 hover:to-red-400"
         >
           Assinar agora
         </button>
-
       </div>
-
     </div>
-
   </div>
 )}
 
