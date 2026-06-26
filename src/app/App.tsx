@@ -1177,11 +1177,6 @@ return (
       </p>
     </div>
 
-      <div>
-        <h1 className="font-heading font-bold text-2xl text-foreground tracking-wide">Dashboard</h1>
-        <p className="text-sm text-muted-foreground">Visão geral da oficina</p>
-      </div>
-
      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
   <Card className="p-4">
     <div className="text-xs text-muted-foreground">Faturamento Total</div>
