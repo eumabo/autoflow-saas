@@ -1176,7 +1176,7 @@ return (
         Visão geral da oficina
       </p>
     </div>
-    
+
       <div>
         <h1 className="font-heading font-bold text-2xl text-foreground tracking-wide">Dashboard</h1>
         <p className="text-sm text-muted-foreground">Visão geral da oficina</p>
@@ -4061,8 +4061,15 @@ return (
 
       <main className="flex-1 px-4 py-5 max-w-6xl mx-auto w-full pb-8">
         {page === "dashboard" && (
-          <Dashboard clients={clients} vehicles={vehicles} orders={orders} onNav={nav} onViewOrder={viewOrder} />
-        )}
+  <Dashboard
+    clients={clients}
+    vehicles={vehicles}
+    orders={orders}
+    profile={profile}
+    onNav={nav}
+    onViewOrder={viewOrder}
+  />
+)}
 
         {page === "clients" && (
           <ClientsPage clients={clients} onReload={loadAll} />
