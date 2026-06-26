@@ -18,7 +18,17 @@ import { useLocation, useNavigate } from "react-router-dom";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type Page = "billing" | "dashboard" | "clients" | "vehicles" | "orders" | "history" | "order-detail" | "settings" | "financial";
+type Page =
+  | "billing"
+  | "dashboard"
+  | "clients"
+  | "vehicles"
+  | "orders"
+  | "history"
+  | "order-detail"
+  | "settings"
+  | "financial"
+  | "admin";
 
 // ─── Status helpers ───────────────────────────────────────────────────────────
 
@@ -860,15 +870,20 @@ const NAV = [
   { page: "vehicles" as Page, label: "Veículos", icon: Car },
   { page: "history" as Page, label: "Histórico", icon: History },
   {
-  page: "financial" as Page,
-  label: "Financeiro",
-  icon: DollarSign,
-}, 
+    page: "financial" as Page,
+    label: "Financeiro",
+    icon: DollarSign,
+  },
   {
-  page: "settings" as Page,
-  label: "Configurações",
-  icon: Building2,
-}
+    page: "admin" as Page,
+    label: "Admin Vortan",
+    icon: Shield,
+  },
+  {
+    page: "settings" as Page,
+    label: "Configurações",
+    icon: Building2,
+  },
 ];
 
 function Sidebar({ profile, page, onNav, onLogout, open, onClose }: {
@@ -899,7 +914,14 @@ function Sidebar({ profile, page, onNav, onLogout, open, onClose }: {
         </div>
 
         <nav className="flex-1 px-2 py-3 flex flex-col gap-0.5 overflow-y-auto">
-          {NAV.map(({ page: p, label, icon: Icon }) => {
+          {NAV.filter(item => {
+  if (item.page === "admin") {
+    return profile?.is_admin;
+  }
+
+  return true;
+}).map(({ page: p, label, icon: Icon }) => {
+
             const active = page === p || (page === "order-detail" && p === "orders");
             return (
               <button
