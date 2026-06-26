@@ -4232,16 +4232,20 @@ return (
         )}
 
         {page === "financial" && (
-          <FinancialPage
-            orders={orders}
-            entries={financialEntries}
-            onReload={loadAll}
-          />
-        )}
+  <FinancialPage
+    orders={orders}
+    entries={financialEntries}
+    onReload={loadAll}
+  />
+)}
 
-        {page === "settings" && (
-          <SettingsPage profile={profile} />
-        )}
+{page === "admin" && profile?.is_admin && (
+  <AdminPage />
+)}
+
+{page === "settings" && (
+  <SettingsPage profile={profile} />
+)}
       </main>
     </div>
   </div>
