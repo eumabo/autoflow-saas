@@ -1007,13 +1007,30 @@ function Sidebar({ profile, page, onNav, onLogout, open, onClose }: {
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 
-function Dashboard({ clients, vehicles, orders, onNav, onViewOrder }: {
+function Dashboard({ clients, vehicles, orders, profile, onNav, onViewOrder }: {
   clients: Client[];
   vehicles: Vehicle[];
   orders: ServiceOrder[];
+  profile: any;
   onNav: (p: Page) => void;
   onViewOrder: (o: ServiceOrder) => void;
 }) {
+
+  const getTrialDaysLeft = (endDate: string) => {
+  const end = new Date(endDate).getTime();
+  const now = new Date().getTime();
+
+  const diff = end - now;
+  const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
+
+  return Math.max(days, 0);
+};
+
+const trialDaysLeft =
+  profile?.subscription_ends_at
+    ? getTrialDaysLeft(profile.subscription_ends_at)
+    : 0;
+
   const open = orders.filter(o => o.status !== "finalizado");
 
 const done = orders.filter(o => o.status === "finalizado");
@@ -1133,9 +1150,33 @@ const recent = [...orders]
     }));
   }
 
-return (
+  
+  
 
-    <div className="space-y-5">
+return (
+  <div className="space-y-5">
+
+    {profile?.subscription_status === "trial" && (
+      <div className="mb-6 rounded-2xl border border-yellow-500/30 bg-yellow-500/10 p-4 text-yellow-100">
+        <p className="text-sm font-semibold">
+          🎉 Você está usando o teste grátis da Vortan Oficina.
+        </p>
+
+        <p className="mt-1 text-sm text-yellow-100/80">
+          Restam <strong>{trialDaysLeft}</strong> dias para o fim do seu teste gratuito.
+        </p>
+      </div>
+    )}
+
+    <div>
+      <h1 className="font-heading font-bold text-2xl text-foreground tracking-wide">
+        Dashboard
+      </h1>
+      <p className="text-sm text-muted-foreground">
+        Visão geral da oficina
+      </p>
+    </div>
+    
       <div>
         <h1 className="font-heading font-bold text-2xl text-foreground tracking-wide">Dashboard</h1>
         <p className="text-sm text-muted-foreground">Visão geral da oficina</p>
