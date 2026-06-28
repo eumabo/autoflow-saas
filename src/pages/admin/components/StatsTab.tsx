@@ -53,14 +53,14 @@ export function StatsTab({ stats, fmtMoney }: Props) {
       />
 
       <StatCard
-        title="MRR"
+        title="Receita Mensal(MRR)"
         value={fmtMoney(stats.mrr)}
         border="border-blue-500/20"
         icon={<DollarSign size={22} />}
       />
 
       <StatCard
-        title="Receita Estimada"
+        title="Receita Anual Estimada"
         value={fmtMoney(stats.revenueTotal)}
         border="border-emerald-500/20"
         icon={<TrendingUp size={22} />}

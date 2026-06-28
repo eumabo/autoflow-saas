@@ -87,6 +87,33 @@ export default function AdminPage() {
   );
   const [selected, setSelected] = useState<AdminProfile | null>(null);
 
+  function getDaysLeft(profile: AdminProfile) {
+    if (!profile.subscription_ends_at) return 0;
+
+    async function copyId(id: string) {
+      try {
+        await navigator.clipboard.writeText(id);
+        alert("ID copiado!");
+      } catch {
+        alert("Não foi possível copiar o ID.");
+      }
+    }
+
+    return Math.max(
+      0,
+      Math.ceil(
+        (new Date(profile.subscription_ends_at).getTime() - Date.now()) /
+          86400000,
+      ),
+    );
+  }
+
+  function getWhatsAppNumber(value?: string | null) {
+    const digits = String(value || "").replace(/\D/g, "");
+    if (!digits) return "";
+    return digits.startsWith("55") ? digits : `55${digits}`;
+  }
+
   async function loadProfiles() {
     setLoading(true);
     setError("");
@@ -107,7 +134,6 @@ export default function AdminPage() {
 
     const baseProfiles = (profilesData || []) as AdminProfile[];
     const ids = baseProfiles.map((p) => p.id);
-    console.error("=== PROFILE IDS ===", ids);
 
     if (ids.length === 0) {
       setProfiles([]);
@@ -263,6 +289,15 @@ export default function AdminPage() {
     });
   }
 
+  async function copyId(id: string) {
+    try {
+      await navigator.clipboard.writeText(id);
+      alert("ID copiado!");
+    } catch {
+      alert("Não foi possível copiar o ID.");
+    }
+  }
+
   function exportCSV() {
     const headers = [
       "Oficina",
@@ -409,12 +444,29 @@ export default function AdminPage() {
                 <div className="text-xs font-bold uppercase tracking-[0.22em] text-red-400">
                   Cliente
                 </div>
+
                 <h2 className="mt-1 text-2xl font-bold text-white">
                   {selected.workshop_name || "Sem nome"}
                 </h2>
+
                 <p className="text-sm text-muted-foreground">
                   {selected.owner_name || "Responsável não informado"}
                 </p>
+
+                <div
+                  className={`mt-3 inline-flex rounded-full border px-3 py-1 text-xs font-bold ${statusClass(
+                    selected.subscription_status,
+                    isExpired(selected),
+                  )}`}
+                >
+                  {isExpired(selected)
+                    ? "🔴 Vencido"
+                    : selected.subscription_status === "active"
+                      ? "🟢 Ativo"
+                      : selected.subscription_status === "trial"
+                        ? "🟡 Trial"
+                        : statusLabel(selected.subscription_status)}
+                </div>
               </div>
 
               <button
@@ -423,6 +475,29 @@ export default function AdminPage() {
               >
                 Fechar
               </button>
+            </div>
+
+            <div className="mt-6 grid grid-cols-3 gap-3">
+              <div className="rounded-2xl border border-blue-500/20 bg-blue-500/10 p-4">
+                <p className="text-xs text-blue-300">👥 Clientes</p>
+                <p className="mt-1 text-2xl font-black text-white">
+                  {selected.total_clients || 0}
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-purple-500/20 bg-purple-500/10 p-4">
+                <p className="text-xs text-purple-300">🚗 Veículos</p>
+                <p className="mt-1 text-2xl font-black text-white">
+                  {selected.total_vehicles || 0}
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-red-500/20 bg-red-500/10 p-4">
+                <p className="text-xs text-red-300">🔧 OS</p>
+                <p className="mt-1 text-2xl font-black text-white">
+                  {selected.total_orders || 0}
+                </p>
+              </div>
             </div>
 
             <div className="mt-6 grid gap-3 md:grid-cols-2">
@@ -447,21 +522,6 @@ export default function AdminPage() {
               />
 
               <Info
-                label="Clientes cadastrados"
-                value={String(selected.total_clients || 0)}
-              />
-
-              <Info
-                label="Veículos cadastrados"
-                value={String(selected.total_vehicles || 0)}
-              />
-
-              <Info
-                label="Ordens de serviço"
-                value={String(selected.total_orders || 0)}
-              />
-
-              <Info
                 label="Dias restantes"
                 value={
                   selected.subscription_ends_at
@@ -480,10 +540,26 @@ export default function AdminPage() {
                 label="Expira"
                 value={fmtDate(selected.subscription_ends_at)}
               />
-              <Info
-                label="WhatsApp"
-                value={selected.whatsapp || selected.phone || "—"}
-              />
+              <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                <p className="text-xs uppercase text-muted-foreground">
+                  WhatsApp
+                </p>
+
+                {getWhatsAppNumber(selected.whatsapp || selected.phone) ? (
+                  <a
+                    href={`https://wa.me/${getWhatsAppNumber(
+                      selected.whatsapp || selected.phone,
+                    )}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-1 block text-sm font-semibold text-green-300 hover:underline"
+                  >
+                    📲 {selected.whatsapp || selected.phone}
+                  </a>
+                ) : (
+                  <p className="mt-1 text-sm font-semibold text-white">—</p>
+                )}
+              </div>
               <Info
                 label="Cidade"
                 value={
@@ -491,7 +567,25 @@ export default function AdminPage() {
                   "—"
                 }
               />
-              <Info label="ID" value={selected.id} wide />
+              <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 md:col-span-2">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-xs uppercase text-muted-foreground">
+                      ID
+                    </p>
+                    <p className="mt-1 break-all text-sm font-semibold text-white">
+                      {selected.id}
+                    </p>
+                  </div>
+
+                  <button
+                    onClick={() => copyId(selected.id)}
+                    className="shrink-0 rounded-xl border border-white/10 px-3 py-2 text-xs font-bold text-white hover:bg-white/10"
+                  >
+                    Copiar
+                  </button>
+                </div>
+              </div>
             </div>
 
             <div className="mt-6 flex flex-wrap gap-2">
