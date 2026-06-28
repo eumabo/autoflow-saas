@@ -1,21 +1,54 @@
 import { useState, useEffect, useCallback } from "react";
 import type { User, Session } from "@supabase/supabase-js";
 import {
-  LayoutDashboard, Users, Car, ClipboardList, History, LogOut,
-  Plus, Search, MessageCircle, ChevronRight, X, Edit2, Trash2,
-  Wrench, CheckCircle, Clock, AlertCircle, Menu, ArrowLeft, Phone,
-  Calendar, Gauge, DollarSign, FileText, Eye, RefreshCw, Building2,
-  Download, Upload, Image as ImageIcon, Send,TrendingUp, Shield,
-Target, 
+  LayoutDashboard,
+  Users,
+  Car,
+  ClipboardList,
+  History,
+  LogOut,
+  Plus,
+  Search,
+  MessageCircle,
+  ChevronRight,
+  X,
+  Edit2,
+  Trash2,
+  Wrench,
+  CheckCircle,
+  Clock,
+  AlertCircle,
+  Menu,
+  ArrowLeft,
+  Phone,
+  Calendar,
+  Gauge,
+  DollarSign,
+  FileText,
+  Eye,
+  RefreshCw,
+  Building2,
+  Download,
+  Upload,
+  Image as ImageIcon,
+  Send,
+  TrendingUp,
+  Shield,
+  Target,
 } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import * as API from "../lib/api";
-import type { Profile, Client, Vehicle, ServiceOrder, OrderStatus, FinancialEntry } from "../lib/api";
+import type {
+  Profile,
+  Client,
+  Vehicle,
+  ServiceOrder,
+  OrderStatus,
+  FinancialEntry,
+} from "../lib/api";
 import jsPDF from "jspdf";
 import { useLocation, useNavigate } from "react-router-dom";
 import AdminPage from "../pages/AdminPage";
-
-
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -52,7 +85,9 @@ function StatusBadge({ status }: { status: OrderStatus }) {
     finalizado: <CheckCircle size={11} />,
   };
   return (
-    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded border text-xs font-mono font-medium ${STATUS_COLOR[status]}`}>
+    <span
+      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded border text-xs font-mono font-medium ${STATUS_COLOR[status]}`}
+    >
       {icons[status]}
       {STATUS_LABEL[status]}
     </span>
@@ -67,14 +102,12 @@ function fmt(date: string) {
 
 function fmtMoney(v?: string | number) {
   const n =
-    typeof v === "number"
-      ? v
-      : Number(String(v || "0").replace(",", "."))
+    typeof v === "number" ? v : Number(String(v || "0").replace(",", "."));
 
   return n.toLocaleString("pt-BR", {
     style: "currency",
     currency: "BRL",
-  })
+  });
 }
 
 function cleanFileName(name: string) {
@@ -106,7 +139,7 @@ function downloadCSV(filename: string, rows: Array<Record<string, unknown>>) {
   const headers = Object.keys(rows[0]);
   const csv = [
     headers.map(csvEscape).join(";"),
-    ...rows.map(row => headers.map(h => csvEscape(row[h])).join(";")),
+    ...rows.map((row) => headers.map((h) => csvEscape(row[h])).join(";")),
   ].join("\n");
 
   const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8;" });
@@ -120,10 +153,21 @@ function downloadCSV(filename: string, rows: Array<Record<string, unknown>>) {
 
 // ─── UI Primitives ────────────────────────────────────────────────────────────
 
-function Input({ label, error, ...props }: React.InputHTMLAttributes<HTMLInputElement> & { label?: string; error?: string }) {
+function Input({
+  label,
+  error,
+  ...props
+}: React.InputHTMLAttributes<HTMLInputElement> & {
+  label?: string;
+  error?: string;
+}) {
   return (
     <div className="flex flex-col gap-1.5">
-      {label && <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{label}</label>}
+      {label && (
+        <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+          {label}
+        </label>
+      )}
       <input
         {...props}
         className={`w-full bg-input-background border rounded-md px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-colors ${error ? "border-destructive" : "border-border"} ${props.className ?? ""}`}
@@ -133,10 +177,18 @@ function Input({ label, error, ...props }: React.InputHTMLAttributes<HTMLInputEl
   );
 }
 
-function Select({ label, children, ...props }: React.SelectHTMLAttributes<HTMLSelectElement> & { label?: string }) {
+function Select({
+  label,
+  children,
+  ...props
+}: React.SelectHTMLAttributes<HTMLSelectElement> & { label?: string }) {
   return (
     <div className="flex flex-col gap-1.5">
-      {label && <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{label}</label>}
+      {label && (
+        <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+          {label}
+        </label>
+      )}
       <select
         {...props}
         className="w-full bg-input-background border border-border rounded-md px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-colors appearance-none"
@@ -147,10 +199,17 @@ function Select({ label, children, ...props }: React.SelectHTMLAttributes<HTMLSe
   );
 }
 
-function Textarea({ label, ...props }: React.TextareaHTMLAttributes<HTMLTextAreaElement> & { label?: string }) {
+function Textarea({
+  label,
+  ...props
+}: React.TextareaHTMLAttributes<HTMLTextAreaElement> & { label?: string }) {
   return (
     <div className="flex flex-col gap-1.5">
-      {label && <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{label}</label>}
+      {label && (
+        <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+          {label}
+        </label>
+      )}
       <textarea
         {...props}
         className="w-full bg-input-background border border-border rounded-md px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-colors resize-none"
@@ -160,23 +219,42 @@ function Textarea({ label, ...props }: React.TextareaHTMLAttributes<HTMLTextArea
 }
 
 function Btn({
-  variant = "primary", size = "md", loading, children, className = "", ...props
+  variant = "primary",
+  size = "md",
+  loading,
+  children,
+  className = "",
+  ...props
 }: React.ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: "primary" | "secondary" | "ghost" | "danger";
   size?: "sm" | "md" | "lg";
   loading?: boolean;
 }) {
-  const base = "inline-flex items-center gap-2 font-medium rounded-md transition-all focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-50 disabled:cursor-not-allowed";
+  const base =
+    "inline-flex items-center gap-2 font-medium rounded-md transition-all focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-50 disabled:cursor-not-allowed";
   const variants = {
-    primary: "bg-primary text-primary-foreground hover:bg-primary/90 active:scale-[0.98]",
-    secondary: "bg-secondary text-secondary-foreground border border-border hover:bg-secondary/80",
+    primary:
+      "bg-primary text-primary-foreground hover:bg-primary/90 active:scale-[0.98]",
+    secondary:
+      "bg-secondary text-secondary-foreground border border-border hover:bg-secondary/80",
     ghost: "text-muted-foreground hover:text-foreground hover:bg-secondary",
-    danger: "bg-destructive/10 text-destructive border border-destructive/20 hover:bg-destructive/20",
+    danger:
+      "bg-destructive/10 text-destructive border border-destructive/20 hover:bg-destructive/20",
   };
-  const sizes = { sm: "px-3 py-1.5 text-xs", md: "px-4 py-2.5 text-sm", lg: "px-6 py-3 text-base" };
+  const sizes = {
+    sm: "px-3 py-1.5 text-xs",
+    md: "px-4 py-2.5 text-sm",
+    lg: "px-6 py-3 text-base",
+  };
   return (
-    <button {...props} disabled={props.disabled || loading} className={`${base} ${variants[variant]} ${sizes[size]} ${className}`}>
-      {loading && <RefreshCw size={14} className="animate-spin flex-shrink-0" />}
+    <button
+      {...props}
+      disabled={props.disabled || loading}
+      className={`${base} ${variants[variant]} ${sizes[size]} ${className}`}
+    >
+      {loading && (
+        <RefreshCw size={14} className="animate-spin flex-shrink-0" />
+      )}
       {children}
     </button>
   );
@@ -198,7 +276,15 @@ function Card({
   );
 }
 
-function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
+function Modal({
+  title,
+  onClose,
+  children,
+}: {
+  title: string;
+  onClose: () => void;
+  children: React.ReactNode;
+}) {
   useEffect(() => {
     const h = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", h);
@@ -207,11 +293,19 @@ function Modal({ title, onClose, children }: { title: string; onClose: () => voi
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <div
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        onClick={onClose}
+      />
       <div className="relative w-full sm:max-w-lg bg-card border border-border rounded-t-2xl sm:rounded-xl shadow-2xl max-h-[92vh] overflow-y-auto">
         <div className="flex items-center justify-between px-5 py-4 border-b border-border sticky top-0 bg-card z-10">
-          <h2 className="font-heading font-bold text-xl text-foreground tracking-wide">{title}</h2>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors p-1">
+          <h2 className="font-heading font-bold text-xl text-foreground tracking-wide">
+            {title}
+          </h2>
+          <button
+            onClick={onClose}
+            className="text-muted-foreground hover:text-foreground transition-colors p-1"
+          >
             <X size={20} />
           </button>
         </div>
@@ -221,13 +315,21 @@ function Modal({ title, onClose, children }: { title: string; onClose: () => voi
   );
 }
 
-function Toast({ message, type }: { message: string; type: "error" | "success" }) {
+function Toast({
+  message,
+  type,
+}: {
+  message: string;
+  type: "error" | "success";
+}) {
   return (
-    <div className={`fixed bottom-4 left-1/2 -translate-x-1/2 z-[60] px-4 py-3 rounded-lg border text-sm font-medium shadow-xl flex items-center gap-2 max-w-sm w-[calc(100%-2rem)] ${
-      type === "error"
-        ? "bg-destructive/15 border-destructive/30 text-destructive"
-        : "bg-primary/15 border-primary/30 text-primary"
-    }`}>
+    <div
+      className={`fixed bottom-4 left-1/2 -translate-x-1/2 z-[60] px-4 py-3 rounded-lg border text-sm font-medium shadow-xl flex items-center gap-2 max-w-sm w-[calc(100%-2rem)] ${
+        type === "error"
+          ? "bg-destructive/15 border-destructive/30 text-destructive"
+          : "bg-primary/15 border-primary/30 text-primary"
+      }`}
+    >
       {type === "error" ? <AlertCircle size={15} /> : <CheckCircle size={15} />}
       {message}
     </div>
@@ -236,21 +338,29 @@ function Toast({ message, type }: { message: string; type: "error" | "success" }
 
 // ─── Logo ─────────────────────────────────────────────────────────────────────
 
-function Logo({ size = "md", src }: { size?: "sm" | "md"; src?: string | null }) {
+function Logo({
+  size = "md",
+  src,
+}: {
+  size?: "sm" | "md";
+  src?: string | null;
+}) {
   const small = size === "sm";
 
   return (
-    <div className={small
-  ? "flex justify-center items-center w-full h-24"
-  : "flex justify-center items-center w-full h-28"}>
+    <div
+      className={
+        small
+          ? "flex justify-center items-center w-full h-24"
+          : "flex justify-center items-center w-full h-28"
+      }
+    >
       <img
         src={src || "/vortanoficina-logo.png?v=10"}
         alt="Logo"
         className={
-  small
-  ? "h-36 w-auto object-contain"
-  : "h-40 w-auto object-contain"
-}
+          small ? "h-36 w-auto object-contain" : "h-40 w-auto object-contain"
+        }
       />
     </div>
   );
@@ -267,7 +377,6 @@ function AuthError({ msg }: { msg: string }) {
     </div>
   );
 }
-
 
 function LandingPage({
   onGoLogin,
@@ -293,59 +402,77 @@ function LandingPage({
   ];
 
   const stats = [
-  {
-    title: "OS digitais",
-    text: "Crie, acompanhe e organize ordens de serviço",
-    icon: ClipboardList,
-  },
-  {
-    title: "Clientes",
-    text: "Tenha histórico completo de cada cliente",
-    icon: Users,
-  },
-  {
-    title: "Veículos",
-    text: "Consulte placas, modelos e serviços anteriores",
-    icon: Car,
-  },
-  {
-    title: "WhatsApp",
-    text: "Envie atualizações direto para o cliente",
-    icon: MessageCircle,
-  },
-];
+    {
+      title: "OS digitais",
+      text: "Crie, acompanhe e organize ordens de serviço",
+      icon: ClipboardList,
+    },
+    {
+      title: "Clientes",
+      text: "Tenha histórico completo de cada cliente",
+      icon: Users,
+    },
+    {
+      title: "Veículos",
+      text: "Consulte placas, modelos e serviços anteriores",
+      icon: Car,
+    },
+    {
+      title: "WhatsApp",
+      text: "Envie atualizações direto para o cliente",
+      icon: MessageCircle,
+    },
+  ];
 
   return (
     <div className="min-h-screen bg-[#030305] text-white relative overflow-hidden">
       <div className="fixed inset-0 pointer-events-none bg-[radial-gradient(circle_at_75%_20%,rgba(239,31,47,0.22),transparent_28%),radial-gradient(circle_at_20%_45%,rgba(239,31,47,0.10),transparent_30%),linear-gradient(180deg,rgba(255,255,255,0.04)_0%,rgba(255,255,255,0)_22%)]" />
       <div className="fixed inset-0 pointer-events-none opacity-[0.05] bg-[linear-gradient(rgba(239,31,47,1)_1px,transparent_1px),linear-gradient(90deg,rgba(239,31,47,1)_1px,transparent_1px)] bg-[size:88px_88px]" />
 
-      <header className="
+      <header
+        className="
 absolute top-0 left-0 right-0 z-20
 bg-gradient-to-b
 from-black/60
 via-black/30
 to-transparent
 backdrop-blur-[1px]
-">
-  <div className="max-w-7xl mx-auto px-5 h-24 flex items-center justify-between gap-4">
-          <button onClick={onGoRegister} className="flex items-center gap-3 text-left">
+"
+      >
+        <div className="max-w-7xl mx-auto px-5 h-24 flex items-center justify-between gap-4">
+          <button
+            onClick={onGoRegister}
+            className="flex items-center gap-3 text-left"
+          >
             <img
-  src="/vortanoficina-logo.png?v=red"
-  alt="Vortan Oficina"
-  className="h-24 md:h-50 w-auto object-contain"
-/>
+              src="/vortanoficina-logo.png?v=red"
+              alt="Vortan Oficina"
+              className="h-24 md:h-50 w-auto object-contain"
+            />
           </button>
 
           <nav className="hidden lg:flex items-center gap-8 text-sm text-white/70">
-            <a href="#inicio" className="text-primary font-semibold">Início</a>
-            <a href="#funcionalidades" className="hover:text-white transition-colors">Funcionalidades</a>
-            <a href="#planos" className="hover:text-white transition-colors">Planos</a>
-            <a href="#faq" className="hover:text-white transition-colors">Dúvidas</a>
+            <a href="#inicio" className="text-primary font-semibold">
+              Início
+            </a>
+            <a
+              href="#funcionalidades"
+              className="hover:text-white transition-colors"
+            >
+              Funcionalidades
+            </a>
+            <a href="#planos" className="hover:text-white transition-colors">
+              Planos
+            </a>
+            <a href="#faq" className="hover:text-white transition-colors">
+              Dúvidas
+            </a>
           </nav>
 
           <div className="flex items-center gap-3">
-            <Btn variant="secondary" onClick={onGoLogin}>Entrar</Btn>
+            <Btn variant="secondary" onClick={onGoLogin}>
+              Entrar
+            </Btn>
             <a
               href={whatsappDemo}
               target="_blank"
@@ -359,7 +486,10 @@ backdrop-blur-[1px]
       </header>
 
       <main className="relative z-10">
-        <section id="inicio" className="relative min-h-screen overflow-hidden border-b border-white/10 pt-24">
+        <section
+          id="inicio"
+          className="relative min-h-screen overflow-hidden border-b border-white/10 pt-24"
+        >
           <div className="absolute inset-0">
             <img
               src="/vortan-hero-bg.png?v=1"
@@ -368,7 +498,7 @@ backdrop-blur-[1px]
             />
             <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(0,0,0,0.92)_0%,rgba(0,0,0,0.72)_28%,rgba(0,0,0,0.42)_48%,rgba(0,0,0,0.18)_72%,rgba(0,0,0,0.08)_100%)]" />
 
-<div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.58)_0%,rgba(0,0,0,0.18)_18%,rgba(0,0,0,0.02)_42%,rgba(0,0,0,0.28)_72%,rgba(0,0,0,0.82)_100%)]" />
+            <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.58)_0%,rgba(0,0,0,0.18)_18%,rgba(0,0,0,0.02)_42%,rgba(0,0,0,0.28)_72%,rgba(0,0,0,0.82)_100%)]" />
             <div className="absolute inset-y-0 left-0 w-[58%] bg-[radial-gradient(circle_at_18%_42%,rgba(239,31,47,0.16),transparent_34%)]" />
           </div>
 
@@ -383,7 +513,8 @@ backdrop-blur-[1px]
               </h1>
 
               <p className="mt-6 text-lg md:text-xl leading-relaxed text-white/74 max-w-xl">
-                Organize ordens de serviço, controle financeiro, estoque, clientes e veículos em um só lugar. Mais eficiência, mais lucro.
+                Organize ordens de serviço, controle financeiro, estoque,
+                clientes e veículos em um só lugar. Mais eficiência, mais lucro.
               </p>
 
               <div className="mt-9 flex flex-col sm:flex-row gap-4">
@@ -406,16 +537,25 @@ backdrop-blur-[1px]
                 {[
                   [Gauge, "Mais controle", "Tudo da oficina na palma da mão."],
                   [Clock, "Mais agilidade", "Processos rápidos e integrados."],
-                  [TrendingUp, "Mais lucro", "Decisões inteligentes e resultados reais."],
+                  [
+                    TrendingUp,
+                    "Mais lucro",
+                    "Decisões inteligentes e resultados reais.",
+                  ],
                 ].map(([Icon, title, desc]) => {
                   const IconCmp = Icon as typeof Gauge;
                   return (
-                    <div key={String(title)} className="rounded-2xl border border-white/10 bg-black/50 p-4 backdrop-blur-md shadow-xl shadow-black/30">
+                    <div
+                      key={String(title)}
+                      className="rounded-2xl border border-white/10 bg-black/50 p-4 backdrop-blur-md shadow-xl shadow-black/30"
+                    >
                       <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-xl border border-primary/25 bg-primary/10">
                         <IconCmp size={20} className="text-primary" />
                       </div>
                       <div className="font-bold text-sm">{title as string}</div>
-                      <div className="text-xs text-white/58 mt-1">{desc as string}</div>
+                      <div className="text-xs text-white/58 mt-1">
+                        {desc as string}
+                      </div>
                     </div>
                   );
                 })}
@@ -426,22 +566,23 @@ backdrop-blur-[1px]
           <div className="relative z-10 max-w-7xl mx-auto px-5 -mt-28 pb-9 hidden lg:block">
             <div className="grid md:grid-cols-4 gap-3 rounded-3xl border border-white/10 bg-black/45 p-4 backdrop-blur-xl shadow-2xl shadow-red-950/25">
               {stats.map(({ title, text, icon: Icon }) => (
-  <div key={title} className="flex items-center gap-4 rounded-2xl px-4 py-3">
-    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/15 border border-primary/20 shadow-[0_0_35px_rgba(239,31,47,0.18)]">
-      <Icon size={23} className="text-primary" />
-    </div>
+                <div
+                  key={title}
+                  className="flex items-center gap-4 rounded-2xl px-4 py-3"
+                >
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/15 border border-primary/20 shadow-[0_0_35px_rgba(239,31,47,0.18)]">
+                    <Icon size={23} className="text-primary" />
+                  </div>
 
-    <div>
-      <div className="text-primary text-xl font-bold">
-        {title}
-      </div>
+                  <div>
+                    <div className="text-primary text-xl font-bold">
+                      {title}
+                    </div>
 
-      <div className="text-sm text-white/70 mt-1">
-        {text}
-      </div>
-    </div>
-  </div>
-))}
+                    <div className="text-sm text-white/70 mt-1">{text}</div>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </section>
@@ -449,10 +590,15 @@ backdrop-blur-[1px]
         <section id="planos" className="max-w-7xl mx-auto px-5 py-10">
           <div className="grid lg:grid-cols-[1.1fr_0.9fr] gap-6 items-stretch">
             <Card className="p-8 md:p-10 border-primary/20 bg-black/50">
-              <div className="text-primary font-bold uppercase tracking-[0.22em] text-xs">Plano Fundadores</div>
-              <h2 className="mt-3 text-4xl md:text-5xl font-bold">Comece com preço promocional.</h2>
+              <div className="text-primary font-bold uppercase tracking-[0.22em] text-xs">
+                Plano Fundadores
+              </div>
+              <h2 className="mt-3 text-4xl md:text-5xl font-bold">
+                Comece com preço promocional.
+              </h2>
               <p className="mt-4 text-muted-foreground max-w-2xl">
-                Valor especial para os primeiros clientes da Vortan Oficina, com acesso aos recursos principais para organizar sua operação.
+                Valor especial para os primeiros clientes da Vortan Oficina, com
+                acesso aos recursos principais para organizar sua operação.
               </p>
 
               <div className="mt-7 flex items-end gap-2">
@@ -461,8 +607,18 @@ backdrop-blur-[1px]
               </div>
 
               <div className="mt-7 grid sm:grid-cols-2 gap-3 text-sm">
-                {["Clientes ilimitados", "Veículos ilimitados", "Ordens de Serviço", "Financeiro", "PDF profissional", "Suporte inicial"].map((item) => (
-                  <div key={item} className="flex items-center gap-2 text-white/80">
+                {[
+                  "Clientes ilimitados",
+                  "Veículos ilimitados",
+                  "Ordens de Serviço",
+                  "Financeiro",
+                  "PDF profissional",
+                  "Suporte inicial",
+                ].map((item) => (
+                  <div
+                    key={item}
+                    className="flex items-center gap-2 text-white/80"
+                  >
                     <CheckCircle size={16} className="text-primary" />
                     {item}
                   </div>
@@ -471,13 +627,22 @@ backdrop-blur-[1px]
             </Card>
 
             <Card className="p-8 bg-[radial-gradient(circle_at_top_right,rgba(239,31,47,0.18),transparent_35%),rgba(0,0,0,0.55)] border-white/10">
-              <div className="text-xs text-muted-foreground mb-2 uppercase tracking-[0.2em]">Painel Vortan</div>
-              <h3 className="text-3xl font-bold mb-5">Tudo que sua oficina precisa</h3>
+              <div className="text-xs text-muted-foreground mb-2 uppercase tracking-[0.2em]">
+                Painel Vortan
+              </div>
+              <h3 className="text-3xl font-bold mb-5">
+                Tudo que sua oficina precisa
+              </h3>
               <div className="space-y-3">
                 {features.slice(0, 5).map(([title, desc]) => (
-                  <div key={title} className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
+                  <div
+                    key={title}
+                    className="rounded-xl border border-white/10 bg-white/[0.03] p-4"
+                  >
                     <div className="font-bold text-primary">{title}</div>
-                    <div className="text-sm text-muted-foreground mt-1">{desc}</div>
+                    <div className="text-sm text-muted-foreground mt-1">
+                      {desc}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -487,24 +652,40 @@ backdrop-blur-[1px]
 
         <section className="max-w-7xl mx-auto px-5 py-16">
           <div className="text-center mb-8">
-            <h2 className="font-heading font-bold text-4xl">Veja a Vortan Oficina em ação</h2>
-            <p className="text-muted-foreground mt-2">Dashboard real do sistema, com visual profissional para a rotina da oficina.</p>
+            <h2 className="font-heading font-bold text-4xl">
+              Veja a Vortan Oficina em ação
+            </h2>
+            <p className="text-muted-foreground mt-2">
+              Dashboard real do sistema, com visual profissional para a rotina
+              da oficina.
+            </p>
           </div>
 
           <Card className="overflow-hidden border-primary/20 max-w-6xl mx-auto bg-black/70 shadow-2xl shadow-red-950/20">
-            <img src="/dashboard-real.png?v=1" alt="Dashboard Vortan Oficina" className="w-full object-cover" />
+            <img
+              src="/dashboard-real.png?v=1"
+              alt="Dashboard Vortan Oficina"
+              className="w-full object-cover"
+            />
           </Card>
         </section>
 
         <section id="funcionalidades" className="max-w-7xl mx-auto px-5 py-14">
           <div className="text-center mb-9">
-            <h2 className="font-heading font-bold text-4xl">Recursos que simplificam o dia a dia</h2>
-            <p className="text-muted-foreground mt-2">Menos bagunça, menos papel e mais controle dentro da oficina.</p>
+            <h2 className="font-heading font-bold text-4xl">
+              Recursos que simplificam o dia a dia
+            </h2>
+            <p className="text-muted-foreground mt-2">
+              Menos bagunça, menos papel e mais controle dentro da oficina.
+            </p>
           </div>
 
           <div className="grid md:grid-cols-3 gap-4">
             {features.map(([title, desc]) => (
-              <Card key={title} className="p-5 bg-black/45 border-white/10 hover:border-primary/35 transition-colors">
+              <Card
+                key={title}
+                className="p-5 bg-black/45 border-white/10 hover:border-primary/35 transition-colors"
+              >
                 <CheckCircle size={20} className="text-primary mb-4" />
                 <p className="font-bold">{title}</p>
                 <p className="text-sm text-muted-foreground mt-2">{desc}</p>
@@ -515,29 +696,52 @@ backdrop-blur-[1px]
 
         <section className="max-w-5xl mx-auto px-5 py-16">
           <Card className="text-center p-8 md:p-12 border-primary/20 bg-[radial-gradient(circle_at_center,rgba(239,31,47,0.15),transparent_55%),rgba(0,0,0,0.58)]">
-            <h2 className="text-4xl md:text-5xl font-bold">Pronto para organizar sua oficina?</h2>
+            <h2 className="text-4xl md:text-5xl font-bold">
+              Pronto para organizar sua oficina?
+            </h2>
             <p className="text-muted-foreground mt-4 max-w-2xl mx-auto">
-              Comece hoje mesmo a controlar clientes, veículos, ordens de serviço e financeiro em um único lugar.
+              Comece hoje mesmo a controlar clientes, veículos, ordens de
+              serviço e financeiro em um único lugar.
             </p>
             <div className="mt-8 flex flex-col sm:flex-row gap-3 justify-center">
-              <Btn variant="primary" size="lg" onClick={onGoRegister}>Começar Agora</Btn>
-              <Btn variant="secondary" size="lg" onClick={onGoLogin}>Já tenho conta</Btn>
+              <Btn variant="primary" size="lg" onClick={onGoRegister}>
+                Começar Agora
+              </Btn>
+              <Btn variant="secondary" size="lg" onClick={onGoLogin}>
+                Já tenho conta
+              </Btn>
             </div>
           </Card>
         </section>
 
         <section id="faq" className="max-w-5xl mx-auto px-5 py-14">
           <div className="text-center mb-8">
-            <h2 className="font-heading font-bold text-4xl">Perguntas frequentes</h2>
-            <p className="text-muted-foreground mt-2">Tudo que você precisa saber antes de começar.</p>
+            <h2 className="font-heading font-bold text-4xl">
+              Perguntas frequentes
+            </h2>
+            <p className="text-muted-foreground mt-2">
+              Tudo que você precisa saber antes de começar.
+            </p>
           </div>
 
           <div className="grid md:grid-cols-2 gap-4">
             {[
-              ["Precisa instalar?", "Não. A Vortan Oficina funciona direto pelo navegador, sem instalação."],
-              ["Funciona no celular?", "Sim. Você pode acessar pelo computador, tablet ou celular."],
-              ["Os dados ficam salvos?", "Sim. As informações ficam armazenadas online com segurança."],
-              ["Tem suporte?", "Sim. Clientes do plano fundador contam com suporte dedicado."],
+              [
+                "Precisa instalar?",
+                "Não. A Vortan Oficina funciona direto pelo navegador, sem instalação.",
+              ],
+              [
+                "Funciona no celular?",
+                "Sim. Você pode acessar pelo computador, tablet ou celular.",
+              ],
+              [
+                "Os dados ficam salvos?",
+                "Sim. As informações ficam armazenadas online com segurança.",
+              ],
+              [
+                "Tem suporte?",
+                "Sim. Clientes do plano fundador contam com suporte dedicado.",
+              ],
             ].map(([title, desc]) => (
               <Card key={title} className="p-5 bg-black/45 border-white/10">
                 <CheckCircle size={18} className="text-primary mb-3" />
@@ -558,13 +762,35 @@ backdrop-blur-[1px]
 
           <div className="text-center">
             <div>Contato</div>
-            <a href="https://wa.me/5527996126147" target="_blank" rel="noreferrer" className="block text-primary hover:underline">WhatsApp: (27) 99612-6147</a>
-            <a href="mailto:contato.vortanoficina@gmail.com" className="block text-primary hover:underline">contato.vortanoficina@gmail.com</a>
+            <a
+              href="https://wa.me/5527996126147"
+              target="_blank"
+              rel="noreferrer"
+              className="block text-primary hover:underline"
+            >
+              WhatsApp: (27) 99612-6147
+            </a>
+            <a
+              href="mailto:contato.vortanoficina@gmail.com"
+              className="block text-primary hover:underline"
+            >
+              contato.vortanoficina@gmail.com
+            </a>
           </div>
 
           <div className="flex gap-4">
-            <button onClick={onGoTerms} className="hover:text-primary transition-colors">Termos</button>
-            <button onClick={onGoPrivacy} className="hover:text-primary transition-colors">Privacidade</button>
+            <button
+              onClick={onGoTerms}
+              className="hover:text-primary transition-colors"
+            >
+              Termos
+            </button>
+            <button
+              onClick={onGoPrivacy}
+              className="hover:text-primary transition-colors"
+            >
+              Privacidade
+            </button>
           </div>
 
           <div className="text-center md:text-right text-xs">
@@ -584,78 +810,111 @@ function LoginScreen({ onGoRegister }: { onGoRegister: () => void }) {
   const [loading, setLoading] = useState(false);
 
   async function handle(e: React.FormEvent) {
-  e.preventDefault();
-  setError("");
-  setLoading(true);
+    e.preventDefault();
+    setError("");
+    setLoading(true);
 
-  const { error } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  });
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
 
-  if (error) {
-    setError(
-      error.message === "Invalid login credentials"
-        ? "E-mail ou senha incorretos."
-        : "Não foi possível entrar. Verifique seus dados e tente novamente."
+    if (error) {
+      setError(
+        error.message === "Invalid login credentials"
+          ? "E-mail ou senha incorretos."
+          : "Não foi possível entrar. Verifique seus dados e tente novamente.",
+      );
+    }
+
+    setLoading(false);
+  }
+
+  async function handleForgotPassword() {
+    setError("");
+
+    if (!email) {
+      setError("Digite seu e-mail acima para recuperar a senha.");
+      return;
+    }
+
+    setLoading(true);
+
+    const { error: resetError } = await supabase.auth.resetPasswordForEmail(
+      email,
+      {
+        redirectTo: "https://www.vortanoficina.com.br?reset-password=true",
+      },
     );
+
+    if (resetError) {
+      setError(
+        "Não foi possível enviar o e-mail de recuperação. Tente novamente.",
+      );
+    } else {
+      setError("Enviamos um link de recuperação para o seu e-mail.");
+    }
+
+    setLoading(false);
   }
-
-  setLoading(false);
-}
-
-async function handleForgotPassword() {
-  setError("");
-
-  if (!email) {
-    setError("Digite seu e-mail acima para recuperar a senha.");
-    return;
-  }
-
-  setLoading(true);
-
-  const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: "https://www.vortanoficina.com.br?reset-password=true",
-  });
-
-  if (resetError) {
-    setError("Não foi possível enviar o e-mail de recuperação. Tente novamente.");
-  } else {
-    setError("Enviamos um link de recuperação para o seu e-mail.");
-  }
-
-  setLoading(false);
-}
 
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center px-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
           <Logo />
-          <p className="text-sm text-muted-foreground mt-2">Gestão inteligente para sua oficina</p>
+          <p className="text-sm text-muted-foreground mt-2">
+            Gestão inteligente para sua oficina
+          </p>
         </div>
         <Card className="p-6">
-          <h1 className="font-heading font-bold text-xl mb-5 text-foreground">Entrar</h1>
+          <h1 className="font-heading font-bold text-xl mb-5 text-foreground">
+            Entrar
+          </h1>
           <form onSubmit={handle} className="flex flex-col gap-4">
-            <Input label="E-mail" type="email" placeholder="email@oficina.com.br" value={email} onChange={e => setEmail(e.target.value)} required autoComplete="email" />
-            <Input label="Senha" type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} required autoComplete="current-password" />
-             <button
-  type="button"
-  onClick={handleForgotPassword}
-  className="text-xs text-primary hover:underline text-right"
->
-  Esqueci minha senha
-</button>
-            
+            <Input
+              label="E-mail"
+              type="email"
+              placeholder="email@oficina.com.br"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              autoComplete="email"
+            />
+            <Input
+              label="Senha"
+              type="password"
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              autoComplete="current-password"
+            />
+            <button
+              type="button"
+              onClick={handleForgotPassword}
+              className="text-xs text-primary hover:underline text-right"
+            >
+              Esqueci minha senha
+            </button>
+
             <AuthError msg={error} />
-            <Btn type="submit" variant="primary" className="w-full justify-center" loading={loading}>
+            <Btn
+              type="submit"
+              variant="primary"
+              className="w-full justify-center"
+              loading={loading}
+            >
               {!loading && "Entrar"}
             </Btn>
           </form>
         </Card>
         <p className="text-center text-sm text-muted-foreground mt-4">
           Não tem conta?{" "}
-          <button onClick={onGoRegister} className="text-primary hover:underline font-medium">
+          <button
+            onClick={onGoRegister}
+            className="text-primary hover:underline font-medium"
+          >
             Cadastrar oficina
           </button>
         </p>
@@ -665,13 +924,20 @@ async function handleForgotPassword() {
 }
 
 function RegisterScreen({ onGoLogin }: { onGoLogin: () => void }) {
-  const [form, setForm] = useState({ name: "", workshopName: "", email: "", password: "", confirm: "" });
+  const [form, setForm] = useState({
+    name: "",
+    workshopName: "",
+    email: "",
+    password: "",
+    confirm: "",
+  });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [pendingEmail, setPendingEmail] = useState("");
 
-  const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
-    setForm(p => ({ ...p, [k]: e.target.value }));
+  const set =
+    (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
+      setForm((p) => ({ ...p, [k]: e.target.value }));
 
   async function handle(e: React.FormEvent) {
     e.preventDefault();
@@ -691,7 +957,10 @@ function RegisterScreen({ onGoLogin }: { onGoLogin: () => void }) {
 
     localStorage.setItem(
       "vortanoficina_pending_profile",
-      JSON.stringify({ owner_name: form.name, workshop_name: form.workshopName })
+      JSON.stringify({
+        owner_name: form.name,
+        workshop_name: form.workshopName,
+      }),
     );
 
     const { error } = await supabase.auth.signUp({
@@ -703,26 +972,26 @@ function RegisterScreen({ onGoLogin }: { onGoLogin: () => void }) {
     });
 
     if (error) {
-  localStorage.removeItem("vortanoficina_pending_profile");
+      localStorage.removeItem("vortanoficina_pending_profile");
 
-  if (
-    error.message.toLowerCase().includes("password") ||
-    error.message.toLowerCase().includes("senha")
-  ) {
-    setError(
-      "A senha precisa ter pelo menos 6 caracteres, uma letra maiúscula e um número."
-    );
-  } else if (
-    error.message.toLowerCase().includes("user already registered")
-  ) {
-    setError("Já existe uma conta cadastrada com este e-mail.");
-  } else {
-    setError("Não foi possível concluir o cadastro. Tente novamente.");
-  }
+      if (
+        error.message.toLowerCase().includes("password") ||
+        error.message.toLowerCase().includes("senha")
+      ) {
+        setError(
+          "A senha precisa ter pelo menos 6 caracteres, uma letra maiúscula e um número.",
+        );
+      } else if (
+        error.message.toLowerCase().includes("user already registered")
+      ) {
+        setError("Já existe uma conta cadastrada com este e-mail.");
+      } else {
+        setError("Não foi possível concluir o cadastro. Tente novamente.");
+      }
 
-  setLoading(false);
-  return;
-}
+      setLoading(false);
+      return;
+    }
 
     setPendingEmail(form.email);
     setLoading(false);
@@ -752,11 +1021,15 @@ function RegisterScreen({ onGoLogin }: { onGoLogin: () => void }) {
             </p>
 
             <p className="text-sm text-muted-foreground">
-              Depois de confirmar pelo link recebido, você volta automaticamente para a Vortan Oficina.
+              Depois de confirmar pelo link recebido, você volta automaticamente
+              para a Vortan Oficina.
             </p>
           </Card>
 
-          <button onClick={onGoLogin} className="text-primary hover:underline font-medium mt-5 text-sm">
+          <button
+            onClick={onGoLogin}
+            className="text-primary hover:underline font-medium mt-5 text-sm"
+          >
             Voltar para login
           </button>
         </div>
@@ -768,37 +1041,77 @@ function RegisterScreen({ onGoLogin }: { onGoLogin: () => void }) {
     <div className="min-h-screen bg-background flex flex-col items-center justify-center px-4 py-8">
       <div className="w-full max-w-sm">
         <div className="flex flex-col items-center mb-6">
-  <Logo />
-  
-  <button
-  type="button"
-  onClick={onGoLogin}
-  className="mb-4 inline-flex items-center gap-2 rounded-lg border border-red-500/30 px-4 py-2 text-sm font-semibold text-red-400 hover:bg-red-500/10 transition"
->
-  ← Voltar para login
-</button>
+          <Logo />
 
-  <p className="text-sm text-muted-foreground mt-2 text-center">
-    
-    Cadastre sua oficina
-  </p>
-</div>
+          <button
+            type="button"
+            onClick={onGoLogin}
+            className="mb-4 inline-flex items-center gap-2 rounded-lg border border-red-500/30 px-4 py-2 text-sm font-semibold text-red-400 hover:bg-red-500/10 transition"
+          >
+            ← Voltar para login
+          </button>
+
+          <p className="text-sm text-muted-foreground mt-2 text-center">
+            Cadastre sua oficina
+          </p>
+        </div>
         <Card className="p-6">
           <form onSubmit={handle} className="flex flex-col gap-4">
-            <Input label="Seu nome" placeholder="Ex: João Souza" value={form.name} onChange={set("name")} required />
-            <Input label="Nome da oficina" placeholder="Ex: Oficina Central" value={form.workshopName} onChange={set("workshopName")} required />
-            <Input label="E-mail" type="email" placeholder="Ex: contato@oficina.com.br" value={form.email} onChange={set("email")} required />
-            <Input label="Senha" type="password" placeholder="Mínimo 6 caracteres" value={form.password} onChange={set("password")} required />
-            <Input label="Confirmar senha" type="password" placeholder="Repita a senha" value={form.confirm} onChange={set("confirm")} required />
+            <Input
+              label="Seu nome"
+              placeholder="Ex: João Souza"
+              value={form.name}
+              onChange={set("name")}
+              required
+            />
+            <Input
+              label="Nome da oficina"
+              placeholder="Ex: Oficina Central"
+              value={form.workshopName}
+              onChange={set("workshopName")}
+              required
+            />
+            <Input
+              label="E-mail"
+              type="email"
+              placeholder="Ex: contato@oficina.com.br"
+              value={form.email}
+              onChange={set("email")}
+              required
+            />
+            <Input
+              label="Senha"
+              type="password"
+              placeholder="Mínimo 6 caracteres"
+              value={form.password}
+              onChange={set("password")}
+              required
+            />
+            <Input
+              label="Confirmar senha"
+              type="password"
+              placeholder="Repita a senha"
+              value={form.confirm}
+              onChange={set("confirm")}
+              required
+            />
             <AuthError msg={error} />
-            <Btn type="submit" variant="primary" className="w-full justify-center" loading={loading}>
+            <Btn
+              type="submit"
+              variant="primary"
+              className="w-full justify-center"
+              loading={loading}
+            >
               {!loading && "Criar conta"}
             </Btn>
           </form>
         </Card>
         <p className="text-center text-sm text-muted-foreground mt-4">
           Já tem conta?{" "}
-          <button onClick={onGoLogin} className="text-primary hover:underline font-medium">
+          <button
+            onClick={onGoLogin}
+            className="text-primary hover:underline font-medium"
+          >
             Fazer login
           </button>
         </p>
@@ -808,13 +1121,20 @@ function RegisterScreen({ onGoLogin }: { onGoLogin: () => void }) {
 }
 
 // Onboarding for users who signed up without a profile (email confirmation flow)
-function OnboardingScreen({ user, onDone }: { user: User; onDone: (p: Profile) => void }) {
+function OnboardingScreen({
+  user,
+  onDone,
+}: {
+  user: User;
+  onDone: (p: Profile) => void;
+}) {
   const [form, setForm] = useState({ owner_name: "", workshop_name: "" });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
-   setForm(p => ({ ...p, [k]: e.target.value }));
+  const set =
+    (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
+      setForm((p) => ({ ...p, [k]: e.target.value }));
 
   async function handle(e: React.FormEvent) {
     e.preventDefault();
@@ -828,35 +1148,53 @@ function OnboardingScreen({ user, onDone }: { user: User; onDone: (p: Profile) =
     setLoading(false);
   }
 
-async function handleLogout() {
-  await supabase.auth.signOut();
-  window.location.reload();
-}
+  async function handleLogout() {
+    await supabase.auth.signOut();
+    window.location.reload();
+  }
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center px-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
           <Logo />
-          <p className="text-sm text-muted-foreground mt-2">Bem-vindo! Complete seu cadastro</p>
+          <p className="text-sm text-muted-foreground mt-2">
+            Bem-vindo! Complete seu cadastro
+          </p>
         </div>
         <Card className="p-6">
           <form onSubmit={handle} className="flex flex-col gap-4">
-            <Input label="Seu nome" placeholder="Ex: João Souza" value={form.owner_name} onChange={set("owner_name")} required />
-            <Input label="Nome da oficina" placeholder="Ex: Oficina Central" value={form.workshop_name} onChange={set("workshop_name")} required />
+            <Input
+              label="Seu nome"
+              placeholder="Ex: João Souza"
+              value={form.owner_name}
+              onChange={set("owner_name")}
+              required
+            />
+            <Input
+              label="Nome da oficina"
+              placeholder="Ex: Oficina Central"
+              value={form.workshop_name}
+              onChange={set("workshop_name")}
+              required
+            />
             <AuthError msg={error} />
-            <Btn type="submit" variant="primary" className="w-full justify-center" loading={loading}>
+            <Btn
+              type="submit"
+              variant="primary"
+              className="w-full justify-center"
+              loading={loading}
+            >
               {!loading && "Salvar e continuar"}
             </Btn>
           </form>
         </Card>
-   <button
-  type="button"
-  onClick={handleLogout}
-  className="text-red-500 hover:text-red-400 text-sm"
->
-  Sair
-</button>
-
+        <button
+          type="button"
+          onClick={handleLogout}
+          className="text-red-500 hover:text-red-400 text-sm"
+        >
+          Sair
+        </button>
       </div>
     </div>
   );
@@ -887,7 +1225,14 @@ const NAV = [
   },
 ];
 
-function Sidebar({ profile, page, onNav, onLogout, open, onClose }: {
+function Sidebar({
+  profile,
+  page,
+  onNav,
+  onLogout,
+  open,
+  onClose,
+}: {
   profile: Profile | null;
   page: Page;
   onNav: (p: Page) => void;
@@ -897,15 +1242,20 @@ function Sidebar({ profile, page, onNav, onLogout, open, onClose }: {
 }) {
   return (
     <>
-      {open && <div className="fixed inset-0 bg-black/50 z-30 lg:hidden" onClick={onClose} />}
-      <aside className={`fixed top-0 left-0 h-full w-64 bg-[#070A0D]/90 backdrop-blur-xl border-r border-red-500/10 flex flex-col z-40 transition-transform duration-200 lg:translate-x-0 shadow-[20px_0_80px_rgba(239,68,68,0.08)] ${open ? "translate-x-0" : "-translate-x-full"}`}>
+      {open && (
+        <div
+          className="fixed inset-0 bg-black/50 z-30 lg:hidden"
+          onClick={onClose}
+        />
+      )}
+      <aside
+        className={`fixed top-0 left-0 h-full w-64 bg-[#070A0D]/90 backdrop-blur-xl border-r border-red-500/10 flex flex-col z-40 transition-transform duration-200 lg:translate-x-0 shadow-[20px_0_80px_rgba(239,68,68,0.08)] ${open ? "translate-x-0" : "-translate-x-full"}`}
+      >
         <div className="relative px-4 py-4 border-b border-red-500/10 overflow-hidden">
-  <div className="absolute inset-0 bg-gradient-to-br from-red-500/10 via-transparent to-transparent pointer-events-none" />
-  <div className="relative z-10">
-    
-  </div>
+          <div className="absolute inset-0 bg-gradient-to-br from-red-500/10 via-transparent to-transparent pointer-events-none" />
+          <div className="relative z-10"></div>
           <Logo size="sm" />
-          
+
           {profile && (
             <div className="mt-1.5 flex items-center gap-1.5 text-xs text-muted-foreground pl-9">
               <Building2 size={10} />
@@ -915,19 +1265,22 @@ function Sidebar({ profile, page, onNav, onLogout, open, onClose }: {
         </div>
 
         <nav className="flex-1 px-2 py-3 flex flex-col gap-0.5 overflow-y-auto">
-          {NAV.filter(item => {
-  if (item.page === "admin") {
-    return profile?.is_admin;
-  }
+          {NAV.filter((item) => {
+            if (item.page === "admin") {
+              return profile?.is_admin;
+            }
 
-  return true;
-}).map(({ page: p, label, icon: Icon }) => {
-
-            const active = page === p || (page === "order-detail" && p === "orders");
+            return true;
+          }).map(({ page: p, label, icon: Icon }) => {
+            const active =
+              page === p || (page === "order-detail" && p === "orders");
             return (
               <button
                 key={p}
-                onClick={() => { onNav(p); onClose(); }}
+                onClick={() => {
+                  onNav(p);
+                  onClose();
+                }}
                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-all ${
                   active
                     ? "bg-red-500/15 text-red-400 border border-red-500/25 shadow-[0_0_25px_rgba(239,68,68,0.18)]"
@@ -939,88 +1292,82 @@ function Sidebar({ profile, page, onNav, onLogout, open, onClose }: {
               </button>
             );
           })}
-          
-          
 
-            <button
-  type="button"
-  onClick={() => {
-    window.open(
-      "https://wa.me/5527996126147?text=Olá,%20preciso%20de%20suporte%20com%20a%20Vortan%20Oficina.",
-      "_blank",
-      "noopener,noreferrer" /* CONTATO SUPORTE 5527996126147*/
-    );
-    onClose();
-  }}
-  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium text-red-400 hover:bg-red-500/10 border border-red-500/15 transition-all mt-2"
->   
-  <MessageCircle size={16} />
-  Suporte 24h
-</button>
+          <button
+            type="button"
+            onClick={() => {
+              window.open(
+                "https://wa.me/5527996126147?text=Olá,%20preciso%20de%20suporte%20com%20a%20Vortan%20Oficina.",
+                "_blank",
+                "noopener,noreferrer" /* CONTATO SUPORTE 5527996126147*/,
+              );
+              onClose();
+            }}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium text-red-400 hover:bg-red-500/10 border border-red-500/15 transition-all mt-2"
+          >
+            <MessageCircle size={16} />
+            Suporte 24h
+          </button>
         </nav>
 
         <div className="px-2 py-3 border-t border-sidebar-border">
-            
           {profile && (
-  <div className="mx-2 mb-3 p-3 rounded-xl border border-red-500/10 bg-red-500/[0.03]">
-    
-    <div className="flex items-center gap-3">
-      <div className="w-10 h-10 rounded-full bg-red-500/15 border border-red-500/20 flex items-center justify-center text-red-400 font-semibold">
-        {profile.owner_name?.charAt(0)?.toUpperCase()}
-      </div>
+            <div className="mx-2 mb-3 p-3 rounded-xl border border-red-500/10 bg-red-500/[0.03]">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-red-500/15 border border-red-500/20 flex items-center justify-center text-red-400 font-semibold">
+                  {profile.owner_name?.charAt(0)?.toUpperCase()}
+                </div>
 
-      <div className="min-w-0">
-        <div className="text-sm font-medium text-foreground truncate">
-          {profile.owner_name}
-        </div>
+                <div className="min-w-0">
+                  <div className="text-sm font-medium text-foreground truncate">
+                    {profile.owner_name}
+                  </div>
 
-        <div className="text-xs text-muted-foreground truncate">
-          {profile.workshop_name}
-        </div>
-      </div>
-    </div>
+                  <div className="text-xs text-muted-foreground truncate">
+                    {profile.workshop_name}
+                  </div>
+                </div>
+              </div>
 
-    <div className="mt-3 flex justify-center">
-      <span className="text-[10px] px-2 py-1 rounded-full bg-red-500/10 border border-red-500/20 text-red-400">
-        Plano Fundadores
-      </span>
-    </div>
-
-  </div>
-)}
+              <div className="mt-3 flex justify-center">
+                <span className="text-[10px] px-2 py-1 rounded-full bg-red-500/10 border border-red-500/20 text-red-400">
+                  Plano Fundadores
+                </span>
+              </div>
+            </div>
+          )}
 
           <div className="px-3 pb-3 text-center">
-  <div className="text-[10px] text-muted-foreground">
-    Vortan Oficina v1.0.0
-  </div>
+            <div className="text-[10px] text-muted-foreground">
+              Vortan Oficina v1.0.0
+            </div>
 
-  <div className="flex justify-center gap-3 mt-2 text-[10px]">
-    <a
-      href="https://instagram.com/vortanoficina"
-      target="_blank"
-      rel="noreferrer"
-      className="text-muted-foreground hover:text-red-400 transition-colors"
-    >
-      Instagram
-    </a>
+            <div className="flex justify-center gap-3 mt-2 text-[10px]">
+              <a
+                href="https://instagram.com/vortanoficina"
+                target="_blank"
+                rel="noreferrer"
+                className="text-muted-foreground hover:text-red-400 transition-colors"
+              >
+                Instagram
+              </a>
 
-    <a
-      href="https://www.vortanoficina.com.br"
-      target="_blank"
-      rel="noreferrer"
-      className="text-muted-foreground hover:text-red-400 transition-colors"
-    >
-      Site
-    </a>
-  </div>
-</div>
+              <a
+                href="https://www.vortanoficina.com.br"
+                target="_blank"
+                rel="noreferrer"
+                className="text-muted-foreground hover:text-red-400 transition-colors"
+              >
+                Site
+              </a>
+            </div>
+          </div>
 
           <button
             onClick={onLogout}
             className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all"
-          > 
+          >
             <LogOut size={15} /> Sair
-            
           </button>
         </div>
       </aside>
@@ -1030,7 +1377,14 @@ function Sidebar({ profile, page, onNav, onLogout, open, onClose }: {
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 
-function Dashboard({ clients, vehicles, orders, profile, onNav, onViewOrder }: {
+function Dashboard({
+  clients,
+  vehicles,
+  orders,
+  profile,
+  onNav,
+  onViewOrder,
+}: {
   clients: Client[];
   vehicles: Vehicle[];
   orders: ServiceOrder[];
@@ -1038,408 +1392,485 @@ function Dashboard({ clients, vehicles, orders, profile, onNav, onViewOrder }: {
   onNav: (p: Page) => void;
   onViewOrder: (o: ServiceOrder) => void;
 }) {
-
   const getTrialDaysLeft = (endDate: string) => {
-  const end = new Date(endDate).getTime();
-  const now = new Date().getTime();
+    const end = new Date(endDate).getTime();
+    const now = new Date().getTime();
 
-  const diff = end - now;
-  const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
+    const diff = end - now;
+    const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
 
-  return Math.max(days, 0);
-};
+    return Math.max(days, 0);
+  };
 
-const trialDaysLeft =
-  profile?.subscription_ends_at
+  const trialDaysLeft = profile?.subscription_ends_at
     ? getTrialDaysLeft(profile.subscription_ends_at)
     : 0;
 
-  const open = orders.filter(o => o.status !== "finalizado");
+  const open = orders.filter((o) => o.status !== "finalizado");
 
-const done = orders.filter(o => o.status === "finalizado");
-const inProgress = orders.filter(o => o.status === "em_manutencao");
-const waiting = orders.filter(o => o.status === "aguardando");
+  const done = orders.filter((o) => o.status === "finalizado");
+  const inProgress = orders.filter((o) => o.status === "em_manutencao");
+  const waiting = orders.filter((o) => o.status === "aguardando");
 
-const totalRevenue = orders
-  .filter(o => o.status === "finalizado")
-  .reduce((acc, o) => acc + Number(o.value || 0), 0);
+  const totalRevenue = orders
+    .filter((o) => o.status === "finalizado")
+    .reduce((acc, o) => acc + Number(o.value || 0), 0);
 
-const currentMonth = new Date().getMonth();
-const currentYear = new Date().getFullYear();
+  const currentMonth = new Date().getMonth();
+  const currentYear = new Date().getFullYear();
 
-const monthlyRevenue = orders
-  .filter(o => {
+  const monthlyRevenue = orders
+    .filter((o) => {
+      const d = new Date(o.updated_at);
+      return (
+        o.status === "finalizado" &&
+        d.getMonth() === currentMonth &&
+        d.getFullYear() === currentYear
+      );
+    })
+    .reduce((acc, o) => acc + Number(o.value || 0), 0);
+
+  const averageTicket = done.length > 0 ? totalRevenue / done.length : 0;
+
+  const monthlyDone = done.filter((o) => {
     const d = new Date(o.updated_at);
-    return (
-      o.status === "finalizado" &&
-      d.getMonth() === currentMonth &&
-      d.getFullYear() === currentYear
-    );
-  })
-  .reduce((acc, o) => acc + Number(o.value || 0), 0);
 
+    return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+  });
 
+  const completionRate =
+    orders.length > 0 ? Math.round((done.length / orders.length) * 100) : 0;
 
+  const activeOrders = orders.filter((o) => o.status !== "finalizado").length;
 
-const averageTicket =
-  done.length > 0 ? totalRevenue / done.length : 0;
-
-const monthlyDone = done.filter(o => {
-  const d = new Date(o.updated_at);
-
-  return (
-    d.getMonth() === currentMonth &&
-    d.getFullYear() === currentYear
-  );
-});
-
-const completionRate =
-  orders.length > 0
-    ? Math.round((done.length / orders.length) * 100)
-    : 0;
-
-const activeOrders = orders.filter(
-  o => o.status !== "finalizado"
-).length;  
-
-const recent = [...orders]
-  .sort((a, b) => b.updated_at.localeCompare(a.updated_at))
-  .slice(0, 6);
-
+  const recent = [...orders]
+    .sort((a, b) => b.updated_at.localeCompare(a.updated_at))
+    .slice(0, 6);
 
   const openRevenue = orders
-  .filter(o => o.status !== "finalizado")
-  .reduce((acc, o) => acc + Number(o.value || 0), 0);
+    .filter((o) => o.status !== "finalizado")
+    .reduce((acc, o) => acc + Number(o.value || 0), 0);
 
   function exportClients() {
-    downloadCSV("clientes.csv", clients.map(c => ({
-      nome: c.name,
-      telefone: c.phone,
-      whatsapp: c.whatsapp,
-      criado_em: new Date(c.created_at).toLocaleDateString("pt-BR"),
-    })));
+    downloadCSV(
+      "clientes.csv",
+      clients.map((c) => ({
+        nome: c.name,
+        telefone: c.phone,
+        whatsapp: c.whatsapp,
+        criado_em: new Date(c.created_at).toLocaleDateString("pt-BR"),
+      })),
+    );
   }
 
   function exportVehicles() {
-    downloadCSV("veiculos.csv", vehicles.map(v => {
-      const client = clients.find(c => c.id === v.client_id);
-      return {
-    
-        cliente: client?.name ?? "",
-        placa: v.plate,
-        marca: v.brand,
-        modelo: v.model,
-        ano: v.year,
-        quilometragem: v.mileage,
-        criado_em: new Date(v.created_at).toLocaleDateString("pt-BR"),
-      };
-    }));
+    downloadCSV(
+      "veiculos.csv",
+      vehicles.map((v) => {
+        const client = clients.find((c) => c.id === v.client_id);
+        return {
+          cliente: client?.name ?? "",
+          placa: v.plate,
+          marca: v.brand,
+          modelo: v.model,
+          ano: v.year,
+          quilometragem: v.mileage,
+          criado_em: new Date(v.created_at).toLocaleDateString("pt-BR"),
+        };
+      }),
+    );
   }
 
   function exportOrders() {
-    downloadCSV("ordens-servico.csv", orders.map(o => {
-      const client = clients.find(c => c.id === o.client_id);
-      const vehicle = vehicles.find(v => v.id === o.vehicle_id);
-      return {
-      
-        cliente: client?.name ?? "",
-        veiculo: vehicle ? `${vehicle.brand} ${vehicle.model}` : "",
-        placa: vehicle?.plate ?? "",
-        problema_relatado: o.reported_issue,
-        servicos_executados: o.services_performed,
-        status: STATUS_LABEL[o.status],
-        valor: o.value,
-        data_prevista_entrega: (o as any).delivery_date ?? "",
-        observacoes: o.notes,
-        criado_em: new Date(o.created_at).toLocaleDateString("pt-BR"),
-        atualizado_em: o.updated_at,
-      };
-    }));
+    downloadCSV(
+      "ordens-servico.csv",
+      orders.map((o) => {
+        const client = clients.find((c) => c.id === o.client_id);
+        const vehicle = vehicles.find((v) => v.id === o.vehicle_id);
+        return {
+          cliente: client?.name ?? "",
+          veiculo: vehicle ? `${vehicle.brand} ${vehicle.model}` : "",
+          placa: vehicle?.plate ?? "",
+          problema_relatado: o.reported_issue,
+          servicos_executados: o.services_performed,
+          status: STATUS_LABEL[o.status],
+          valor: o.value,
+          data_prevista_entrega: (o as any).delivery_date ?? "",
+          observacoes: o.notes,
+          criado_em: new Date(o.created_at).toLocaleDateString("pt-BR"),
+          atualizado_em: o.updated_at,
+        };
+      }),
+    );
   }
 
   function exportFinance() {
-    downloadCSV("financeiro.csv", orders.map(o => {
-      const client = clients.find(c => c.id === o.client_id);
-      const vehicle = vehicles.find(v => v.id === o.vehicle_id);
-      const value = Number(String(o.value || "0").replace(",", "."));
-      return {
-  cliente: client?.name ?? "",
-  placa: vehicle?.plate ?? "",
-  status: STATUS_LABEL[o.status],
-  valor: value.toFixed(2).replace(".", ","),
-  recebido: o.status === "finalizado" ? "Sim" : "Não",
-  data_referencia: new Date(o.updated_at).toLocaleString("pt-BR"),
-};
-    }));
+    downloadCSV(
+      "financeiro.csv",
+      orders.map((o) => {
+        const client = clients.find((c) => c.id === o.client_id);
+        const vehicle = vehicles.find((v) => v.id === o.vehicle_id);
+        const value = Number(String(o.value || "0").replace(",", "."));
+        return {
+          cliente: client?.name ?? "",
+          placa: vehicle?.plate ?? "",
+          status: STATUS_LABEL[o.status],
+          valor: value.toFixed(2).replace(".", ","),
+          recebido: o.status === "finalizado" ? "Sim" : "Não",
+          data_referencia: new Date(o.updated_at).toLocaleString("pt-BR"),
+        };
+      }),
+    );
   }
 
   const totalTrialDays = 15;
 
-const trialProgress = profile?.subscription_ends_at
-  ? Math.min(
-      100,
-      Math.max(
-        0,
-        ((totalTrialDays - trialDaysLeft) / totalTrialDays) * 100
+  const trialProgress = profile?.subscription_ends_at
+    ? Math.min(
+        100,
+        Math.max(0, ((totalTrialDays - trialDaysLeft) / totalTrialDays) * 100),
       )
-    )
-  : 0;
-  
-  
+    : 0;
 
-return (
-  <div className="space-y-5">
-
-   {profile?.subscription_status === "trial" && (
-  <div
-    className={`mb-6 overflow-hidden rounded-2xl border shadow-lg ${
-      trialDaysLeft <= 3
-        ? "border-red-500/30 bg-red-500/10"
-        : trialDaysLeft <= 7
-        ? "border-yellow-500/30 bg-yellow-500/10"
-        : "border-green-500/30 bg-green-500/10"
-    }`}
-  >
-    <div className="flex items-center justify-between border-b border-white/10 px-6 py-4">
-      <div>
-        <h2
-          className={`text-xl font-bold ${
-            trialDaysLeft <= 3
-              ? "text-red-300"
-              : trialDaysLeft <= 7
-              ? "text-yellow-300"
-              : "text-green-300"
-          }`}
-        >
-          {trialDaysLeft <= 3 ? "⚠️ Seu teste está acabando" : "🎉 Teste grátis ativo"}
-        </h2>
-
-        <p className="mt-1 text-sm text-muted-foreground">
-          Aproveite todos os recursos da Vortan Oficina sem limitações.
-        </p>
-      </div>
-
-      <div
-        className={`rounded-full border px-3 py-1 ${
-          trialDaysLeft <= 3
-            ? "border-red-500/30 bg-red-500/15"
-            : trialDaysLeft <= 7
-            ? "border-yellow-500/30 bg-yellow-500/15"
-            : "border-green-500/30 bg-green-500/15"
-        }`}
-      >
-        <span
-          className={`text-xs font-bold uppercase tracking-widest ${
-            trialDaysLeft <= 3
-              ? "text-red-300"
-              : trialDaysLeft <= 7
-              ? "text-yellow-300"
-              : "text-green-300"
-          }`}
-        >
-          Trial
-        </span>
-      </div>
-    </div>
-
-    <div className="px-6 py-5">
-      <div className="mb-2 flex justify-between text-sm">
-        <span className="text-muted-foreground">Progresso do teste</span>
-
-        <span className="font-semibold text-muted-foreground">
-          {15 - trialDaysLeft} / 15 dias
-        </span>
-      </div>
-
-      <div className="h-3 overflow-hidden rounded-full bg-white/10">
+  return (
+    <div className="space-y-5">
+      {profile?.subscription_status === "trial" && (
         <div
-          className={`h-full rounded-full bg-gradient-to-r transition-all duration-700 ${
+          className={`mb-6 overflow-hidden rounded-2xl border shadow-lg ${
             trialDaysLeft <= 3
-              ? "from-red-500 to-red-400"
+              ? "border-red-500/30 bg-red-500/10"
               : trialDaysLeft <= 7
-              ? "from-yellow-400 to-amber-500"
-              : "from-green-400 to-emerald-500"
+                ? "border-yellow-500/30 bg-yellow-500/10"
+                : "border-green-500/30 bg-green-500/10"
           }`}
-          style={{ width: `${trialProgress}%` }}
-        />
-      </div>
-
-      <div className="mt-5 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <p
-            className={`text-lg font-bold ${
-              trialDaysLeft <= 3
-                ? "text-red-300"
-                : trialDaysLeft <= 7
-                ? "text-yellow-300"
-                : "text-green-300"
-            }`}
-          >
-            Restam {trialDaysLeft} dias
-          </p>
-
-          <p className="mt-1 text-xs text-muted-foreground">
-            Expira em{" "}
-            {new Date(profile.subscription_ends_at).toLocaleDateString("pt-BR")}
-          </p>
-
-          <p className="mt-2 text-sm text-muted-foreground">
-            Após o término do teste será necessário contratar um plano para continuar utilizando o sistema.
-          </p>
-        </div>
-
-        <button
-          onClick={() => onNav("billing")}
-          className="rounded-xl bg-gradient-to-r from-red-600 to-red-500 px-6 py-3 font-semibold text-white transition hover:scale-[1.02] hover:from-red-500 hover:to-red-400"
         >
-          Assinar agora
-        </button>
+          <div className="flex items-center justify-between border-b border-white/10 px-6 py-4">
+            <div>
+              <h2
+                className={`text-xl font-bold ${
+                  trialDaysLeft <= 3
+                    ? "text-red-300"
+                    : trialDaysLeft <= 7
+                      ? "text-yellow-300"
+                      : "text-green-300"
+                }`}
+              >
+                {trialDaysLeft <= 3
+                  ? "⚠️ Seu teste está acabando"
+                  : "🎉 Teste grátis ativo"}
+              </h2>
+
+              <p className="mt-1 text-sm text-muted-foreground">
+                Aproveite todos os recursos da Vortan Oficina sem limitações.
+              </p>
+            </div>
+
+            <div
+              className={`rounded-full border px-3 py-1 ${
+                trialDaysLeft <= 3
+                  ? "border-red-500/30 bg-red-500/15"
+                  : trialDaysLeft <= 7
+                    ? "border-yellow-500/30 bg-yellow-500/15"
+                    : "border-green-500/30 bg-green-500/15"
+              }`}
+            >
+              <span
+                className={`text-xs font-bold uppercase tracking-widest ${
+                  trialDaysLeft <= 3
+                    ? "text-red-300"
+                    : trialDaysLeft <= 7
+                      ? "text-yellow-300"
+                      : "text-green-300"
+                }`}
+              >
+                Trial
+              </span>
+            </div>
+          </div>
+
+          <div className="px-6 py-5">
+            <div className="mb-2 flex justify-between text-sm">
+              <span className="text-muted-foreground">Progresso do teste</span>
+
+              <span className="font-semibold text-muted-foreground">
+                {15 - trialDaysLeft} / 15 dias
+              </span>
+            </div>
+
+            <div className="h-3 overflow-hidden rounded-full bg-white/10">
+              <div
+                className={`h-full rounded-full bg-gradient-to-r transition-all duration-700 ${
+                  trialDaysLeft <= 3
+                    ? "from-red-500 to-red-400"
+                    : trialDaysLeft <= 7
+                      ? "from-yellow-400 to-amber-500"
+                      : "from-green-400 to-emerald-500"
+                }`}
+                style={{ width: `${trialProgress}%` }}
+              />
+            </div>
+
+            <div className="mt-5 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+              <div>
+                <p
+                  className={`text-lg font-bold ${
+                    trialDaysLeft <= 3
+                      ? "text-red-300"
+                      : trialDaysLeft <= 7
+                        ? "text-yellow-300"
+                        : "text-green-300"
+                  }`}
+                >
+                  Restam {trialDaysLeft} dias
+                </p>
+
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Expira em{" "}
+                  {new Date(profile.subscription_ends_at).toLocaleDateString(
+                    "pt-BR",
+                  )}
+                </p>
+
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Após o término do teste será necessário contratar um plano
+                  para continuar utilizando o sistema.
+                </p>
+              </div>
+
+              <button
+                onClick={() => onNav("billing")}
+                className="rounded-xl bg-gradient-to-r from-red-600 to-red-500 px-6 py-3 font-semibold text-white transition hover:scale-[1.02] hover:from-red-500 hover:to-red-400"
+              >
+                Assinar agora
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div>
+        <h1 className="font-heading font-bold text-2xl text-foreground tracking-wide">
+          Dashboard
+        </h1>
+        <p className="text-sm text-muted-foreground">Visão geral da oficina</p>
       </div>
-    </div>
-  </div>
-)}
 
-    <div>
-      <h1 className="font-heading font-bold text-2xl text-foreground tracking-wide">
-        Dashboard
-      </h1>
-      <p className="text-sm text-muted-foreground">
-        Visão geral da oficina
-      </p>
-    </div>
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+        <Card className="p-4">
+          <div className="text-xs text-muted-foreground">Faturamento Total</div>
+          <div className="text-2xl font-bold text-green-500">
+            {fmtMoney(totalRevenue)}
+          </div>
+        </Card>
 
-     <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
-  <Card className="p-4">
-    <div className="text-xs text-muted-foreground">Faturamento Total</div>
-    <div className="text-2xl font-bold text-green-500">
-      {fmtMoney(totalRevenue)}
-    </div>
-  </Card>
+        <Card className="p-4">
+          <div className="text-xs text-muted-foreground">
+            Faturamento do Mês
+          </div>
+          <div className="text-2xl font-bold text-green-500">
+            {fmtMoney(monthlyRevenue)}
+          </div>
 
-  <Card className="p-4">
-    <div className="text-xs text-muted-foreground">Faturamento do Mês</div>
-    <div className="text-2xl font-bold text-green-500">
-      {fmtMoney(monthlyRevenue)}
-    </div>
+          <div className="flex items-center gap-2 mb-2">
+            <div className="text-xs text-muted-foreground">
+              Faturamento do Mês
+            </div>
+          </div>
+        </Card>
 
-  <div className="flex items-center gap-2 mb-2">
-  
-  <div className="text-xs text-muted-foreground">
-    Faturamento do Mês
-  </div>
-</div>
-</Card>
+        <Card className="p-4">
+          <div className="text-xs text-muted-foreground">Ticket Médio</div>
+          <div className="text-2xl font-bold text-green-500">
+            {fmtMoney(averageTicket)}
+          </div>
+        </Card>
 
-  <Card className="p-4">
-  <div className="text-xs text-muted-foreground">Ticket Médio</div>
-  <div className="text-2xl font-bold text-green-500">
-    {fmtMoney(averageTicket)}
-  </div>
-</Card>
+        <Card className="p-4">
+          <div className="text-xs text-muted-foreground">
+            OS Finalizadas no Mês
+          </div>
+          <div className="text-2xl font-bold text-emerald-400">
+            {monthlyDone.length}
+          </div>
+        </Card>
 
-  <Card className="p-4">
-    <div className="text-xs text-muted-foreground">OS Finalizadas no Mês</div>
-    <div className="text-2xl font-bold text-emerald-400">
-      {monthlyDone.length}
-    </div>
-  </Card>
+        <Card className="p-4">
+          <div className="text-xs text-muted-foreground">Taxa de Conclusão</div>
+          <div className="text-2xl font-bold text-blue-400">
+            {completionRate}%
+          </div>
+        </Card>
 
-  <Card className="p-4">
-    <div className="text-xs text-muted-foreground">Taxa de Conclusão</div>
-    <div className="text-2xl font-bold text-blue-400">
-      {completionRate}%
-    </div>
-  </Card>
+        <Card className="p-4">
+          <div className="text-xs text-muted-foreground">OS Ativas</div>
+          <div className="text-2xl font-bold text-amber-400">
+            {activeOrders}
+          </div>
+        </Card>
 
- <Card className="p-4">
-  <div className="text-xs text-muted-foreground">OS Ativas</div>
-  <div className="text-2xl font-bold text-amber-400">
-    {activeOrders}
-  </div>
-</Card>
-
-  <Card className="p-4">
-  <div className="text-xs text-muted-foreground">
-    Serviços em Aberto
-  </div>
-  <div className="text-2xl font-bold text-amber-400">
-    {fmtMoney(openRevenue)}
-  </div>
-</Card>
-
-</div>
+        <Card className="p-4">
+          <div className="text-xs text-muted-foreground">
+            Serviços em Aberto
+          </div>
+          <div className="text-2xl font-bold text-amber-400">
+            {fmtMoney(openRevenue)}
+          </div>
+        </Card>
+      </div>
 
       <Card className="p-4">
         <div className="flex items-center justify-between gap-3 flex-wrap mb-3">
           <div>
-            <h2 className="font-heading font-semibold text-base text-foreground">Exportações</h2>
-            <p className="text-xs text-muted-foreground">Baixe os dados da oficina em CSV.</p>
+            <h2 className="font-heading font-semibold text-base text-foreground">
+              Exportações
+            </h2>
+            <p className="text-xs text-muted-foreground">
+              Baixe os dados da oficina em CSV.
+            </p>
           </div>
           <Download size={18} className="text-primary" />
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
-          <Btn variant="secondary" size="sm" className="justify-center" onClick={exportClients}>Exportar Clientes</Btn>
-          <Btn variant="secondary" size="sm" className="justify-center" onClick={exportVehicles}>Exportar Veículos</Btn>
-          <Btn variant="secondary" size="sm" className="justify-center" onClick={exportOrders}>Exportar OS</Btn>
-          <Btn variant="secondary" size="sm" className="justify-center" onClick={exportFinance}>Exportar Financeiro</Btn>
+          <Btn
+            variant="secondary"
+            size="sm"
+            className="justify-center"
+            onClick={exportClients}
+          >
+            Exportar Clientes
+          </Btn>
+          <Btn
+            variant="secondary"
+            size="sm"
+            className="justify-center"
+            onClick={exportVehicles}
+          >
+            Exportar Veículos
+          </Btn>
+          <Btn
+            variant="secondary"
+            size="sm"
+            className="justify-center"
+            onClick={exportOrders}
+          >
+            Exportar OS
+          </Btn>
+          <Btn
+            variant="secondary"
+            size="sm"
+            className="justify-center"
+            onClick={exportFinance}
+          >
+            Exportar Financeiro
+          </Btn>
         </div>
       </Card>
 
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
         {[
-          { page: "clients" as Page, label: "Clientes", val: clients.length, icon: Users },
-          { page: "vehicles" as Page, label: "Veículos", val: vehicles.length, icon: Car },
-          { page: "history" as Page, label: "Histórico", val: orders.length, icon: History },
+          {
+            page: "clients" as Page,
+            label: "Clientes",
+            val: clients.length,
+            icon: Users,
+          },
+          {
+            page: "vehicles" as Page,
+            label: "Veículos",
+            val: vehicles.length,
+            icon: Car,
+          },
+          {
+            page: "history" as Page,
+            label: "Histórico",
+            val: orders.length,
+            icon: History,
+          },
         ].map(({ page, label, val, icon: Icon }) => (
-          <button key={page} onClick={() => onNav(page)} className="group text-left">
+          <button
+            key={page}
+            onClick={() => onNav(page)}
+            className="group text-left"
+          >
             <Card className="p-4 flex items-center justify-between hover:border-primary/30 transition-colors">
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
                   <Icon size={15} className="text-primary" />
                 </div>
                 <div>
-                  <div className="text-base font-heading font-bold text-foreground">{val}</div>
+                  <div className="text-base font-heading font-bold text-foreground">
+                    {val}
+                  </div>
                   <div className="text-xs text-muted-foreground">{label}</div>
                 </div>
               </div>
-              <ChevronRight size={15} className="text-muted-foreground group-hover:text-primary transition-colors" />
+              <ChevronRight
+                size={15}
+                className="text-muted-foreground group-hover:text-primary transition-colors"
+              />
             </Card>
           </button>
         ))}
       </div>
 
-      
-
       <Card>
         <div className="px-4 py-3 border-b border-border flex items-center justify-between">
-          <h2 className="font-heading font-semibold text-base text-foreground">Ordens Recentes</h2>
-          <button onClick={() => onNav("orders")} className="text-xs text-primary hover:underline">Ver todas</button>
+          <h2 className="font-heading font-semibold text-base text-foreground">
+            Ordens Recentes
+          </h2>
+          <button
+            onClick={() => onNav("orders")}
+            className="text-xs text-primary hover:underline"
+          >
+            Ver todas
+          </button>
         </div>
         {recent.length === 0 ? (
           <div className="px-4 py-10 text-center">
-            <ClipboardList size={28} className="mx-auto text-muted-foreground/20 mb-2" />
-            <p className="text-sm text-muted-foreground">Nenhuma ordem de serviço ainda.</p>
-            <Btn variant="primary" size="sm" className="mt-3 mx-auto" onClick={() => onNav("orders")}>
+            <ClipboardList
+              size={28}
+              className="mx-auto text-muted-foreground/20 mb-2"
+            />
+            <p className="text-sm text-muted-foreground">
+              Nenhuma ordem de serviço ainda.
+            </p>
+            <Btn
+              variant="primary"
+              size="sm"
+              className="mt-3 mx-auto"
+              onClick={() => onNav("orders")}
+            >
               <Plus size={13} /> Criar primeira OS
             </Btn>
           </div>
         ) : (
           <div className="divide-y divide-border">
-            {recent.map(o => {
-              const client = clients.find(c => c.id === o.client_id);
-              const vehicle = vehicles.find(v => v.id === o.vehicle_id);
+            {recent.map((o) => {
+              const client = clients.find((c) => c.id === o.client_id);
+              const vehicle = vehicles.find((v) => v.id === o.vehicle_id);
               return (
-                <button key={o.id} onClick={() => onViewOrder(o)} className="w-full px-4 py-3 flex items-center gap-3 hover:bg-secondary/40 transition-colors text-left">
+                <button
+                  key={o.id}
+                  onClick={() => onViewOrder(o)}
+                  className="w-full px-4 py-3 flex items-center gap-3 hover:bg-secondary/40 transition-colors text-left"
+                >
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-sm font-medium text-foreground">{client?.name ?? "—"}</span>
+                      <span className="text-sm font-medium text-foreground">
+                        {client?.name ?? "—"}
+                      </span>
                       <StatusBadge status={o.status} />
                     </div>
                     <div className="text-xs text-muted-foreground mt-0.5 truncate">
-                      {vehicle ? `${vehicle.brand} ${vehicle.model} · ${vehicle.plate}` : "—"} · {fmt(o.created_at)}
+                      {vehicle
+                        ? `${vehicle.brand} ${vehicle.model} · ${vehicle.plate}`
+                        : "—"}{" "}
+                      · {fmt(o.created_at)}
                     </div>
                   </div>
-                  <div className="text-sm font-mono font-medium text-green-500 flex-shrink-0">{fmtMoney(o.value)}</div>
+                  <div className="text-sm font-mono font-medium text-green-500 flex-shrink-0">
+                    {fmtMoney(o.value)}
+                  </div>
                 </button>
               );
             })}
@@ -1449,11 +1880,6 @@ return (
     </div>
   );
 }
-
-
-
-
-
 
 // ─── Financeiro ─────────────────────────────────────────────────────────────────
 
@@ -1478,7 +1904,7 @@ function FinancialPage({
 
   const orderIncome = finalizedOrders.reduce(
     (acc, o) => acc + Number(String(o.value || "0").replace(",", ".")),
-    0
+    0,
   );
 
   const manualIncome = entries
@@ -1492,42 +1918,44 @@ function FinancialPage({
   const totalRevenue = orderIncome + manualIncome;
   const profit = totalRevenue - expenses;
 
-  const set = (k: keyof typeof form) =>
-    (e: React.ChangeEvent<HTMLInputElement>) =>
+  const set =
+    (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
       setForm((p) => ({ ...p, [k]: e.target.value }));
 
   async function save(e: React.FormEvent) {
-  e.preventDefault();
+    e.preventDefault();
 
-  if (loading) return;
-  if (!modal) return;
+    if (loading) return;
+    if (!modal) return;
 
-  setLoading(true);
+    setLoading(true);
 
-  try {
-    await API.createFinancialEntry({
-      description: form.description,
-      amount: Number(
-  String(form.amount || "0").replace(/\./g, "").replace(",", ".")
-),
-      type: modal,
-      category: form.category,
-    });
+    try {
+      await API.createFinancialEntry({
+        description: form.description,
+        amount: Number(
+          String(form.amount || "0")
+            .replace(/\./g, "")
+            .replace(",", "."),
+        ),
+        type: modal,
+        category: form.category,
+      });
 
-    await onReload();
+      await onReload();
 
-    setModal(null);
-    setForm({
-      description: "",
-      amount: "",
-      category: "",
-    });
-  } catch (err: any) {
-    alert(err.message || "Erro ao salvar movimentação.");
-  } finally {
-    setLoading(false);
+      setModal(null);
+      setForm({
+        description: "",
+        amount: "",
+        category: "",
+      });
+    } catch (err: any) {
+      alert(err.message || "Erro ao salvar movimentação.");
+    } finally {
+      setLoading(false);
+    }
   }
-}
 
   async function del(id: string) {
     if (!confirm("Deseja excluir esta movimentação?")) return;
@@ -1576,17 +2004,17 @@ function FinancialPage({
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card className="p-4">
-  <div className="flex items-center gap-2 mb-2">
-    <DollarSign size={16} className="text-green-500" />
-    <div className="text-xs text-muted-foreground">
-      Faturamento Total
-    </div>
-  </div>
+          <div className="flex items-center gap-2 mb-2">
+            <DollarSign size={16} className="text-green-500" />
+            <div className="text-xs text-muted-foreground">
+              Faturamento Total
+            </div>
+          </div>
 
-  <div className="text-2xl font-bold text-green-500">
-    {fmtMoney(totalRevenue)}
-  </div>
-</Card>
+          <div className="text-2xl font-bold text-green-500">
+            {fmtMoney(totalRevenue)}
+          </div>
+        </Card>
 
         <Card className="p-4">
           <div className="text-sm text-muted-foreground">Receitas</div>
@@ -1613,7 +2041,13 @@ function FinancialPage({
         <Card className="p-4">
           <div className="text-sm text-muted-foreground">Lucro</div>
 
-          <div className={profit >= 0 ? "text-2xl font-bold text-green-600" : "text-2xl font-bold text-red-600"}>
+          <div
+            className={
+              profit >= 0
+                ? "text-2xl font-bold text-green-600"
+                : "text-2xl font-bold text-red-600"
+            }
+          >
             {profit.toLocaleString("pt-BR", {
               style: "currency",
               currency: "BRL",
@@ -1688,23 +2122,21 @@ function FinancialPage({
           onClose={() => setModal(null)}
         >
           <form onSubmit={save} className="flex flex-col gap-4">
-           <Textarea
-  label="Descrição"
-  placeholder={
-    modal === "income"
-      ? "Ex: Venda de peça"
-      : "Ex: Compra de óleo"
-  }
-  value={form.description}
-  onChange={(e) =>
-    setForm((p) => ({
-      ...p,
-      description: e.target.value,
-    }))
-  }
-  rows={4}
-  required
-/>
+            <Textarea
+              label="Descrição"
+              placeholder={
+                modal === "income" ? "Ex: Venda de peça" : "Ex: Compra de óleo"
+              }
+              value={form.description}
+              onChange={(e) =>
+                setForm((p) => ({
+                  ...p,
+                  description: e.target.value,
+                }))
+              }
+              rows={4}
+              required
+            />
 
             <Input
               label="Valor"
@@ -1736,14 +2168,14 @@ function FinancialPage({
               </Btn>
 
               <Btn
-  type="submit"
-  variant="primary"
-  className="flex-1 justify-center"
-  loading={loading}
-  disabled={loading}
->
-  {!loading && "Salvar"}
-</Btn>
+                type="submit"
+                variant="primary"
+                className="flex-1 justify-center"
+                loading={loading}
+                disabled={loading}
+              >
+                {!loading && "Salvar"}
+              </Btn>
             </div>
           </form>
         </Modal>
@@ -1754,7 +2186,10 @@ function FinancialPage({
 
 // ─── Clients ─────────────────────────────────────────────────────────────────
 
-function ClientsPage({ clients, onReload }: {
+function ClientsPage({
+  clients,
+  onReload,
+}: {
   clients: Client[];
   onReload: () => Promise<void>;
 }) {
@@ -1763,10 +2198,16 @@ function ClientsPage({ clients, onReload }: {
   const [form, setForm] = useState({ name: "", phone: "", whatsapp: "" });
   const [loading, setLoading] = useState(false);
   const [confirmDel, setConfirmDel] = useState<string | null>(null);
-  const [toast, setToast] = useState<{ msg: string; type: "error" | "success" } | null>(null);
+  const [toast, setToast] = useState<{
+    msg: string;
+    type: "error" | "success";
+  } | null>(null);
 
-  const filtered = clients.filter(c =>
-    c.name.toLowerCase().includes(search.toLowerCase()) || c.phone.includes(search) || c.whatsapp.includes(search)
+  const filtered = clients.filter(
+    (c) =>
+      c.name.toLowerCase().includes(search.toLowerCase()) ||
+      c.phone.includes(search) ||
+      c.whatsapp.includes(search),
   );
 
   function showToast(msg: string, type: "error" | "success") {
@@ -1783,18 +2224,16 @@ function ClientsPage({ clients, onReload }: {
     setForm({ name: "", phone: "", whatsapp: "" });
     setModal("add");
   }
-   
-  
 
   async function save(e: React.FormEvent) {
-  e.preventDefault();
+    e.preventDefault();
 
-  if (loading) return;
-  if (!modal) return;
+    if (loading) return;
+    if (!modal) return;
 
-  setLoading(true);
+    setLoading(true);
 
-  try { 
+    try {
       if (modal === "add") {
         await API.createClient_(form);
       } else if (modal && typeof modal === "object") {
@@ -1802,7 +2241,10 @@ function ClientsPage({ clients, onReload }: {
       }
       await onReload();
       setModal(null);
-      showToast(modal === "add" ? "Cliente criado!" : "Cliente atualizado!", "success");
+      showToast(
+        modal === "add" ? "Cliente criado!" : "Cliente atualizado!",
+        "success",
+      );
     } catch (err: any) {
       showToast(err.message, "error");
     }
@@ -1810,59 +2252,112 @@ function ClientsPage({ clients, onReload }: {
   }
 
   async function del(id: string) {
-  try {
-    await API.deleteClient(id);
-    await onReload();
-    setConfirmDel(null);
-    showToast("Cliente excluído.", "success");
-  } catch (err: any) {
-    showToast(err.message, "error");
+    try {
+      await API.deleteClient(id);
+      await onReload();
+      setConfirmDel(null);
+      showToast("Cliente excluído.", "success");
+    } catch (err: any) {
+      showToast(err.message, "error");
+    }
   }
-}
 
-  const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
-    setForm(p => ({ ...p, [k]: e.target.value }));
+  const set =
+    (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
+      setForm((p) => ({ ...p, [k]: e.target.value }));
 
   return (
     <div className="space-y-4">
       {toast && <Toast message={toast.msg} type={toast.type} />}
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h1 className="font-heading font-bold text-2xl text-foreground tracking-wide">Clientes</h1>
-          <p className="text-sm text-muted-foreground">{clients.length} cadastrados</p>
+          <h1 className="font-heading font-bold text-2xl text-foreground tracking-wide">
+            Clientes
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            {clients.length} cadastrados
+          </p>
         </div>
-        <Btn variant="primary" size="sm" onClick={openAdd}><Plus size={14} /> Novo</Btn>
+        <Btn variant="primary" size="sm" onClick={openAdd}>
+          <Plus size={14} /> Novo
+        </Btn>
       </div>
 
       <div className="relative">
-        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar clientes..." className="w-full bg-input-background border border-border rounded-md pl-9 pr-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
+        <Search
+          size={14}
+          className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+        />
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Buscar clientes..."
+          className="w-full bg-input-background border border-border rounded-md pl-9 pr-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+        />
       </div>
 
       {filtered.length === 0 ? (
         <Card className="py-14 text-center">
           <Users size={30} className="mx-auto text-muted-foreground/20 mb-2" />
-          <p className="text-sm text-muted-foreground">{search ? "Nenhum resultado." : "Nenhum cliente cadastrado."}</p>
-          {!search && <Btn variant="primary" size="sm" className="mt-3 mx-auto" onClick={openAdd}><Plus size={13} /> Adicionar cliente</Btn>}
+          <p className="text-sm text-muted-foreground">
+            {search ? "Nenhum resultado." : "Nenhum cliente cadastrado."}
+          </p>
+          {!search && (
+            <Btn
+              variant="primary"
+              size="sm"
+              className="mt-3 mx-auto"
+              onClick={openAdd}
+            >
+              <Plus size={13} /> Adicionar cliente
+            </Btn>
+          )}
         </Card>
       ) : (
         <Card>
           <div className="divide-y divide-border">
-            {filtered.map(c => (
-              <div key={c.id} className="px-4 py-3 flex items-center gap-3 group">
+            {filtered.map((c) => (
+              <div
+                key={c.id}
+                className="px-4 py-3 flex items-center gap-3 group"
+              >
                 <div className="w-9 h-9 rounded-full bg-primary/15 flex items-center justify-center flex-shrink-0">
-                  <span className="text-primary font-heading font-bold text-sm">{c.name.charAt(0).toUpperCase()}</span>
+                  <span className="text-primary font-heading font-bold text-sm">
+                    {c.name.charAt(0).toUpperCase()}
+                  </span>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium text-foreground">{c.name}</div>
+                  <div className="text-sm font-medium text-foreground">
+                    {c.name}
+                  </div>
                   <div className="flex items-center gap-3 mt-0.5 flex-wrap">
-                    {c.phone && <span className="text-xs text-muted-foreground flex items-center gap-1"><Phone size={10} />{c.phone}</span>}
-                    {c.whatsapp && <span className="text-xs text-red-400 flex items-center gap-1"><MessageCircle size={10} />{c.whatsapp}</span>}
+                    {c.phone && (
+                      <span className="text-xs text-muted-foreground flex items-center gap-1">
+                        <Phone size={10} />
+                        {c.phone}
+                      </span>
+                    )}
+                    {c.whatsapp && (
+                      <span className="text-xs text-red-400 flex items-center gap-1">
+                        <MessageCircle size={10} />
+                        {c.whatsapp}
+                      </span>
+                    )}
                   </div>
                 </div>
                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button onClick={() => openEdit(c)} className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"><Edit2 size={13} /></button>
-                  <button onClick={() => setConfirmDel(c.id)} className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"><Trash2 size={13} /></button>
+                  <button
+                    onClick={() => openEdit(c)}
+                    className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                  >
+                    <Edit2 size={13} />
+                  </button>
+                  <button
+                    onClick={() => setConfirmDel(c.id)}
+                    className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                  >
+                    <Trash2 size={13} />
+                  </button>
                 </div>
               </div>
             ))}
@@ -1871,14 +2366,47 @@ function ClientsPage({ clients, onReload }: {
       )}
 
       {modal && (
-        <Modal title={modal === "add" ? "Novo Cliente" : "Editar Cliente"} onClose={() => setModal(null)}>
+        <Modal
+          title={modal === "add" ? "Novo Cliente" : "Editar Cliente"}
+          onClose={() => setModal(null)}
+        >
           <form onSubmit={save} className="flex flex-col gap-4">
-            <Input label="Nome completo" placeholder="Maria Aparecida" value={form.name} onChange={set("name")} required />
-            <Input label="Telefone" placeholder="(11) 98765-4321" value={form.phone} onChange={set("phone")} />
-            <Input label="WhatsApp" placeholder="(11) 98765-4321" value={form.whatsapp} onChange={set("whatsapp")} />
+            <Input
+              label="Nome completo"
+              placeholder="Maria Aparecida"
+              value={form.name}
+              onChange={set("name")}
+              required
+            />
+            <Input
+              label="Telefone"
+              placeholder="(11) 98765-4321"
+              value={form.phone}
+              onChange={set("phone")}
+            />
+            <Input
+              label="WhatsApp"
+              placeholder="(11) 98765-4321"
+              value={form.whatsapp}
+              onChange={set("whatsapp")}
+            />
             <div className="flex gap-2 pt-1">
-              <Btn type="button" variant="secondary" className="flex-1 justify-center" onClick={() => setModal(null)}>Cancelar</Btn>
-              <Btn type="submit" variant="primary" className="flex-1 justify-center" loading={loading}>{!loading && "Salvar"}</Btn>
+              <Btn
+                type="button"
+                variant="secondary"
+                className="flex-1 justify-center"
+                onClick={() => setModal(null)}
+              >
+                Cancelar
+              </Btn>
+              <Btn
+                type="submit"
+                variant="primary"
+                className="flex-1 justify-center"
+                loading={loading}
+              >
+                {!loading && "Salvar"}
+              </Btn>
             </div>
           </form>
         </Modal>
@@ -1886,10 +2414,25 @@ function ClientsPage({ clients, onReload }: {
 
       {confirmDel && (
         <Modal title="Excluir cliente?" onClose={() => setConfirmDel(null)}>
-          <p className="text-sm text-muted-foreground mb-4">Esta ação não pode ser desfeita. Todos os veículos e ordens vinculados também serão excluídos.</p>
+          <p className="text-sm text-muted-foreground mb-4">
+            Esta ação não pode ser desfeita. Todos os veículos e ordens
+            vinculados também serão excluídos.
+          </p>
           <div className="flex gap-2">
-            <Btn variant="secondary" className="flex-1 justify-center" onClick={() => setConfirmDel(null)}>Cancelar</Btn>
-            <Btn variant="danger" className="flex-1 justify-center" onClick={() => del(confirmDel)}><Trash2 size={13} /> Excluir</Btn>
+            <Btn
+              variant="secondary"
+              className="flex-1 justify-center"
+              onClick={() => setConfirmDel(null)}
+            >
+              Cancelar
+            </Btn>
+            <Btn
+              variant="danger"
+              className="flex-1 justify-center"
+              onClick={() => del(confirmDel)}
+            >
+              <Trash2 size={13} /> Excluir
+            </Btn>
           </div>
         </Modal>
       )}
@@ -1899,22 +2442,37 @@ function ClientsPage({ clients, onReload }: {
 
 // ─── Vehicles ─────────────────────────────────────────────────────────────────
 
-function VehiclesPage({ vehicles, clients, onReload }: {
+function VehiclesPage({
+  vehicles,
+  clients,
+  onReload,
+}: {
   vehicles: Vehicle[];
   clients: Client[];
   onReload: () => Promise<void>;
 }) {
   const [search, setSearch] = useState("");
   const [modal, setModal] = useState<null | "add" | Vehicle>(null);
-  const [form, setForm] = useState({ client_id: "", plate: "", brand: "", model: "", year: "", mileage: "" });
+  const [form, setForm] = useState({
+    client_id: "",
+    plate: "",
+    brand: "",
+    model: "",
+    year: "",
+    mileage: "",
+  });
   const [loading, setLoading] = useState(false);
   const [confirmDel, setConfirmDel] = useState<string | null>(null);
-  const [toast, setToast] = useState<{ msg: string; type: "error" | "success" } | null>(null);
+  const [toast, setToast] = useState<{
+    msg: string;
+    type: "error" | "success";
+  } | null>(null);
 
-  const filtered = vehicles.filter(v =>
-    v.plate.toLowerCase().includes(search.toLowerCase()) ||
-    v.model.toLowerCase().includes(search.toLowerCase()) ||
-    v.brand.toLowerCase().includes(search.toLowerCase())
+  const filtered = vehicles.filter(
+    (v) =>
+      v.plate.toLowerCase().includes(search.toLowerCase()) ||
+      v.model.toLowerCase().includes(search.toLowerCase()) ||
+      v.brand.toLowerCase().includes(search.toLowerCase()),
   );
 
   function showToast(msg: string, type: "error" | "success") {
@@ -1923,12 +2481,26 @@ function VehiclesPage({ vehicles, clients, onReload }: {
   }
 
   function openAdd() {
-    setForm({ client_id: clients[0]?.id ?? "", plate: "", brand: "", model: "", year: "", mileage: "" });
+    setForm({
+      client_id: clients[0]?.id ?? "",
+      plate: "",
+      brand: "",
+      model: "",
+      year: "",
+      mileage: "",
+    });
     setModal("add");
   }
 
   function openEdit(v: Vehicle) {
-    setForm({ client_id: v.client_id, plate: v.plate, brand: v.brand, model: v.model, year: v.year, mileage: v.mileage });
+    setForm({
+      client_id: v.client_id,
+      plate: v.plate,
+      brand: v.brand,
+      model: v.model,
+      year: v.year,
+      mileage: v.mileage,
+    });
     setModal(v);
   }
 
@@ -1943,7 +2515,10 @@ function VehiclesPage({ vehicles, clients, onReload }: {
       }
       await onReload();
       setModal(null);
-      showToast(modal === "add" ? "Veículo cadastrado!" : "Veículo atualizado!", "success");
+      showToast(
+        modal === "add" ? "Veículo cadastrado!" : "Veículo atualizado!",
+        "success",
+      );
     } catch (err: any) {
       showToast(err.message, "error");
     }
@@ -1961,60 +2536,116 @@ function VehiclesPage({ vehicles, clients, onReload }: {
     }
   }
 
-  const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
-    setForm(p => ({ ...p, [k]: e.target.value }));
+  const set =
+    (k: keyof typeof form) =>
+    (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+      setForm((p) => ({ ...p, [k]: e.target.value }));
 
   return (
     <div className="space-y-4">
       {toast && <Toast message={toast.msg} type={toast.type} />}
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h1 className="font-heading font-bold text-2xl text-foreground tracking-wide">Veículos</h1>
-          <p className="text-sm text-muted-foreground">{vehicles.length} cadastrados</p>
+          <h1 className="font-heading font-bold text-2xl text-foreground tracking-wide">
+            Veículos
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            {vehicles.length} cadastrados
+          </p>
         </div>
-        <Btn variant="primary" size="sm" onClick={openAdd} disabled={clients.length === 0}><Plus size={14} /> Novo</Btn>
+        <Btn
+          variant="primary"
+          size="sm"
+          onClick={openAdd}
+          disabled={clients.length === 0}
+        >
+          <Plus size={14} /> Novo
+        </Btn>
       </div>
 
       {clients.length === 0 && (
         <div className="flex items-center gap-2 px-4 py-3 rounded-lg bg-amber-400/10 border border-amber-400/20 text-amber-400 text-sm">
-          <AlertCircle size={14} /> Cadastre um cliente antes de adicionar veículos.
+          <AlertCircle size={14} /> Cadastre um cliente antes de adicionar
+          veículos.
         </div>
       )}
 
       <div className="relative">
-        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar por placa, modelo..." className="w-full bg-input-background border border-border rounded-md pl-9 pr-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
+        <Search
+          size={14}
+          className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+        />
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Buscar por placa, modelo..."
+          className="w-full bg-input-background border border-border rounded-md pl-9 pr-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+        />
       </div>
 
       {filtered.length === 0 ? (
         <Card className="py-14 text-center">
           <Car size={30} className="mx-auto text-muted-foreground/20 mb-2" />
-          <p className="text-sm text-muted-foreground">{search ? "Nenhum resultado." : "Nenhum veículo cadastrado."}</p>
+          <p className="text-sm text-muted-foreground">
+            {search ? "Nenhum resultado." : "Nenhum veículo cadastrado."}
+          </p>
         </Card>
       ) : (
         <Card>
           <div className="divide-y divide-border">
-            {filtered.map(v => {
-              const client = clients.find(c => c.id === v.client_id);
+            {filtered.map((v) => {
+              const client = clients.find((c) => c.id === v.client_id);
               return (
-                <div key={v.id} className="px-4 py-3 flex items-center gap-3 group">
+                <div
+                  key={v.id}
+                  className="px-4 py-3 flex items-center gap-3 group"
+                >
                   <div className="w-9 h-9 rounded-lg bg-blue-400/10 flex items-center justify-center flex-shrink-0">
                     <Car size={15} className="text-blue-400" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-sm font-medium text-foreground">{v.brand} {v.model}</span>
-                      <span className="font-mono text-xs px-1.5 py-0.5 rounded bg-secondary text-muted-foreground border border-border">{v.plate}</span>
+                      <span className="text-sm font-medium text-foreground">
+                        {v.brand} {v.model}
+                      </span>
+                      <span className="font-mono text-xs px-1.5 py-0.5 rounded bg-secondary text-muted-foreground border border-border">
+                        {v.plate}
+                      </span>
                     </div>
                     <div className="flex items-center gap-3 mt-0.5 flex-wrap">
-                      {v.year && <span className="text-xs text-muted-foreground flex items-center gap-1"><Calendar size={10} />{v.year}</span>}
-                      {v.mileage && <span className="text-xs text-muted-foreground flex items-center gap-1"><Gauge size={10} />{parseInt(v.mileage).toLocaleString("pt-BR")} km</span>}
-                      {client && <span className="text-xs text-muted-foreground flex items-center gap-1"><Users size={10} />{client.name}</span>}
+                      {v.year && (
+                        <span className="text-xs text-muted-foreground flex items-center gap-1">
+                          <Calendar size={10} />
+                          {v.year}
+                        </span>
+                      )}
+                      {v.mileage && (
+                        <span className="text-xs text-muted-foreground flex items-center gap-1">
+                          <Gauge size={10} />
+                          {parseInt(v.mileage).toLocaleString("pt-BR")} km
+                        </span>
+                      )}
+                      {client && (
+                        <span className="text-xs text-muted-foreground flex items-center gap-1">
+                          <Users size={10} />
+                          {client.name}
+                        </span>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button onClick={() => openEdit(v)} className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"><Edit2 size={13} /></button>
-                    <button onClick={() => setConfirmDel(v.id)} className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"><Trash2 size={13} /></button>
+                    <button
+                      onClick={() => openEdit(v)}
+                      className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                    >
+                      <Edit2 size={13} />
+                    </button>
+                    <button
+                      onClick={() => setConfirmDel(v.id)}
+                      className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                    >
+                      <Trash2 size={13} />
+                    </button>
                   </div>
                 </div>
               );
@@ -2024,24 +2655,79 @@ function VehiclesPage({ vehicles, clients, onReload }: {
       )}
 
       {modal && (
-        <Modal title={modal === "add" ? "Novo Veículo" : "Editar Veículo"} onClose={() => setModal(null)}>
+        <Modal
+          title={modal === "add" ? "Novo Veículo" : "Editar Veículo"}
+          onClose={() => setModal(null)}
+        >
           <form onSubmit={save} className="flex flex-col gap-4">
-            <Select label="Cliente" value={form.client_id} onChange={set("client_id")} required>
+            <Select
+              label="Cliente"
+              value={form.client_id}
+              onChange={set("client_id")}
+              required
+            >
               <option value="">Selecione o cliente...</option>
-              {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              {clients.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
             </Select>
-            <Input label="Placa" placeholder="ABC-1234" value={form.plate} onChange={set("plate")} required className="uppercase" />
+            <Input
+              label="Placa"
+              placeholder="ABC-1234"
+              value={form.plate}
+              onChange={set("plate")}
+              required
+              className="uppercase"
+            />
             <div className="grid grid-cols-2 gap-3">
-              <Input label="Marca" placeholder="Toyota" value={form.brand} onChange={set("brand")} />
-              <Input label="Modelo" placeholder="Corolla" value={form.model} onChange={set("model")} />
+              <Input
+                label="Marca"
+                placeholder="Toyota"
+                value={form.brand}
+                onChange={set("brand")}
+              />
+              <Input
+                label="Modelo"
+                placeholder="Corolla"
+                value={form.model}
+                onChange={set("model")}
+              />
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <Input label="Ano" placeholder="2021" type="number" value={form.year} onChange={set("year")} />
-              <Input label="Quilometragem" placeholder="45000" type="number" value={form.mileage} onChange={set("mileage")} />
+              <Input
+                label="Ano"
+                placeholder="2021"
+                type="number"
+                value={form.year}
+                onChange={set("year")}
+              />
+              <Input
+                label="Quilometragem"
+                placeholder="45000"
+                type="number"
+                value={form.mileage}
+                onChange={set("mileage")}
+              />
             </div>
             <div className="flex gap-2 pt-1">
-              <Btn type="button" variant="secondary" className="flex-1 justify-center" onClick={() => setModal(null)}>Cancelar</Btn>
-              <Btn type="submit" variant="primary" className="flex-1 justify-center" loading={loading}>{!loading && "Salvar"}</Btn>
+              <Btn
+                type="button"
+                variant="secondary"
+                className="flex-1 justify-center"
+                onClick={() => setModal(null)}
+              >
+                Cancelar
+              </Btn>
+              <Btn
+                type="submit"
+                variant="primary"
+                className="flex-1 justify-center"
+                loading={loading}
+              >
+                {!loading && "Salvar"}
+              </Btn>
             </div>
           </form>
         </Modal>
@@ -2049,10 +2735,24 @@ function VehiclesPage({ vehicles, clients, onReload }: {
 
       {confirmDel && (
         <Modal title="Excluir veículo?" onClose={() => setConfirmDel(null)}>
-          <p className="text-sm text-muted-foreground mb-4">Esta ação não pode ser desfeita.</p>
+          <p className="text-sm text-muted-foreground mb-4">
+            Esta ação não pode ser desfeita.
+          </p>
           <div className="flex gap-2">
-            <Btn variant="secondary" className="flex-1 justify-center" onClick={() => setConfirmDel(null)}>Cancelar</Btn>
-            <Btn variant="danger" className="flex-1 justify-center" onClick={() => del(confirmDel)}><Trash2 size={13} /> Excluir</Btn>
+            <Btn
+              variant="secondary"
+              className="flex-1 justify-center"
+              onClick={() => setConfirmDel(null)}
+            >
+              Cancelar
+            </Btn>
+            <Btn
+              variant="danger"
+              className="flex-1 justify-center"
+              onClick={() => del(confirmDel)}
+            >
+              <Trash2 size={13} /> Excluir
+            </Btn>
           </div>
         </Modal>
       )}
@@ -2062,7 +2762,13 @@ function VehiclesPage({ vehicles, clients, onReload }: {
 
 // ─── Orders ───────────────────────────────────────────────────────────────────
 
-function OrdersPage({ orders, clients, vehicles, onReload, onView }: {
+function OrdersPage({
+  orders,
+  clients,
+  vehicles,
+  onReload,
+  onView,
+}: {
   orders: ServiceOrder[];
   clients: Client[];
   vehicles: Vehicle[];
@@ -2072,22 +2778,28 @@ function OrdersPage({ orders, clients, vehicles, onReload, onView }: {
   const [filter, setFilter] = useState<"all" | OrderStatus>("all");
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState({
-  client_id: "",
-  vehicle_id: "",
-  reported_issue: "",
-  employee_name: "",
-  services_performed: "",
-  value: "",
-  status: "aguardando" as OrderStatus,
-  notes: "",
-});
+    client_id: "",
+    vehicle_id: "",
+    reported_issue: "",
+    employee_name: "",
+    services_performed: "",
+    value: "",
+    status: "aguardando" as OrderStatus,
+    notes: "",
+  });
   const [loading, setLoading] = useState(false);
   const [confirmDel, setConfirmDel] = useState<string | null>(null);
-  const [toast, setToast] = useState<{ msg: string; type: "error" | "success" } | null>(null);
+  const [toast, setToast] = useState<{
+    msg: string;
+    type: "error" | "success";
+  } | null>(null);
 
-  const clientVehicles = vehicles.filter(v => v.client_id === form.client_id);
-  const filtered = filter === "all" ? orders : orders.filter(o => o.status === filter);
-  const sorted = [...filtered].sort((a, b) => b.updated_at.localeCompare(a.updated_at));
+  const clientVehicles = vehicles.filter((v) => v.client_id === form.client_id);
+  const filtered =
+    filter === "all" ? orders : orders.filter((o) => o.status === filter);
+  const sorted = [...filtered].sort((a, b) =>
+    b.updated_at.localeCompare(a.updated_at),
+  );
 
   function showToast(msg: string, type: "error" | "success") {
     setToast({ msg, type });
@@ -2095,57 +2807,57 @@ function OrdersPage({ orders, clients, vehicles, onReload, onView }: {
   }
 
   function openAdd() {
-  const firstClient = clients[0];
-  const firstVehicle = firstClient
-    ? vehicles.find(v => v.client_id === firstClient.id)
-    : null;
+    const firstClient = clients[0];
+    const firstVehicle = firstClient
+      ? vehicles.find((v) => v.client_id === firstClient.id)
+      : null;
 
-  setForm({
-    client_id: firstClient?.id ?? "",
-    vehicle_id: firstVehicle?.id ?? "",
-    reported_issue: "",
-    employee_name: "",
-    services_performed: "",
-    value: "",
-    status: "aguardando",
-    notes: "",
-  });
+    setForm({
+      client_id: firstClient?.id ?? "",
+      vehicle_id: firstVehicle?.id ?? "",
+      reported_issue: "",
+      employee_name: "",
+      services_performed: "",
+      value: "",
+      status: "aguardando",
+      notes: "",
+    });
 
-  setModal(true);
-}
+    setModal(true);
+  }
 
   async function save(e: React.FormEvent) {
-  e.preventDefault();
+    e.preventDefault();
 
-  if (!form.vehicle_id) {
-    showToast("Selecione um veículo.", "error");
-    return;
+    if (!form.vehicle_id) {
+      showToast("Selecione um veículo.", "error");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      await API.createOrder({
+        ...form,
+        employee_name: form.employee_name,
+        value: String(
+          Number(
+            String(form.value || "0")
+              .replace(/\./g, "")
+              .replace(",", "."),
+          ),
+        ),
+      } as any);
+
+      await onReload();
+      setModal(false);
+      showToast("Ordem de serviço criada!", "success");
+    } catch (err: any) {
+      showToast(err.message, "error");
+    }
+
+    setLoading(false);
   }
-
-  setLoading(true);
-
-  try {
-
-
-
-    await API.createOrder({
-      ...form,
-      employee_name: form.employee_name,
-      value: String(
-        Number(String(form.value || "0").replace(/\./g, "").replace(",", "."))
-      ),
-    } as any);
-
-    await onReload();
-    setModal(false);
-    showToast("Ordem de serviço criada!", "success");
-
-  } catch (err: any) {
-    showToast(err.message, "error");
-  }
-
-  setLoading(false);
-}
 
   async function del(id: string) {
     try {
@@ -2158,86 +2870,138 @@ function OrdersPage({ orders, clients, vehicles, onReload, onView }: {
     }
   }
 
-  const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    const val = e.target.value;
-    setForm(p => {
-      const next = { ...p, [k]: val };
-      if (k === "client_id") {
-        const veh = vehicles.find(v => v.client_id === val);
-        next.vehicle_id = veh?.id ?? "";
-      }
-      return next;
-    });
-  };
+  const set =
+    (k: keyof typeof form) =>
+    (
+      e: React.ChangeEvent<
+        HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+      >,
+    ) => {
+      const val = e.target.value;
+      setForm((p) => {
+        const next = { ...p, [k]: val };
+        if (k === "client_id") {
+          const veh = vehicles.find((v) => v.client_id === val);
+          next.vehicle_id = veh?.id ?? "";
+        }
+        return next;
+      });
+    };
 
   return (
     <div className="space-y-4">
       {toast && <Toast message={toast.msg} type={toast.type} />}
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h1 className="font-heading font-bold text-2xl text-foreground tracking-wide">Ordens de Serviço</h1>
+          <h1 className="font-heading font-bold text-2xl text-foreground tracking-wide">
+            Ordens de Serviço
+          </h1>
           <p className="text-sm text-muted-foreground">{orders.length} total</p>
         </div>
-        <Btn variant="primary" size="sm" onClick={openAdd} disabled={!clients.length || !vehicles.length}>
+        <Btn
+          variant="primary"
+          size="sm"
+          onClick={openAdd}
+          disabled={!clients.length || !vehicles.length}
+        >
           <Plus size={14} /> Nova OS
         </Btn>
       </div>
 
       {(!clients.length || !vehicles.length) && (
         <div className="flex items-center gap-2 px-4 py-3 rounded-lg bg-amber-400/10 border border-amber-400/20 text-amber-400 text-sm">
-          <AlertCircle size={14} /> Cadastre clientes e veículos antes de abrir uma ordem de serviço.
+          <AlertCircle size={14} /> Cadastre clientes e veículos antes de abrir
+          uma ordem de serviço.
         </div>
       )}
 
       <div className="flex gap-1.5 flex-wrap">
-        {(["all", "aguardando", "em_manutencao", "finalizado"] as const).map(s => {
-          const count = s === "all" ? orders.length : orders.filter(o => o.status === s).length;
-          return (
-            <button
-              key={s}
-              onClick={() => setFilter(s)}
-              className={`px-3 py-1.5 rounded-md text-xs font-medium border transition-all ${
-                filter === s
-                  ? s === "all" ? "bg-primary/15 text-primary border-primary/30" : STATUS_COLOR[s as OrderStatus]
-                  : "text-muted-foreground border-border hover:text-foreground"
-              }`}
-            >
-              {s === "all" ? "Todas" : STATUS_LABEL[s as OrderStatus]} ({count})
-            </button>
-          );
-        })}
+        {(["all", "aguardando", "em_manutencao", "finalizado"] as const).map(
+          (s) => {
+            const count =
+              s === "all"
+                ? orders.length
+                : orders.filter((o) => o.status === s).length;
+            return (
+              <button
+                key={s}
+                onClick={() => setFilter(s)}
+                className={`px-3 py-1.5 rounded-md text-xs font-medium border transition-all ${
+                  filter === s
+                    ? s === "all"
+                      ? "bg-primary/15 text-primary border-primary/30"
+                      : STATUS_COLOR[s as OrderStatus]
+                    : "text-muted-foreground border-border hover:text-foreground"
+                }`}
+              >
+                {s === "all" ? "Todas" : STATUS_LABEL[s as OrderStatus]} (
+                {count})
+              </button>
+            );
+          },
+        )}
       </div>
 
       {sorted.length === 0 ? (
         <Card className="py-14 text-center">
-          <ClipboardList size={30} className="mx-auto text-muted-foreground/20 mb-2" />
-          <p className="text-sm text-muted-foreground">Nenhuma ordem de serviço.</p>
+          <ClipboardList
+            size={30}
+            className="mx-auto text-muted-foreground/20 mb-2"
+          />
+          <p className="text-sm text-muted-foreground">
+            Nenhuma ordem de serviço.
+          </p>
         </Card>
       ) : (
         <Card>
           <div className="divide-y divide-border">
-            {sorted.map(o => {
-              const client = clients.find(c => c.id === o.client_id);
-              const vehicle = vehicles.find(v => v.id === o.vehicle_id);
+            {sorted.map((o) => {
+              const client = clients.find((c) => c.id === o.client_id);
+              const vehicle = vehicles.find((v) => v.id === o.vehicle_id);
               return (
-                <div key={o.id} className="px-4 py-3 flex items-center gap-3 group">
+                <div
+                  key={o.id}
+                  className="px-4 py-3 flex items-center gap-3 group"
+                >
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-sm font-medium text-foreground">{client?.name ?? "—"}</span>
+                      <span className="text-sm font-medium text-foreground">
+                        {client?.name ?? "—"}
+                      </span>
                       <StatusBadge status={o.status} />
                     </div>
                     <div className="text-xs text-muted-foreground mt-0.5">
-                      {vehicle ? `${vehicle.brand} ${vehicle.model} · ${vehicle.plate}` : "—"}
+                      {vehicle
+                        ? `${vehicle.brand} ${vehicle.model} · ${vehicle.plate}`
+                        : "—"}
                     </div>
-                    {o.reported_issue && <div className="text-xs text-muted-foreground/60 mt-0.5 truncate">{o.reported_issue}</div>}
+                    {o.reported_issue && (
+                      <div className="text-xs text-muted-foreground/60 mt-0.5 truncate">
+                        {o.reported_issue}
+                      </div>
+                    )}
                   </div>
                   <div className="flex-shrink-0 text-right">
-                    <div className="text-sm font-mono font-medium text-green-500">{fmtMoney(o.value)}</div>
-                    <div className="text-xs text-muted-foreground">{fmt(o.created_at)}</div>
+                    <div className="text-sm font-mono font-medium text-green-500">
+                      {fmtMoney(o.value)}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {fmt(o.created_at)}
+                    </div>
                   </div>
                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button onClick={() => onView(o)} className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"><Eye size={13} /></button>
-                    <button onClick={() => setConfirmDel(o.id)} className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"><Trash2 size={13} /></button>
+                    <button
+                      onClick={() => onView(o)}
+                      className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                    >
+                      <Eye size={13} />
+                    </button>
+                    <button
+                      onClick={() => setConfirmDel(o.id)}
+                      className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                    >
+                      <Trash2 size={13} />
+                    </button>
                   </div>
                 </div>
               );
@@ -2249,43 +3013,98 @@ function OrdersPage({ orders, clients, vehicles, onReload, onView }: {
       {modal && (
         <Modal title="Nova Ordem de Serviço" onClose={() => setModal(false)}>
           <form onSubmit={save} className="flex flex-col gap-4">
-            <Select label="Cliente" value={form.client_id} onChange={set("client_id")} required>
+            <Select
+              label="Cliente"
+              value={form.client_id}
+              onChange={set("client_id")}
+              required
+            >
               <option value="">Selecione...</option>
-              {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              {clients.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
             </Select>
-            <Select label="Veículo" value={form.vehicle_id} onChange={set("vehicle_id")} required>
+            <Select
+              label="Veículo"
+              value={form.vehicle_id}
+              onChange={set("vehicle_id")}
+              required
+            >
               <option value="">Selecione...</option>
-              {clientVehicles.map(v => <option key={v.id} value={v.id}>{v.brand} {v.model} — {v.plate}</option>)}
+              {clientVehicles.map((v) => (
+                <option key={v.id} value={v.id}>
+                  {v.brand} {v.model} — {v.plate}
+                </option>
+              ))}
             </Select>
             <Textarea
-  label="Problema relatado"
-  value={form.reported_issue}
-  onChange={set("reported_issue")}
-  rows={3}
-/>
+              label="Problema relatado"
+              value={form.reported_issue}
+              onChange={set("reported_issue")}
+              rows={3}
+            />
 
-<Input
-  label="Funcionário responsável"
-  placeholder="Ex: João, Lucas, Rafael"
-  value={form.employee_name}
-  onChange={set("employee_name")}
-/>
+            <Input
+              label="Funcionário responsável"
+              placeholder="Ex: João, Lucas, Rafael"
+              value={form.employee_name}
+              onChange={set("employee_name")}
+            />
 
-
-
-            <Textarea label="Serviços previstos" placeholder="Revisão, troca de óleo..." value={form.services_performed} onChange={set("services_performed")} rows={2} />
+            <Textarea
+              label="Serviços previstos"
+              placeholder="Revisão, troca de óleo..."
+              value={form.services_performed}
+              onChange={set("services_performed")}
+              rows={2}
+            />
             <div className="grid grid-cols-2 gap-3">
-              <Input label="Valor (R$)" placeholder="0,00" value={form.value} onChange={set("value")} />
-              <Select label="Status" value={form.status} onChange={set("status")}>
-                {(["aguardando", "em_manutencao", "finalizado"] as OrderStatus[]).map(s => (
-                  <option key={s} value={s}>{STATUS_LABEL[s]}</option>
+              <Input
+                label="Valor (R$)"
+                placeholder="0,00"
+                value={form.value}
+                onChange={set("value")}
+              />
+              <Select
+                label="Status"
+                value={form.status}
+                onChange={set("status")}
+              >
+                {(
+                  ["aguardando", "em_manutencao", "finalizado"] as OrderStatus[]
+                ).map((s) => (
+                  <option key={s} value={s}>
+                    {STATUS_LABEL[s]}
+                  </option>
                 ))}
               </Select>
             </div>
-            <Textarea label="Observações" placeholder="Notas adicionais..." value={form.notes} onChange={set("notes")} rows={2} />
+            <Textarea
+              label="Observações"
+              placeholder="Notas adicionais..."
+              value={form.notes}
+              onChange={set("notes")}
+              rows={2}
+            />
             <div className="flex gap-2 pt-1">
-              <Btn type="button" variant="secondary" className="flex-1 justify-center" onClick={() => setModal(false)}>Cancelar</Btn>
-              <Btn type="submit" variant="primary" className="flex-1 justify-center" loading={loading}>{!loading && "Abrir OS"}</Btn>
+              <Btn
+                type="button"
+                variant="secondary"
+                className="flex-1 justify-center"
+                onClick={() => setModal(false)}
+              >
+                Cancelar
+              </Btn>
+              <Btn
+                type="submit"
+                variant="primary"
+                className="flex-1 justify-center"
+                loading={loading}
+              >
+                {!loading && "Abrir OS"}
+              </Btn>
             </div>
           </form>
         </Modal>
@@ -2293,10 +3112,24 @@ function OrdersPage({ orders, clients, vehicles, onReload, onView }: {
 
       {confirmDel && (
         <Modal title="Excluir ordem?" onClose={() => setConfirmDel(null)}>
-          <p className="text-sm text-muted-foreground mb-4">Esta ação não pode ser desfeita.</p>
+          <p className="text-sm text-muted-foreground mb-4">
+            Esta ação não pode ser desfeita.
+          </p>
           <div className="flex gap-2">
-            <Btn variant="secondary" className="flex-1 justify-center" onClick={() => setConfirmDel(null)}>Cancelar</Btn>
-            <Btn variant="danger" className="flex-1 justify-center" onClick={() => del(confirmDel)}><Trash2 size={13} /> Excluir</Btn>
+            <Btn
+              variant="secondary"
+              className="flex-1 justify-center"
+              onClick={() => setConfirmDel(null)}
+            >
+              Cancelar
+            </Btn>
+            <Btn
+              variant="danger"
+              className="flex-1 justify-center"
+              onClick={() => del(confirmDel)}
+            >
+              <Trash2 size={13} /> Excluir
+            </Btn>
           </div>
         </Modal>
       )}
@@ -2317,173 +3150,202 @@ type OrderPhoto = {
   created_at: string;
 };
 
-function OrderDetail({ profile, order, clients, vehicles, onBack, onReload }: {
+function OrderDetail({
+  profile,
+  order,
+  clients,
+  vehicles,
+  onBack,
+  onReload,
+}: {
   profile: Profile | null;
   order: ServiceOrder;
   clients: Client[];
   vehicles: Vehicle[];
   onBack: () => void;
   onReload: () => Promise<void>;
-}) { 
-  const client = clients.find(c => c.id === order.client_id);
-  const vehicle = vehicles.find(v => v.id === order.vehicle_id);
+}) {
+  const client = clients.find((c) => c.id === order.client_id);
+  const vehicle = vehicles.find((v) => v.id === order.vehicle_id);
   const workshopName = profile?.workshop_name || "Oficina";
   const workshopSignature =
-  `${profile?.workshop_name || "Oficina"}\n` +
-  `${profile?.whatsapp || profile?.phone ? `Tel/WhatsApp: ${profile?.whatsapp || profile?.phone}\n` : ""}` +
-  `${profile?.city || profile?.state ? `${profile?.city || ""}${profile?.city && profile?.state ? " - " : ""}${profile?.state || ""}` : ""}`;
+    `${profile?.workshop_name || "Oficina"}\n` +
+    `${profile?.whatsapp || profile?.phone ? `Tel/WhatsApp: ${profile?.whatsapp || profile?.phone}\n` : ""}` +
+    `${profile?.city || profile?.state ? `${profile?.city || ""}${profile?.city && profile?.state ? " - " : ""}${profile?.state || ""}` : ""}`;
 
   const [editing, setEditing] = useState(false);
   const [current, setCurrent] = useState(order);
   const [form, setForm] = useState({
-  client_id: order.client_id,
-  vehicle_id: order.vehicle_id,
-  reported_issue: order.reported_issue || "",
-  services_performed: order.services_performed || "",
-  employee_name: (order as any).employee_name || "",
-  value: order.value || "0",
-  status: order.status,
-  notes: order.notes || "",
-  delivery_date: (order as any).delivery_date || "",
-  checklist: (order as any).checklist || "",
-}); 
+    client_id: order.client_id,
+    vehicle_id: order.vehicle_id,
+    reported_issue: order.reported_issue || "",
+    services_performed: order.services_performed || "",
+    employee_name: (order as any).employee_name || "",
+    value: order.value || "0",
+    status: order.status,
+    notes: order.notes || "",
+    delivery_date: (order as any).delivery_date || "",
+    checklist: (order as any).checklist || "",
+  });
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [photos, setPhotos] = useState<OrderPhoto[]>([]);
-  const [toast, setToast] = useState<{ msg: string; type: "error" | "success" } | null>(null);
+  const [toast, setToast] = useState<{
+    msg: string;
+    type: "error" | "success";
+  } | null>(null);
 
-  const set = (k: keyof typeof form) =>
-    (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
-      setForm(p => ({ ...p, [k]: e.target.value }));
+  const set =
+    (k: keyof typeof form) =>
+    (
+      e: React.ChangeEvent<
+        HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+      >,
+    ) =>
+      setForm((p) => ({ ...p, [k]: e.target.value }));
 
   function showToast(msg: string, type: "error" | "success") {
-  setToast({ msg, type });
-  setTimeout(() => setToast(null), 3500);
-}
-
-async function loadPhotos() {
-  const { data, error } = await supabase
-    .from("af_order_photos")
-    .select("*")
-    .eq("order_id", order.id)
-    .order("created_at", { ascending: false });
-
-  if (error) {
-    console.warn("Fotos da OS indisponíveis:", error.message);
-    return;
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 3500);
   }
 
-  setPhotos((data ?? []) as OrderPhoto[]);
-}
+  async function loadPhotos() {
+    const { data, error } = await supabase
+      .from("af_order_photos")
+      .select("*")
+      .eq("order_id", order.id)
+      .order("created_at", { ascending: false });
 
-useEffect(() => {
-  loadPhotos();
-}, [order.id]);
-
-function buildUpdateMessage(includePdfText = false) {
-  const statusText =
-    form.status === "aguardando"
-      ? "Aguardando aprovação"
-      : form.status === "em_manutencao"
-      ? "Em manutenção"
-      : "Finalizado";
-
-  return (
-    `Olá, ${client?.name || "cliente"}.\n\n` +
-    `Sua Ordem de Serviço foi atualizada.\n\n` +
-    `Veículo: ${vehicle?.brand || ""} ${vehicle?.model || ""} (${vehicle?.plate || "-"})\n` +
-    `Status: ${statusText}\n` +
-    `Valor: ${fmtMoney(form.value)}\n` +
-    (getPublicOrderUrl(current) ? `Link de acompanhamento: ${getPublicOrderUrl(current)}\n` : "") +
-    (form.delivery_date ? `Previsão de entrega: ${new Date(form.delivery_date).toLocaleDateString("pt-BR")}\n` : "") +
-    `\nProblema relatado:\n${form.reported_issue || "-"}\n\n` +
-    `Serviços realizados:\n${form.services_performed || "Em andamento"}\n\n` +
-    (form.employee_name ? `Responsável: ${form.employee_name}\n\n` : "") +
-    (includePdfText
-      ? `O PDF anexado é a via digital da sua Ordem de Serviço. Ele contém os dados do veículo, problema relatado, serviços, status e valor registrado pela oficina.\n\n`
-      : "") +
-    `Em caso de dúvidas, estamos à disposição.\n\n` +
-    `Obrigado pela preferência.\n\n` +
-    `${workshopSignature}`
-  );
-}
-
-function openWhatsApp(message: string) {
-  const num = (client?.whatsapp || client?.phone || "").replace(/\D/g, "");
-
-  if (!num) {
-    showToast("Cliente sem WhatsApp cadastrado.", "error");
-    return;
-  }
-
-  window.open(`https://wa.me/55${num}?text=${encodeURIComponent(message)}`, "_blank");
-}
-
-function sendUpdateWhatsApp() {
-  openWhatsApp(buildUpdateMessage(false));
-}
-
-async function sendPdfWhatsApp() {
-  await generatePDF();
-  openWhatsApp(buildUpdateMessage(true));
-}
-
-async function save(e: React.FormEvent) {
-  e.preventDefault();
-  setLoading(true);
-
-  try {
-    const previousStatus = current.status;
-
-    const patch: Partial<ServiceOrder> & Record<string, any> = {
-      reported_issue: form.reported_issue,
-      services_performed: form.services_performed,
-      employee_name: form.employee_name,
-      value: String(
-        Number(String(form.value || "0").replace(/\./g, "").replace(",", "."))
-      ),
-      status: form.status,
-      notes: form.notes,
-      delivery_date: form.delivery_date || null,
-      checklist: form.checklist,
-    };
-
-    const updatedOrder = await API.updateOrder(order.id, patch);
-
-    setCurrent(updatedOrder);
-    setForm({
-      client_id: updatedOrder.client_id,
-      vehicle_id: updatedOrder.vehicle_id,
-      reported_issue: updatedOrder.reported_issue || "",
-      services_performed: updatedOrder.services_performed || "",
-      employee_name: (updatedOrder as any).employee_name || "",
-      value: updatedOrder.value || "0",
-      status: updatedOrder.status,
-      notes: updatedOrder.notes || "",
-      delivery_date: (updatedOrder as any).delivery_date || "",
-      checklist: (updatedOrder as any).checklist || "",
-    });
-
-    setEditing(false);
-    await onReload();
-    showToast("Ordem atualizada!", "success");
-
-    if (previousStatus !== "finalizado" && updatedOrder.status === "finalizado") {
-      openWhatsApp(buildFinishedMessage(updatedOrder));
+    if (error) {
+      console.warn("Fotos da OS indisponíveis:", error.message);
+      return;
     }
-  } catch (err: any) {
-    showToast(err.message, "error");
-  } finally {
-    setLoading(false);
+
+    setPhotos((data ?? []) as OrderPhoto[]);
   }
-}
+
+  useEffect(() => {
+    loadPhotos();
+  }, [order.id]);
+
+  function buildUpdateMessage(includePdfText = false) {
+    const statusText =
+      form.status === "aguardando"
+        ? "Aguardando aprovação"
+        : form.status === "em_manutencao"
+          ? "Em manutenção"
+          : "Finalizado";
+
+    return (
+      `Olá, ${client?.name || "cliente"}.\n\n` +
+      `Sua Ordem de Serviço foi atualizada.\n\n` +
+      `Veículo: ${vehicle?.brand || ""} ${vehicle?.model || ""} (${vehicle?.plate || "-"})\n` +
+      `Status: ${statusText}\n` +
+      `Valor: ${fmtMoney(form.value)}\n` +
+      (getPublicOrderUrl(current)
+        ? `Link de acompanhamento: ${getPublicOrderUrl(current)}\n`
+        : "") +
+      (form.delivery_date
+        ? `Previsão de entrega: ${new Date(form.delivery_date).toLocaleDateString("pt-BR")}\n`
+        : "") +
+      `\nProblema relatado:\n${form.reported_issue || "-"}\n\n` +
+      `Serviços realizados:\n${form.services_performed || "Em andamento"}\n\n` +
+      (form.employee_name ? `Responsável: ${form.employee_name}\n\n` : "") +
+      (includePdfText
+        ? `O PDF anexado é a via digital da sua Ordem de Serviço. Ele contém os dados do veículo, problema relatado, serviços, status e valor registrado pela oficina.\n\n`
+        : "") +
+      `Em caso de dúvidas, estamos à disposição.\n\n` +
+      `Obrigado pela preferência.\n\n` +
+      `${workshopSignature}`
+    );
+  }
+
+  function openWhatsApp(message: string) {
+    const num = (client?.whatsapp || client?.phone || "").replace(/\D/g, "");
+
+    if (!num) {
+      showToast("Cliente sem WhatsApp cadastrado.", "error");
+      return;
+    }
+
+    window.open(
+      `https://wa.me/55${num}?text=${encodeURIComponent(message)}`,
+      "_blank",
+    );
+  }
+
+  function sendUpdateWhatsApp() {
+    openWhatsApp(buildUpdateMessage(false));
+  }
+
+  async function sendPdfWhatsApp() {
+    await generatePDF();
+    openWhatsApp(buildUpdateMessage(true));
+  }
+
+  async function save(e: React.FormEvent) {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      const previousStatus = current.status;
+
+      const patch: Partial<ServiceOrder> & Record<string, any> = {
+        reported_issue: form.reported_issue,
+        services_performed: form.services_performed,
+        employee_name: form.employee_name,
+        value: String(
+          Number(
+            String(form.value || "0")
+              .replace(/\./g, "")
+              .replace(",", "."),
+          ),
+        ),
+        status: form.status,
+        notes: form.notes,
+        delivery_date: form.delivery_date || null,
+        checklist: form.checklist,
+      };
+
+      const updatedOrder = await API.updateOrder(order.id, patch);
+
+      setCurrent(updatedOrder);
+      setForm({
+        client_id: updatedOrder.client_id,
+        vehicle_id: updatedOrder.vehicle_id,
+        reported_issue: updatedOrder.reported_issue || "",
+        services_performed: updatedOrder.services_performed || "",
+        employee_name: (updatedOrder as any).employee_name || "",
+        value: updatedOrder.value || "0",
+        status: updatedOrder.status,
+        notes: updatedOrder.notes || "",
+        delivery_date: (updatedOrder as any).delivery_date || "",
+        checklist: (updatedOrder as any).checklist || "",
+      });
+
+      setEditing(false);
+      await onReload();
+      showToast("Ordem atualizada!", "success");
+
+      if (
+        previousStatus !== "finalizado" &&
+        updatedOrder.status === "finalizado"
+      ) {
+        openWhatsApp(buildFinishedMessage(updatedOrder));
+      }
+    } catch (err: any) {
+      showToast(err.message, "error");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   async function quickStatus(status: OrderStatus) {
     try {
       const previousStatus = current.status;
       const updatedStatus = await API.updateOrder(order.id, { status });
-     setCurrent(updatedStatus);
-      setForm(p => ({ ...p, status: updatedStatus.status }));
+      setCurrent(updatedStatus);
+      setForm((p) => ({ ...p, status: updatedStatus.status }));
       await onReload();
       showToast(`Status: ${STATUS_LABEL[status]}`, "success");
 
@@ -2495,29 +3357,31 @@ async function save(e: React.FormEvent) {
     }
   }
 
-   function getPublicOrderUrl(orderData: ServiceOrder = current) {
-  const token = (orderData as any).public_token;
+  function getPublicOrderUrl(orderData: ServiceOrder = current) {
+    const token = (orderData as any).public_token;
 
-  if (!token) return "";
+    if (!token) return "";
 
-  return `${window.location.origin}/os/${token}`;
-}
+    return `${window.location.origin}/os/${token}`;
+  }
 
-function buildFinishedMessage(orderData: ServiceOrder) {
-  const publicUrl = getPublicOrderUrl(orderData);
+  function buildFinishedMessage(orderData: ServiceOrder) {
+    const publicUrl = getPublicOrderUrl(orderData);
 
-  return (
-    `Olá, ${client?.name || "cliente"}.\n\n` +
-    `Seu veículo ${vehicle?.brand || ""} ${vehicle?.model || ""} (${vehicle?.plate || "-"}) está pronto para retirada.\n\n` +
-    `Valor do serviço: ${fmtMoney(orderData.value)}\n\n` +
-    (publicUrl ? `Acompanhe sua OS pelo link:\n${publicUrl}\n\n` : "") +
-    `Agradecemos pela confiança.\n\n` +
-    `${workshopName}`
-  );
-}
+    return (
+      `Olá, ${client?.name || "cliente"}.\n\n` +
+      `Seu veículo ${vehicle?.brand || ""} ${vehicle?.model || ""} (${vehicle?.plate || "-"}) está pronto para retirada.\n\n` +
+      `Valor do serviço: ${fmtMoney(orderData.value)}\n\n` +
+      (publicUrl ? `Acompanhe sua OS pelo link:\n${publicUrl}\n\n` : "") +
+      `Agradecemos pela confiança.\n\n` +
+      `${workshopName}`
+    );
+  }
 
   async function uploadPhoto(file: File, photoType: OrderPhoto["photo_type"]) {
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) {
       showToast("Sessão expirada. Faça login novamente.", "error");
       return;
@@ -2565,9 +3429,12 @@ function buildFinishedMessage(orderData: ServiceOrder) {
   async function deletePhoto(photo: OrderPhoto) {
     try {
       await supabase.storage.from("order-photos").remove([photo.file_path]);
-      const { error } = await supabase.from("af_order_photos").delete().eq("id", photo.id);
+      const { error } = await supabase
+        .from("af_order_photos")
+        .delete()
+        .eq("id", photo.id);
       if (error) throw error;
-      setPhotos(p => p.filter(x => x.id !== photo.id));
+      setPhotos((p) => p.filter((x) => x.id !== photo.id));
       showToast("Foto removida.", "success");
     } catch (err: any) {
       showToast(err.message || "Erro ao excluir foto.", "error");
@@ -2578,26 +3445,26 @@ function buildFinishedMessage(orderData: ServiceOrder) {
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
     async function imageToBase64(url: string): Promise<string> {
-  const res = await fetch(url);
-  const blob = await res.blob();
+      const res = await fetch(url);
+      const blob = await res.blob();
 
-  return await new Promise((resolve) => {
-    const reader = new FileReader();
-    reader.onloadend = () => resolve(reader.result as string);
-    reader.readAsDataURL(blob);
-  });
-}
+      return await new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.readAsDataURL(blob);
+      });
+    }
 
     doc.setFillColor(8, 13, 23);
     doc.rect(0, 0, pageWidth, 34, "F");
     if (profile?.logo_url) {
-  try {
-    const logoBase64 = await imageToBase64(profile.logo_url);
-    doc.addImage(logoBase64, "PNG", 16, 6, 20, 20);
-  } catch (err) {
-    console.warn("Erro ao carregar logo no PDF:", err);
-  }
-}
+      try {
+        const logoBase64 = await imageToBase64(profile.logo_url);
+        doc.addImage(logoBase64, "PNG", 16, 6, 20, 20);
+      } catch (err) {
+        console.warn("Erro ao carregar logo no PDF:", err);
+      }
+    }
 
     doc.setTextColor(255, 255, 255);
     doc.setFont("helvetica", "bold");
@@ -2619,7 +3486,11 @@ function buildFinishedMessage(orderData: ServiceOrder) {
 
     doc.setFontSize(9);
     doc.setFont("helvetica", "normal");
-    doc.text(`Data: ${new Date(current.created_at).toLocaleDateString("pt-BR")}`, 150, 52);
+    doc.text(
+      `Data: ${new Date(current.created_at).toLocaleDateString("pt-BR")}`,
+      150,
+      52,
+    );
     doc.text(`Status: ${STATUS_LABEL[form.status]}`, 150, 58);
 
     doc.setDrawColor(220, 220, 220);
@@ -2637,7 +3508,11 @@ function buildFinishedMessage(orderData: ServiceOrder) {
     doc.text(`Telefone: ${client?.phone || "-"}`, 25, 91);
     doc.text(`WhatsApp: ${client?.whatsapp || "-"}`, 25, 98);
 
-    doc.text(`Modelo: ${vehicle?.brand || ""} ${vehicle?.model || ""}`, 115, 84);
+    doc.text(
+      `Modelo: ${vehicle?.brand || ""} ${vehicle?.model || ""}`,
+      115,
+      84,
+    );
     doc.text(`Placa: ${vehicle?.plate || "-"}`, 115, 91);
     doc.text(`KM: ${vehicle?.mileage || "-"}`, 115, 98);
 
@@ -2665,7 +3540,11 @@ function buildFinishedMessage(orderData: ServiceOrder) {
       doc.setFont("helvetica", "bold");
       doc.text("PREVISAO DE ENTREGA", 20, 216);
       doc.setFont("helvetica", "normal");
-      doc.text(new Date(form.delivery_date).toLocaleDateString("pt-BR"), 70, 216);
+      doc.text(
+        new Date(form.delivery_date).toLocaleDateString("pt-BR"),
+        70,
+        216,
+      );
     }
 
     doc.setFillColor(0, 150, 90);
@@ -2699,21 +3578,32 @@ function buildFinishedMessage(orderData: ServiceOrder) {
     <div className="space-y-4">
       {toast && <Toast message={toast.msg} type={toast.type} />}
 
-      <button onClick={onBack} className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
+      <button
+        onClick={onBack}
+        className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+      >
         <ArrowLeft size={14} /> Voltar
       </button>
 
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
-          <h1 className="font-heading font-bold text-2xl text-foreground tracking-wide">Ordem de Serviço</h1>
+          <h1 className="font-heading font-bold text-2xl text-foreground tracking-wide">
+            Ordem de Serviço
+          </h1>
           <div className="flex items-center gap-2 mt-1 flex-wrap">
             <StatusBadge status={form.status} />
-            <span className="text-xs font-mono text-muted-foreground">{fmt(current.created_at)}</span>
+            <span className="text-xs font-mono text-muted-foreground">
+              {fmt(current.created_at)}
+            </span>
           </div>
         </div>
 
         <div className="flex gap-2 flex-wrap">
-          <Btn variant="secondary" size="sm" onClick={() => setEditing(!editing)}>
+          <Btn
+            variant="secondary"
+            size="sm"
+            onClick={() => setEditing(!editing)}
+          >
             <Edit2 size={13} /> {editing ? "Cancelar" : "Editar"}
           </Btn>
 
@@ -2725,63 +3615,92 @@ function buildFinishedMessage(orderData: ServiceOrder) {
             <FileText size={14} /> Enviar PDF
           </Btn>
 
-           
-           
           <Btn
-  type="button"
-  onClick={() => {
-    const publicUrl = getPublicOrderUrl(current);
+            type="button"
+            onClick={() => {
+              const publicUrl = getPublicOrderUrl(current);
 
-    if (!publicUrl) {
-      showToast("Essa OS ainda não tem link público.", "error");
-      return;
-    }
+              if (!publicUrl) {
+                showToast("Essa OS ainda não tem link público.", "error");
+                return;
+              }
 
-    navigator.clipboard.writeText(publicUrl);
+              navigator.clipboard.writeText(publicUrl);
 
-    alert("Link copiado!");
-  }}
->
-  📲 Compartilhar acompanhamento
-</Btn>
-          
+              alert("Link copiado!");
+            }}
+          >
+            📲 Compartilhar acompanhamento
+          </Btn>
         </div>
       </div>
 
       {!editing && (
         <div className="flex gap-2 flex-wrap">
-          {(["aguardando", "em_manutencao", "finalizado"] as OrderStatus[]).map(s => (
-            <button
-              key={s}
-              onClick={() => quickStatus(s)}
-              disabled={form.status === s}
-              className={`px-3 py-1.5 rounded-md text-xs font-medium border transition-all disabled:opacity-40 disabled:cursor-default ${
-                form.status === s ? STATUS_COLOR[s] : "text-muted-foreground border-border hover:text-foreground hover:border-border/60"
-              }`}
-            >
-              {STATUS_LABEL[s]}
-            </button>
-          ))}
+          {(["aguardando", "em_manutencao", "finalizado"] as OrderStatus[]).map(
+            (s) => (
+              <button
+                key={s}
+                onClick={() => quickStatus(s)}
+                disabled={form.status === s}
+                className={`px-3 py-1.5 rounded-md text-xs font-medium border transition-all disabled:opacity-40 disabled:cursor-default ${
+                  form.status === s
+                    ? STATUS_COLOR[s]
+                    : "text-muted-foreground border-border hover:text-foreground hover:border-border/60"
+                }`}
+              >
+                {STATUS_LABEL[s]}
+              </button>
+            ),
+          )}
         </div>
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <Card className="p-4">
-          <div className="text-xs text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5"><Users size={10} /> Cliente</div>
-          <div className="text-sm font-medium text-foreground">{client?.name ?? "—"}</div>
-          {client?.phone && <div className="text-xs text-muted-foreground mt-1 flex items-center gap-1"><Phone size={10} />{client.phone}</div>}
-          {client?.whatsapp && <div className="text-xs text-red-400 mt-1 flex items-center gap-1"><MessageCircle size={10} />{client.whatsapp}</div>}
+          <div className="text-xs text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">
+            <Users size={10} /> Cliente
+          </div>
+          <div className="text-sm font-medium text-foreground">
+            {client?.name ?? "—"}
+          </div>
+          {client?.phone && (
+            <div className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+              <Phone size={10} />
+              {client.phone}
+            </div>
+          )}
+          {client?.whatsapp && (
+            <div className="text-xs text-red-400 mt-1 flex items-center gap-1">
+              <MessageCircle size={10} />
+              {client.whatsapp}
+            </div>
+          )}
         </Card>
 
         <Card className="p-4">
-          <div className="text-xs text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5"><Car size={10} /> Veículo</div>
+          <div className="text-xs text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">
+            <Car size={10} /> Veículo
+          </div>
           {vehicle ? (
             <>
-              <div className="text-sm font-medium text-foreground">{vehicle.brand} {vehicle.model}</div>
+              <div className="text-sm font-medium text-foreground">
+                {vehicle.brand} {vehicle.model}
+              </div>
               <div className="flex items-center gap-2 mt-1 flex-wrap">
-                <span className="font-mono text-xs px-1.5 py-0.5 rounded bg-secondary text-muted-foreground border border-border">{vehicle.plate}</span>
-                {vehicle.year && <span className="text-xs text-muted-foreground">{vehicle.year}</span>}
-                {vehicle.mileage && <span className="text-xs text-muted-foreground">{parseInt(vehicle.mileage).toLocaleString("pt-BR")} km</span>}
+                <span className="font-mono text-xs px-1.5 py-0.5 rounded bg-secondary text-muted-foreground border border-border">
+                  {vehicle.plate}
+                </span>
+                {vehicle.year && (
+                  <span className="text-xs text-muted-foreground">
+                    {vehicle.year}
+                  </span>
+                )}
+                {vehicle.mileage && (
+                  <span className="text-xs text-muted-foreground">
+                    {parseInt(vehicle.mileage).toLocaleString("pt-BR")} km
+                  </span>
+                )}
               </div>
             </>
           ) : (
@@ -2791,50 +3710,92 @@ function buildFinishedMessage(orderData: ServiceOrder) {
       </div>
 
       <Card className="p-4">
-        <div className="text-xs text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5"><AlertCircle size={10} /> Problema Relatado</div>
-        <p className="text-sm text-foreground leading-relaxed">{current.reported_issue || "—"}</p>
+        <div className="text-xs text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">
+          <AlertCircle size={10} /> Problema Relatado
+        </div>
+        <p className="text-sm text-foreground leading-relaxed">
+          {current.reported_issue || "—"}
+        </p>
       </Card>
 
+      <Card className="p-4">
+        <div className="text-xs text-muted-foreground mb-2">
+          <span> ° </span>
+          FUNCIONÁRIO RESPONSÁVEL
+        </div>
 
-  <Card className="p-4">
-  <div className="text-xs text-muted-foreground mb-2">
-    
-     <span> °  </span>
-      FUNCIONÁRIO RESPONSÁVEL
-  </div>
-
-  <div className="font-medium">
-    {order.employee_name}
-  </div>
-</Card>
-
+        <div className="font-medium">{order.employee_name}</div>
+      </Card>
 
       {editing ? (
         <form onSubmit={save}>
-
-  
-
           <Card className="p-4 space-y-4">
-            <Textarea label="Serviços executados" value={form.services_performed} onChange={set("services_performed")} rows={3} placeholder="Descreva os serviços realizados..." />
-              
+            <Textarea
+              label="Serviços executados"
+              value={form.services_performed}
+              onChange={set("services_performed")}
+              rows={3}
+              placeholder="Descreva os serviços realizados..."
+            />
+
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <Input label="Valor (R$)" value={form.value} onChange={set("value")} placeholder="0,00" />
-              <Select label="Status" value={form.status} onChange={set("status")}>
-                {(["aguardando", "em_manutencao", "finalizado"] as OrderStatus[]).map(s => (
-                  <option key={s} value={s}>{STATUS_LABEL[s]}</option>
+              <Input
+                label="Valor (R$)"
+                value={form.value}
+                onChange={set("value")}
+                placeholder="0,00"
+              />
+              <Select
+                label="Status"
+                value={form.status}
+                onChange={set("status")}
+              >
+                {(
+                  ["aguardando", "em_manutencao", "finalizado"] as OrderStatus[]
+                ).map((s) => (
+                  <option key={s} value={s}>
+                    {STATUS_LABEL[s]}
+                  </option>
                 ))}
               </Select>
-              <Input label="Previsão de entrega" type="date" value={form.delivery_date} onChange={set("delivery_date")} />
+              <Input
+                label="Previsão de entrega"
+                type="date"
+                value={form.delivery_date}
+                onChange={set("delivery_date")}
+              />
             </div>
 
-            <Textarea label="Checklist do veículo" value={form.checklist} onChange={set("checklist")} rows={3} placeholder="Ex: documento, chave, estepe, macaco, triângulo, avarias visíveis..." />
-            <Textarea label="Observações" value={form.notes} onChange={set("notes")} rows={2} placeholder="Notas adicionais..." />
+            <Textarea
+              label="Checklist do veículo"
+              value={form.checklist}
+              onChange={set("checklist")}
+              rows={3}
+              placeholder="Ex: documento, chave, estepe, macaco, triângulo, avarias visíveis..."
+            />
+            <Textarea
+              label="Observações"
+              value={form.notes}
+              onChange={set("notes")}
+              rows={2}
+              placeholder="Notas adicionais..."
+            />
 
             <div className="flex gap-2">
-              <Btn type="button" variant="secondary" className="flex-1 justify-center" onClick={() => setEditing(false)}>
+              <Btn
+                type="button"
+                variant="secondary"
+                className="flex-1 justify-center"
+                onClick={() => setEditing(false)}
+              >
                 Cancelar
               </Btn>
-              <Btn type="submit" variant="primary" className="flex-1 justify-center" loading={loading}>
+              <Btn
+                type="submit"
+                variant="primary"
+                className="flex-1 justify-center"
+                loading={loading}
+              >
                 {!loading && "Salvar"}
               </Btn>
             </div>
@@ -2843,36 +3804,58 @@ function buildFinishedMessage(orderData: ServiceOrder) {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Card className="p-4">
-            <div className="text-xs text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5"><Wrench size={10} /> Serviços Executados</div>
+            <div className="text-xs text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">
+              <Wrench size={10} /> Serviços Executados
+            </div>
             <p className="text-sm text-foreground leading-relaxed">
-              {form.services_performed || <span className="text-muted-foreground/50 italic">Nenhum serviço registrado ainda.</span>}
+              {form.services_performed || (
+                <span className="text-muted-foreground/50 italic">
+                  Nenhum serviço registrado ainda.
+                </span>
+              )}
             </p>
           </Card>
 
           <div className="space-y-3">
             <Card className="p-4">
-              <div className="text-xs text-muted-foreground uppercase tracking-wider mb-1 flex items-center gap-1.5"><DollarSign size={10} /> Valor</div>
-              <div className="text-xl font-heading font-bold text-primary">{fmtMoney(form.value)}</div>
+              <div className="text-xs text-muted-foreground uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                <DollarSign size={10} /> Valor
+              </div>
+              <div className="text-xl font-heading font-bold text-primary">
+                {fmtMoney(form.value)}
+              </div>
             </Card>
 
             {form.delivery_date && (
               <Card className="p-4">
-                <div className="text-xs text-muted-foreground uppercase tracking-wider mb-1 flex items-center gap-1.5"><Calendar size={10} /> Previsão de entrega</div>
-                <div className="text-sm text-foreground">{new Date(form.delivery_date).toLocaleDateString("pt-BR")}</div>
+                <div className="text-xs text-muted-foreground uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                  <Calendar size={10} /> Previsão de entrega
+                </div>
+                <div className="text-sm text-foreground">
+                  {new Date(form.delivery_date).toLocaleDateString("pt-BR")}
+                </div>
               </Card>
             )}
 
             {form.checklist && (
               <Card className="p-4">
-                <div className="text-xs text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5"><CheckCircle size={10} /> Checklist do veículo</div>
-                <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">{form.checklist}</p>
+                <div className="text-xs text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                  <CheckCircle size={10} /> Checklist do veículo
+                </div>
+                <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">
+                  {form.checklist}
+                </p>
               </Card>
             )}
 
             {form.notes && (
               <Card className="p-4">
-                <div className="text-xs text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5"><FileText size={10} /> Observações</div>
-                <p className="text-sm text-foreground leading-relaxed">{form.notes}</p>
+                <div className="text-xs text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                  <FileText size={10} /> Observações
+                </div>
+                <p className="text-sm text-foreground leading-relaxed">
+                  {form.notes}
+                </p>
               </Card>
             )}
           </div>
@@ -2885,30 +3868,44 @@ function buildFinishedMessage(orderData: ServiceOrder) {
             <h2 className="font-heading font-semibold text-base text-foreground flex items-center gap-2">
               <ImageIcon size={16} className="text-primary" /> Fotos da OS
             </h2>
-            <p className="text-xs text-muted-foreground">Anexe fotos antes, depois ou gerais do serviço.</p>
+            <p className="text-xs text-muted-foreground">
+              Anexe fotos antes, depois ou gerais do serviço.
+            </p>
           </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-          {(["antes", "depois", "geral"] as OrderPhoto["photo_type"][]).map(type => (
-            <label key={type} className="inline-flex items-center justify-center gap-2 px-3 py-2 rounded-md border border-border bg-secondary text-sm text-secondary-foreground hover:bg-secondary/80 cursor-pointer transition-colors">
-              <Upload size={14} /> {type === "antes" ? "Foto antes" : type === "depois" ? "Foto depois" : "Foto geral"}
-              <input
-                type="file"
-                accept="image/*"
-                className="hidden"
-                disabled={uploading}
-                onChange={e => {
-                  const file = e.target.files?.[0];
-                  e.currentTarget.value = "";
-                  if (file) uploadPhoto(file, type);
-                }}
-              />
-            </label>
-          ))}
+          {(["antes", "depois", "geral"] as OrderPhoto["photo_type"][]).map(
+            (type) => (
+              <label
+                key={type}
+                className="inline-flex items-center justify-center gap-2 px-3 py-2 rounded-md border border-border bg-secondary text-sm text-secondary-foreground hover:bg-secondary/80 cursor-pointer transition-colors"
+              >
+                <Upload size={14} />{" "}
+                {type === "antes"
+                  ? "Foto antes"
+                  : type === "depois"
+                    ? "Foto depois"
+                    : "Foto geral"}
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  disabled={uploading}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    e.currentTarget.value = "";
+                    if (file) uploadPhoto(file, type);
+                  }}
+                />
+              </label>
+            ),
+          )}
         </div>
 
-        {uploading && <p className="text-xs text-muted-foreground">Enviando foto...</p>}
+        {uploading && (
+          <p className="text-xs text-muted-foreground">Enviando foto...</p>
+        )}
 
         {photos.length === 0 ? (
           <div className="text-sm text-muted-foreground border border-dashed border-border rounded-lg p-6 text-center">
@@ -2916,17 +3913,31 @@ function buildFinishedMessage(orderData: ServiceOrder) {
           </div>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-            {photos.map(photo => (
-              <div key={photo.id} className="border border-border rounded-lg overflow-hidden bg-secondary/30">
+            {photos.map((photo) => (
+              <div
+                key={photo.id}
+                className="border border-border rounded-lg overflow-hidden bg-secondary/30"
+              >
                 <a href={photo.public_url} target="_blank" rel="noreferrer">
-                  <img src={photo.public_url} alt={photo.file_name} className="w-full h-32 object-cover" />
+                  <img
+                    src={photo.public_url}
+                    alt={photo.file_name}
+                    className="w-full h-32 object-cover"
+                  />
                 </a>
                 <div className="p-2 flex items-center justify-between gap-2">
                   <div className="min-w-0">
-                    <div className="text-xs font-medium text-foreground truncate">{photo.photo_type}</div>
-                    <div className="text-[10px] text-muted-foreground truncate">{photo.file_name}</div>
+                    <div className="text-xs font-medium text-foreground truncate">
+                      {photo.photo_type}
+                    </div>
+                    <div className="text-[10px] text-muted-foreground truncate">
+                      {photo.file_name}
+                    </div>
                   </div>
-                  <button onClick={() => deletePhoto(photo)} className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors">
+                  <button
+                    onClick={() => deletePhoto(photo)}
+                    className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                  >
                     <Trash2 size={13} />
                   </button>
                 </div>
@@ -2939,113 +3950,99 @@ function buildFinishedMessage(orderData: ServiceOrder) {
   );
 }
 
-
-
-
-
-
-
-
-function SettingsPage({
-  profile,
-}: {
-  profile: Profile | null;
-}) {
+function SettingsPage({ profile }: { profile: Profile | null }) {
   const [form, setForm] = useState({
-  workshop_name: profile?.workshop_name ?? "",
-  owner_name: profile?.owner_name ?? "",
-  phone: profile?.phone ?? "",
-  whatsapp: profile?.whatsapp ?? "",
-  instagram: profile?.instagram ?? "",
-  city: profile?.city ?? "",
-  state: profile?.state ?? "",
-  zip_code: profile?.zip_code ?? "",
-  logo_url: profile?.logo_url ?? "",
-});
+    workshop_name: profile?.workshop_name ?? "",
+    owner_name: profile?.owner_name ?? "",
+    phone: profile?.phone ?? "",
+    whatsapp: profile?.whatsapp ?? "",
+    instagram: profile?.instagram ?? "",
+    city: profile?.city ?? "",
+    state: profile?.state ?? "",
+    zip_code: profile?.zip_code ?? "",
+    logo_url: profile?.logo_url ?? "",
+  });
 
-const [toast, setToast] = useState<{
-  msg: string;
-  type: "success" | "error";
-} | null>(null);
-  
+  const [toast, setToast] = useState<{
+    msg: string;
+    type: "success" | "error";
+  } | null>(null);
 
-  const setSettings = (k: keyof typeof form) =>
-    (e: React.ChangeEvent<HTMLInputElement>) =>
+  const setSettings =
+    (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
       setForm((p) => ({ ...p, [k]: e.target.value }));
 
-  async function handleCepChange(
-  e: React.ChangeEvent<HTMLInputElement>
-) {
-  const cep = e.target.value.replace(/\D/g, "");
-
-  setForm((p) => ({
-    ...p,
-    zip_code: e.target.value,
-  }));
-
-  if (cep.length !== 8) return;
-
-  try {
-    const res = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
-    const data = await res.json();
-
-    if (data.erro) return;
+  async function handleCepChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const cep = e.target.value.replace(/\D/g, "");
 
     setForm((p) => ({
       ...p,
       zip_code: e.target.value,
-      city: data.localidade || "",
-      state: data.uf || "",
     }));
-  } catch (err) {
-    console.error("Erro ao buscar CEP", err);
-  }
-}
 
-   async function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
-  const file = e.target.files?.[0];
-  if (!file) return;
+    if (cep.length !== 8) return;
 
-  try {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    try {
+      const res = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+      const data = await res.json();
 
-    if (!user) {
-      alert("Usuário não encontrado");
-      return;
+      if (data.erro) return;
+
+      setForm((p) => ({
+        ...p,
+        zip_code: e.target.value,
+        city: data.localidade || "",
+        state: data.uf || "",
+      }));
+    } catch (err) {
+      console.error("Erro ao buscar CEP", err);
     }
-
-    const fileExt = file.name.split(".").pop();
-    const fileName = `${user.id}/logo-${Date.now()}.${fileExt}`;
-
-    const { error } = await supabase.storage
-      .from("workshop-logos")
-      .upload(fileName, file, {
-        upsert: true,
-        contentType: file.type,
-      });
-
-    if (error) throw error;
-
-    const { data } = supabase.storage
-      .from("workshop-logos")
-      .getPublicUrl(fileName);
-
-    setForm((p) => ({
-      ...p,
-      logo_url: data.publicUrl,
-    }));
-
-    setToast({
-  msg: "Logo enviada com sucesso! Agora clique em Salvar Alterações.",
-  type: "success",
-});
-  } catch (err) {
-    console.error(err);
-    alert("Erro ao enviar logo");
   }
-}
+
+  async function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        alert("Usuário não encontrado");
+        return;
+      }
+
+      const fileExt = file.name.split(".").pop();
+      const fileName = `${user.id}/logo-${Date.now()}.${fileExt}`;
+
+      const { error } = await supabase.storage
+        .from("workshop-logos")
+        .upload(fileName, file, {
+          upsert: true,
+          contentType: file.type,
+        });
+
+      if (error) throw error;
+
+      const { data } = supabase.storage
+        .from("workshop-logos")
+        .getPublicUrl(fileName);
+
+      setForm((p) => ({
+        ...p,
+        logo_url: data.publicUrl,
+      }));
+
+      setToast({
+        msg: "Logo enviada com sucesso! Agora clique em Salvar Alterações.",
+        type: "success",
+      });
+    } catch (err) {
+      console.error(err);
+      alert("Erro ao enviar logo");
+    }
+  }
 
   return (
     <div className="space-y-4">
@@ -3055,9 +4052,7 @@ const [toast, setToast] = useState<{
           Configurações
         </h1>
 
-        <p className="text-sm text-muted-foreground">
-          Dados da oficina
-        </p>
+        <p className="text-sm text-muted-foreground">Dados da oficina</p>
       </div>
 
       <Card className="p-5">
@@ -3073,19 +4068,17 @@ const [toast, setToast] = useState<{
           <label className="inline-flex items-center gap-2 px-4 py-2.5 rounded-md bg-secondary text-secondary-foreground border border-border hover:bg-secondary/80 cursor-pointer text-sm font-medium">
             <Upload size={14} />
             Escolher logo da oficina
-
             <input
-  type="file"
-  accept="image/*"
-  className="hidden"
-  onChange={handleLogoUpload}
-/>
-            
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleLogoUpload}
+            />
           </label>
 
           <p className="text-xs text-muted-foreground mt-2">
-  PNG transparente • Recomendado 1500x900 px
-</p>
+            PNG transparente • Recomendado 1500x900 px
+          </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -3098,7 +4091,7 @@ const [toast, setToast] = useState<{
           <Input
             label="Responsável"
             value={form.owner_name}
-           onChange={setSettings("owner_name")}
+            onChange={setSettings("owner_name")}
           />
 
           <Input
@@ -3131,112 +4124,112 @@ const [toast, setToast] = useState<{
             onChange={setSettings("state")}
           />
 
-          <Input
-  label="CEP"
-  value={form.zip_code}
-  onChange={handleCepChange}
-/>
+          <Input label="CEP" value={form.zip_code} onChange={handleCepChange} />
         </div>
 
         <div className="mt-4">
           <Btn
-  type="button"
-  onClick={async () => {
-    try {
-      console.log("LOGO URL:", form.logo_url);
-      console.log("FORM SALVANDO:", JSON.stringify(form, null, 2));
+            type="button"
+            onClick={async () => {
+              try {
+                console.log("LOGO URL:", form.logo_url);
+                console.log("FORM SALVANDO:", JSON.stringify(form, null, 2));
 
-      const updatedProfile = await API.upsertProfile(form);
+                const updatedProfile = await API.upsertProfile(form);
 
-      setForm({
-        workshop_name: updatedProfile.workshop_name ?? "",
-        owner_name: updatedProfile.owner_name ?? "",
-        phone: updatedProfile.phone ?? "",
-        whatsapp: updatedProfile.whatsapp ?? "",
-        instagram: updatedProfile.instagram ?? "",
-        city: updatedProfile.city ?? "",
-        state: updatedProfile.state ?? "",
-        zip_code: updatedProfile.zip_code ?? "",
-        logo_url: updatedProfile.logo_url ?? "",
-      });
+                setForm({
+                  workshop_name: updatedProfile.workshop_name ?? "",
+                  owner_name: updatedProfile.owner_name ?? "",
+                  phone: updatedProfile.phone ?? "",
+                  whatsapp: updatedProfile.whatsapp ?? "",
+                  instagram: updatedProfile.instagram ?? "",
+                  city: updatedProfile.city ?? "",
+                  state: updatedProfile.state ?? "",
+                  zip_code: updatedProfile.zip_code ?? "",
+                  logo_url: updatedProfile.logo_url ?? "",
+                });
 
-      setToast({
-  msg: "Configurações salvas com sucesso!",
-  type: "success",
-});
+                setToast({
+                  msg: "Configurações salvas com sucesso!",
+                  type: "success",
+                });
 
-setTimeout(() => {
-  window.location.reload();
-}, 800);
-    } catch (err: any) {
-      alert(err.message);
-    }
-  }}
->
-  Salvar Alterações
-</Btn>
+                setTimeout(() => {
+                  window.location.reload();
+                }, 800);
+              } catch (err: any) {
+                alert(err.message);
+              }
+            }}
+          >
+            Salvar Alterações
+          </Btn>
 
-<Btn
-  variant="secondary"
-  className="w-full justify-center mt-3 border border-red-500/40 bg-red-500/10 text-red-300 hover:bg-red-500/20"
-  onClick={async () => {
-    const confirmCancel = window.confirm(
-      "Tem certeza que deseja cancelar sua assinatura? Você continuará com acesso até o fim do período já pago."
-    );
+          <Btn
+            variant="secondary"
+            className="w-full justify-center mt-3 border border-red-500/40 bg-red-500/10 text-red-300 hover:bg-red-500/20"
+            onClick={async () => {
+              const confirmCancel = window.confirm(
+                "Tem certeza que deseja cancelar sua assinatura? Você continuará com acesso até o fim do período já pago.",
+              );
 
-    if (!confirmCancel) return;
+              if (!confirmCancel) return;
 
-    try {
-      const session = (await supabase.auth.getSession()).data.session;
+              try {
+                const session = (await supabase.auth.getSession()).data.session;
 
-      if (!session) {
-        alert("Sessão expirada. Faça login novamente.");
-        return;
-      }
+                if (!session) {
+                  alert("Sessão expirada. Faça login novamente.");
+                  return;
+                }
 
-      const res = await fetch(
-        "https://kddlzartfawqjnrafzdb.supabase.co/functions/v1/rapid-action/billing/cancel-subscription",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${session.access_token}`,
-          },
-        }
-      );
+                const res = await fetch(
+                  "https://kddlzartfawqjnrafzdb.supabase.co/functions/v1/rapid-action/billing/cancel-subscription",
+                  {
+                    method: "POST",
+                    headers: {
+                      "Content-Type": "application/json",
+                      Authorization: `Bearer ${session.access_token}`,
+                    },
+                  },
+                );
 
-      const data = await res.json();
+                const data = await res.json();
 
-      if (!res.ok) {
-        if (res.status === 404) {
-          alert("Você não possui uma assinatura mensal recorrente para cancelar.");
-          return;
-        }
+                if (!res.ok) {
+                  if (res.status === 404) {
+                    alert(
+                      "Você não possui uma assinatura mensal recorrente para cancelar.",
+                    );
+                    return;
+                  }
 
-        alert(data?.error || "Erro ao cancelar assinatura.");
-        return;
-      }
+                  alert(data?.error || "Erro ao cancelar assinatura.");
+                  return;
+                }
 
-      alert(data.message || "Assinatura cancelada com sucesso.");
-    } catch (err) {
-      alert("Erro ao cancelar assinatura.");
-    }
-  }}
->
-  Cancelar assinatura mensal
-</Btn>
+                alert(data.message || "Assinatura cancelada com sucesso.");
+              } catch (err) {
+                alert("Erro ao cancelar assinatura.");
+              }
+            }}
+          >
+            Cancelar assinatura mensal
+          </Btn>
         </div>
       </Card>
-
-
-      
     </div>
   );
 }
 
 // ─── History ──────────────────────────────────────────────────────────────────
 
-function HistoryPage({ orders, clients, vehicles, onView }: {
+function HistoryPage({
+  orders,
+  clients,
+  vehicles,
+  onView,
+}: {
   orders: ServiceOrder[];
   clients: Client[];
   vehicles: Vehicle[];
@@ -3244,59 +4237,105 @@ function HistoryPage({ orders, clients, vehicles, onView }: {
 }) {
   const [search, setSearch] = useState("");
   console.log("ORDERS NO HISTORICO:", orders);
-console.log("STATUS DAS OS:", orders.map(o => o.status));
+  console.log(
+    "STATUS DAS OS:",
+    orders.map((o) => o.status),
+  );
 
-  const done = orders.filter(o =>
-  String(o.status).trim().toLowerCase() === "finalizado"
-);
-  const filtered = done.filter(o => {
-    const client = clients.find(c => c.id === o.client_id);
-    const vehicle = vehicles.find(v => v.id === o.vehicle_id);
+  const done = orders.filter(
+    (o) => String(o.status).trim().toLowerCase() === "finalizado",
+  );
+  const filtered = done.filter((o) => {
+    const client = clients.find((c) => c.id === o.client_id);
+    const vehicle = vehicles.find((v) => v.id === o.vehicle_id);
     const q = search.toLowerCase();
-    return !q || client?.name.toLowerCase().includes(q) || vehicle?.plate.toLowerCase().includes(q) || o.reported_issue.toLowerCase().includes(q);
+    return (
+      !q ||
+      client?.name.toLowerCase().includes(q) ||
+      vehicle?.plate.toLowerCase().includes(q) ||
+      o.reported_issue.toLowerCase().includes(q)
+    );
   });
-  const sorted = [...filtered].sort((a, b) =>
-  new Date(b.updated_at || b.created_at).getTime() -
-  new Date(a.updated_at || a.created_at).getTime()
-);
+  const sorted = [...filtered].sort(
+    (a, b) =>
+      new Date(b.updated_at || b.created_at).getTime() -
+      new Date(a.updated_at || a.created_at).getTime(),
+  );
 
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="font-heading font-bold text-2xl text-foreground tracking-wide">Histórico</h1>
-        <p className="text-sm text-muted-foreground">{done.length} ordens finalizadas</p>
+        <h1 className="font-heading font-bold text-2xl text-foreground tracking-wide">
+          Histórico
+        </h1>
+        <p className="text-sm text-muted-foreground">
+          {done.length} ordens finalizadas
+        </p>
       </div>
 
       <div className="relative">
-        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar histórico..." className="w-full bg-input-background border border-border rounded-md pl-9 pr-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
+        <Search
+          size={14}
+          className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+        />
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Buscar histórico..."
+          className="w-full bg-input-background border border-border rounded-md pl-9 pr-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+        />
       </div>
 
       {sorted.length === 0 ? (
         <Card className="py-14 text-center">
-          <History size={30} className="mx-auto text-muted-foreground/20 mb-2" />
-          <p className="text-sm text-muted-foreground">{search ? "Nenhum resultado." : "Nenhuma ordem finalizada ainda."}</p>
+          <History
+            size={30}
+            className="mx-auto text-muted-foreground/20 mb-2"
+          />
+          <p className="text-sm text-muted-foreground">
+            {search ? "Nenhum resultado." : "Nenhuma ordem finalizada ainda."}
+          </p>
         </Card>
       ) : (
         <Card>
           <div className="divide-y divide-border">
-            {sorted.map(o => {
-              const client = clients.find(c => c.id === o.client_id);
-              const vehicle = vehicles.find(v => v.id === o.vehicle_id);
+            {sorted.map((o) => {
+              const client = clients.find((c) => c.id === o.client_id);
+              const vehicle = vehicles.find((v) => v.id === o.vehicle_id);
               return (
-                <button key={o.id} onClick={() => onView(o)} className="w-full px-4 py-3 flex items-center gap-3 hover:bg-secondary/40 transition-colors text-left">
+                <button
+                  key={o.id}
+                  onClick={() => onView(o)}
+                  className="w-full px-4 py-3 flex items-center gap-3 hover:bg-secondary/40 transition-colors text-left"
+                >
                   <div className="w-1 h-10 rounded-full bg-red-400/40 flex-shrink-0" />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-sm font-medium text-foreground">{client?.name ?? "—"}</span>
-                      {vehicle && <span className="font-mono text-xs px-1.5 py-0.5 rounded bg-secondary text-muted-foreground border border-border">{vehicle.plate}</span>}
+                      <span className="text-sm font-medium text-foreground">
+                        {client?.name ?? "—"}
+                      </span>
+                      {vehicle && (
+                        <span className="font-mono text-xs px-1.5 py-0.5 rounded bg-secondary text-muted-foreground border border-border">
+                          {vehicle.plate}
+                        </span>
+                      )}
                     </div>
-                    <div className="text-xs text-muted-foreground mt-0.5 truncate">{o.reported_issue}</div>
-                    {o.services_performed && <div className="text-xs text-muted-foreground/50 mt-0.5 truncate">{o.services_performed}</div>}
+                    <div className="text-xs text-muted-foreground mt-0.5 truncate">
+                      {o.reported_issue}
+                    </div>
+                    {o.services_performed && (
+                      <div className="text-xs text-muted-foreground/50 mt-0.5 truncate">
+                        {o.services_performed}
+                      </div>
+                    )}
                   </div>
                   <div className="flex-shrink-0 text-right">
-                    <div className="text-sm font-mono font-medium text-green-500">{fmtMoney(o.value)}</div>
-                    <div className="text-xs text-muted-foreground">{fmt(o.updated_at)}</div>
+                    <div className="text-sm font-mono font-medium text-green-500">
+                      {fmtMoney(o.value)}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {fmt(o.updated_at)}
+                    </div>
                   </div>
                 </button>
               );
@@ -3311,11 +4350,13 @@ console.log("STATUS DAS OS:", orders.map(o => o.status));
 // ─── Loading screen ───────────────────────────────────────────────────────────
 
 function LoadingScreen() {
-  
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4">
       <Logo />
-      <RefreshCw size={20} className="text-muted-foreground animate-spin mt-2" />
+      <RefreshCw
+        size={20}
+        className="text-muted-foreground animate-spin mt-2"
+      />
     </div>
   );
 }
@@ -3330,20 +4371,14 @@ function isPaid(profile: Profile | null) {
   }
 
   const notExpired =
-    p?.subscription_ends_at &&
-    new Date(p.subscription_ends_at) > new Date();
+    p?.subscription_ends_at && new Date(p.subscription_ends_at) > new Date();
 
-  const isActive =
-    p?.subscription_status === "active" || p?.plan === "active";
+  const isActive = p?.subscription_status === "active" || p?.plan === "active";
 
-  const isTrial =
-    p?.subscription_status === "trial" || p?.plan === "trial";
+  const isTrial = p?.subscription_status === "trial" || p?.plan === "trial";
 
   return Boolean((isActive || isTrial) && notExpired);
 }
-
-
-
 
 function PublicOrderPage({ token }: { token: string }) {
   const [data, setData] = useState<any>(null);
@@ -3353,7 +4388,7 @@ function PublicOrderPage({ token }: { token: string }) {
     async function load() {
       try {
         const res = await fetch(
-          `https://kddlzartfawqjnrafzdb.supabase.co/functions/v1/rapid-action/public/orders/${token}`
+          `https://kddlzartfawqjnrafzdb.supabase.co/functions/v1/rapid-action/public/orders/${token}`,
         );
 
         const json = await res.json();
@@ -3389,7 +4424,6 @@ function PublicOrderPage({ token }: { token: string }) {
   return (
     <div className="min-h-screen bg-background p-4">
       <div className="max-w-3xl mx-auto space-y-4">
-
         <Card className="p-6 text-center">
           {profile?.logo_url && (
             <img
@@ -3411,20 +4445,13 @@ function PublicOrderPage({ token }: { token: string }) {
         <Card className="p-6">
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div>
-              <p className="text-xs text-muted-foreground mb-1">
-                STATUS
-              </p>
-                 
-                 
-              
+              <p className="text-xs text-muted-foreground mb-1">STATUS</p>
 
               <StatusBadge status={order.status} />
             </div>
 
             <div className="text-right">
-              <p className="text-xs text-muted-foreground">
-                VALOR
-              </p>
+              <p className="text-xs text-muted-foreground">VALOR</p>
 
               <p className="text-2xl font-bold text-primary">
                 {fmtMoney(order.value)}
@@ -3433,35 +4460,23 @@ function PublicOrderPage({ token }: { token: string }) {
           </div>
         </Card>
 
-         {order.delivery_date && (
-  <Card className="p-4">
-    <p className="text-xs text-muted-foreground">
-      PREVISÃO DE ENTREGA
-    </p>
+        {order.delivery_date && (
+          <Card className="p-4">
+            <p className="text-xs text-muted-foreground">PREVISÃO DE ENTREGA</p>
 
-    <p className="font-semibold">
-      {fmt(order.delivery_date)}
-    </p>
-  </Card>
-)}
-                     
+            <p className="font-semibold">{fmt(order.delivery_date)}</p>
+          </Card>
+        )}
 
         <Card className="p-6 space-y-4">
-
           <div>
-            <p className="text-xs text-muted-foreground">
-              CLIENTE
-            </p>
+            <p className="text-xs text-muted-foreground">CLIENTE</p>
 
-            <p className="font-medium text-foreground">
-              {client?.name ?? "-"}
-            </p>
+            <p className="font-medium text-foreground">{client?.name ?? "-"}</p>
           </div>
 
           <div>
-            <p className="text-xs text-muted-foreground">
-              VEÍCULO
-            </p>
+            <p className="text-xs text-muted-foreground">VEÍCULO</p>
 
             <p className="font-medium text-foreground">
               {vehicle?.brand} {vehicle?.model}
@@ -3469,71 +4484,51 @@ function PublicOrderPage({ token }: { token: string }) {
           </div>
 
           <div>
-            <p className="text-xs text-muted-foreground">
-              PLACA
-            </p>
+            <p className="text-xs text-muted-foreground">PLACA</p>
 
-            <p className="font-mono text-foreground">
-              {vehicle?.plate}
-            </p>
+            <p className="font-mono text-foreground">{vehicle?.plate}</p>
           </div>
-
         </Card>
 
         <Card className="p-6">
+          <h2 className="font-semibold text-lg mb-2">Problema Relatado</h2>
 
-          <h2 className="font-semibold text-lg mb-2">
-            Problema Relatado
-          </h2>
-
-          <p className="text-muted-foreground">
-            {order.reported_issue || "-"}
-          </p>
-
+          <p className="text-muted-foreground">{order.reported_issue || "-"}</p>
         </Card>
 
         <Card className="p-6">
-
-          <h2 className="font-semibold text-lg mb-2">
-            Serviços Executados
-          </h2>
+          <h2 className="font-semibold text-lg mb-2">Serviços Executados</h2>
 
           <p className="text-muted-foreground whitespace-pre-wrap">
             {order.services_performed || "-"}
           </p>
-
         </Card>
 
         {order.notes && (
           <Card className="p-6">
-
-            <h2 className="font-semibold text-lg mb-2">
-              Observações
-            </h2>
+            <h2 className="font-semibold text-lg mb-2">Observações</h2>
 
             <p className="text-muted-foreground whitespace-pre-wrap">
               {order.notes}
             </p>
-
           </Card>
         )}
-            
-{profile?.whatsapp && (
-  <Card className="p-4 text-center">
-    <p className="text-sm text-muted-foreground">
-      Dúvidas sobre o serviço?
-    </p>
 
-    <p className="font-semibold text-primary mt-1">
-      WhatsApp: {profile.whatsapp}
-    </p>
-  </Card>
-)}
+        {profile?.whatsapp && (
+          <Card className="p-4 text-center">
+            <p className="text-sm text-muted-foreground">
+              Dúvidas sobre o serviço?
+            </p>
+
+            <p className="font-semibold text-primary mt-1">
+              WhatsApp: {profile.whatsapp}
+            </p>
+          </Card>
+        )}
 
         <div className="text-center text-xs text-muted-foreground py-4">
           Um produto da Vortan Systems
         </div>
-
       </div>
     </div>
   );
@@ -3545,8 +4540,8 @@ export default function App() {
   const [profile, setProfile] = useState<Profile | null>(null);
   /*const [needsOnboarding, setNeedsOnboarding] = useState(false);*/
   const [authPage, setAuthPage] = useState<
-  "landing" | "login" | "register" | "terms" | "privacy"
->("landing");
+    "landing" | "login" | "register" | "terms" | "privacy"
+  >("landing");
   const [page, setPage] = useState<Page>("dashboard");
   const [activeOrder, setActiveOrder] = useState<ServiceOrder | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -3554,154 +4549,158 @@ export default function App() {
   const [clients, setClients] = useState<Client[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [orders, setOrders] = useState<ServiceOrder[]>([]);
-  const [financialEntries, setFinancialEntries] = useState<FinancialEntry[]>([]);
+  const [financialEntries, setFinancialEntries] = useState<FinancialEntry[]>(
+    [],
+  );
   const [dataLoaded, setDataLoaded] = useState(false);
   const [checkingPayment, setCheckingPayment] = useState(false);
 
-const navigate = useNavigate();
-const location = useLocation();
+  const navigate = useNavigate();
+  const location = useLocation();
 
-const publicOrderToken = window.location.pathname.startsWith("/os/")
-  ? window.location.pathname.replace("/os/", "").trim()
-  : null;
+  const publicOrderToken = window.location.pathname.startsWith("/os/")
+    ? window.location.pathname.replace("/os/", "").trim()
+    : null;
 
- // Auth state
-useEffect(() => {
-  supabase.auth.getSession().then(({ data: { session } }) => {
-    setSession(session);
-    setSessionLoading(false);
-  });
-
-  const { data: { subscription } } = supabase.auth.onAuthStateChange(
-    (_event, session) => {
+  // Auth state
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setSessionLoading(false);
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      setSessionLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    const path = location.pathname;
+
+    if (path.startsWith("/os/")) return;
+
+    if (path === "/login") {
+      setAuthPage("login");
+      return;
     }
-  );
 
-  return () => subscription.unsubscribe();
-}, []);
+    if (path === "/cadastrar") {
+      setAuthPage("register");
+      return;
+    }
 
-useEffect(() => {
-  const path = location.pathname;
+    if (path === "/termos") {
+      setAuthPage("terms");
+      return;
+    }
 
-  if (path.startsWith("/os/")) return;
+    if (path === "/privacidade") {
+      setAuthPage("privacy");
+      return;
+    }
 
-  if (path === "/login") {
-    setAuthPage("login");
-    return;
-  }
+    if (path === "/dashboard") {
+      setPage("dashboard");
+      return;
+    }
 
-  if (path === "/cadastrar") {
-    setAuthPage("register");
-    return;
-  }
+    if (path === "/") {
+      setAuthPage("landing");
+      return;
+    }
+  }, [location.pathname]);
 
-  if (path === "/termos") {
-    setAuthPage("terms");
-    return;
-  }
+  useEffect(() => {
+    if (sessionLoading) return;
 
-  if (path === "/privacidade") {
-    setAuthPage("privacy");
-    return;
-  }
+    if (!session && location.pathname === "/dashboard") {
+      navigate("/login", { replace: true });
+      return;
+    }
 
-  if (path === "/dashboard") {
-    setPage("dashboard");
-    return;
-  }
+    if (
+      session &&
+      (location.pathname === "/login" || location.pathname === "/cadastrar")
+    ) {
+      navigate("/dashboard", { replace: true });
+    }
+  }, [session, sessionLoading, location.pathname, navigate]);
 
-  if (path === "/") {
-    setAuthPage("landing");
-    return;
-  }
-}, [location.pathname]); 
+  useEffect(() => {
+    const path = location.pathname;
 
-useEffect(() => {
-  if (sessionLoading) return;
+    if (path.startsWith("/os/")) return;
 
-  if (!session && location.pathname === "/dashboard") {
-    navigate("/login", { replace: true });
-    return;
-  }
+    if (path === "/login") {
+      setAuthPage("login");
+      return;
+    }
 
-  if (
-    session &&
-    (location.pathname === "/login" || location.pathname === "/cadastrar")
-  ) {
-    navigate("/dashboard", { replace: true });
-  }
-}, [session, sessionLoading, location.pathname, navigate]);
+    if (path === "/cadastrar") {
+      setAuthPage("register");
+      return;
+    }
 
-useEffect(() => {
-  const path = location.pathname;
+    if (path === "/dashboard") {
+      setPage("dashboard");
+      return;
+    }
 
-  if (path.startsWith("/os/")) return;
+    if (path === "/") {
+      setAuthPage("landing");
+      return;
+    }
+  }, [location.pathname]);
 
-  if (path === "/login") {
-    setAuthPage("login");
-    return;
-  }
+  useEffect(() => {
+    if (sessionLoading) return;
 
-  if (path === "/cadastrar") {
-    setAuthPage("register");
-    return;
-  }
+    if (!session && location.pathname === "/dashboard") {
+      navigate("/login", { replace: true });
+      return;
+    }
 
-  if (path === "/dashboard") {
-    setPage("dashboard");
-    return;
-  }
-
-  if (path === "/") {
-    setAuthPage("landing");
-    return;
-  }
-}, [location.pathname]);
-
-useEffect(() => {
-  if (sessionLoading) return;
-
-  if (!session && location.pathname === "/dashboard") {
-    navigate("/login", { replace: true });
-    return;
-  }
-
-  if (
-    session &&
-    (location.pathname === "/login" || location.pathname === "/cadastrar")
-  ) {
-    navigate("/dashboard", { replace: true });
-  }
-}, [session, sessionLoading, location.pathname, navigate]);
+    if (
+      session &&
+      (location.pathname === "/login" || location.pathname === "/cadastrar")
+    ) {
+      navigate("/dashboard", { replace: true });
+    }
+  }, [session, sessionLoading, location.pathname, navigate]);
 
   // Setup DB + load data when session available
   useEffect(() => {
-        if (!session) {
+    if (!session) {
       setDataLoaded(false);
       setProfile(null);
       setClients([]);
       setVehicles([]);
       setFinancialEntries([]);
-      
+
       /*setNeedsOnboarding(false);*/
       return;
     }
 
     async function init() {
-     const [prof, cls, vehs, ords, fins] = await Promise.allSettled([
-  API.getProfile(),
-  API.getClients(),
-  API.getVehicles(),
-  API.getOrders(),
-  API.getFinancialEntries(),
-]);
+      const [prof, cls, vehs, ords, fins] = await Promise.allSettled([
+        API.getProfile(),
+        API.getClients(),
+        API.getVehicles(),
+        API.getOrders(),
+        API.getFinancialEntries(),
+      ]);
 
       let p = prof.status === "fulfilled" ? prof.value : null;
 
       if (!p) {
-        const pendingProfileRaw = localStorage.getItem("vortanoficina_pending_profile");
+        const pendingProfileRaw = localStorage.getItem(
+          "vortanoficina_pending_profile",
+        );
 
         if (pendingProfileRaw) {
           try {
@@ -3719,16 +4718,16 @@ useEffect(() => {
       }
 
       if (!p) {
-  console.warn("Perfil não encontrado ou falhou ao carregar.");
+        console.warn("Perfil não encontrado ou falhou ao carregar.");
 
-  setProfile(null);
-  setDataLoaded(true);
+        setProfile(null);
+        setDataLoaded(true);
 
-  // NÃO deslogar automaticamente aqui
-  return;
-} else {
-  setProfile(p);
-}
+        // NÃO deslogar automaticamente aqui
+        return;
+      } else {
+        setProfile(p);
+      }
 
       setClients(cls.status === "fulfilled" ? cls.value : []);
       setVehicles(vehs.status === "fulfilled" ? vehs.value : []);
@@ -3756,23 +4755,23 @@ useEffect(() => {
   }, []);
 
   const loadAll = useCallback(async () => {
-  const [cls, vehs, ords, fins] = await Promise.all([
-    API.getClients(),
-    API.getVehicles(),
-    API.getOrders(),
-    API.getFinancialEntries(),
-  ]);
+    const [cls, vehs, ords, fins] = await Promise.all([
+      API.getClients(),
+      API.getVehicles(),
+      API.getOrders(),
+      API.getFinancialEntries(),
+    ]);
 
-  setClients(cls);
-  setVehicles(vehs);
-  setOrders(ords);
-  setFinancialEntries(fins);
-}, []);
+    setClients(cls);
+    setVehicles(vehs);
+    setOrders(ords);
+    setFinancialEntries(fins);
+  }, []);
 
-   const loadFinancialEntries = useCallback(async () => {
-  const data = await API.getFinancialEntries();
-  setFinancialEntries(data);
-}, []);
+  const loadFinancialEntries = useCallback(async () => {
+    const data = await API.getFinancialEntries();
+    setFinancialEntries(data);
+  }, []);
 
   function nav(p: Page) {
     setPage(p);
@@ -3786,169 +4785,170 @@ useEffect(() => {
   }
 
   async function logout() {
-  await supabase.auth.signOut();
-  setAuthPage("login");
-  setPage("dashboard");
-  setSidebarOpen(false);
-  navigate("/login", { replace: true });
-}
-
+    await supabase.auth.signOut();
+    setAuthPage("login");
+    setPage("dashboard");
+    setSidebarOpen(false);
+    navigate("/login", { replace: true });
+  }
 
   // ── Reset password ────────────────────────────────────────────────────────────────
 
-function ResetPasswordScreen() {
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
-  const [loading, setLoading] = useState(false);
+  function ResetPasswordScreen() {
+    const [password, setPassword] = useState("");
+    const [confirmPassword, setConfirmPassword] = useState("");
+    const [error, setError] = useState("");
+    const [success, setSuccess] = useState("");
+    const [loading, setLoading] = useState(false);
 
-  async function handleUpdatePassword(e: React.FormEvent) {
-    e.preventDefault();
-    setError("");
-    setSuccess("");
+    async function handleUpdatePassword(e: React.FormEvent) {
+      e.preventDefault();
+      setError("");
+      setSuccess("");
 
-    if (password.length < 6) {
-      setError("A senha precisa ter pelo menos 6 caracteres.");
-      return;
+      if (password.length < 6) {
+        setError("A senha precisa ter pelo menos 6 caracteres.");
+        return;
+      }
+
+      if (!/[A-Z]/.test(password)) {
+        setError("A senha precisa ter pelo menos uma letra maiúscula.");
+        return;
+      }
+
+      if (!/[0-9]/.test(password)) {
+        setError("A senha precisa ter pelo menos um número.");
+        return;
+      }
+
+      if (password !== confirmPassword) {
+        setError("As senhas não conferem.");
+        return;
+      }
+
+      setLoading(true);
+
+      const { error } = await supabase.auth.updateUser({
+        password,
+      });
+
+      if (error) {
+        setError("Não foi possível alterar sua senha. Tente novamente.");
+      } else {
+        setSuccess(
+          "Senha alterada com sucesso. Você já pode entrar novamente.",
+        );
+        setTimeout(() => {
+          window.location.href = "/";
+        }, 2000);
+      }
+
+      setLoading(false);
     }
 
-    if (!/[A-Z]/.test(password)) {
-      setError("A senha precisa ter pelo menos uma letra maiúscula.");
-      return;
-    }
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center px-4">
+        <div className="w-full max-w-sm">
+          <div className="text-center mb-8">
+            <Logo />
+            <p className="text-sm text-muted-foreground mt-2">
+              Crie uma nova senha para acessar sua conta
+            </p>
+          </div>
 
-    if (!/[0-9]/.test(password)) {
-      setError("A senha precisa ter pelo menos um número.");
-      return;
-    }
+          <Card className="p-6">
+            <h1 className="font-heading font-bold text-xl mb-5 text-foreground">
+              Redefinir senha
+            </h1>
 
-    if (password !== confirmPassword) {
-      setError("As senhas não conferem.");
-      return;
-    }
-
-    setLoading(true);
-
-    const { error } = await supabase.auth.updateUser({
-      password,
-    });
-
-    if (error) {
-      setError("Não foi possível alterar sua senha. Tente novamente.");
-    } else {
-      setSuccess("Senha alterada com sucesso. Você já pode entrar novamente.");
-      setTimeout(() => {
-        window.location.href = "/";
-      }, 2000);
-    }
-
-    setLoading(false);
-  }
-
-  return (
-    <div className="min-h-screen bg-background flex flex-col items-center justify-center px-4">
-      <div className="w-full max-w-sm">
-        <div className="text-center mb-8">
-          <Logo />
-          <p className="text-sm text-muted-foreground mt-2">
-            Crie uma nova senha para acessar sua conta
-          </p>
-        </div>
-
-        <Card className="p-6">
-          <h1 className="font-heading font-bold text-xl mb-5 text-foreground">
-            Redefinir senha
-          </h1>
-
-          <form onSubmit={handleUpdatePassword} className="flex flex-col gap-4">
-            <Input
-              label="Nova senha"
-              type="password"
-              placeholder="Digite sua nova senha"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              autoComplete="new-password"
-            />
-
-            <Input
-              label="Confirmar senha"
-              type="password"
-              placeholder="Confirme sua nova senha"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              required
-              autoComplete="new-password"
-            />
-
-            <AuthError msg={error || success} />
-
-            <Btn
-              type="submit"
-              variant="primary"
-              className="w-full justify-center"
-              loading={loading}
+            <form
+              onSubmit={handleUpdatePassword}
+              className="flex flex-col gap-4"
             >
-              {!loading && "Salvar nova senha"}
-            </Btn>
-          </form>
-        </Card>
+              <Input
+                label="Nova senha"
+                type="password"
+                placeholder="Digite sua nova senha"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                autoComplete="new-password"
+              />
+
+              <Input
+                label="Confirmar senha"
+                type="password"
+                placeholder="Confirme sua nova senha"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
+                autoComplete="new-password"
+              />
+
+              <AuthError msg={error || success} />
+
+              <Btn
+                type="submit"
+                variant="primary"
+                className="w-full justify-center"
+                loading={loading}
+              >
+                {!loading && "Salvar nova senha"}
+              </Btn>
+            </form>
+          </Card>
+        </div>
       </div>
-    </div>
-  );
-}
-
-
+    );
+  }
 
   // ── Render ────────────────────────────────────────────────────────────────
 
-const isResetPasswordPage =
-  window.location.search.includes("reset-password=true") ||
-  window.location.hash.includes("type=recovery") ||
-  window.location.hash.includes("access_token");
+  const isResetPasswordPage =
+    window.location.search.includes("reset-password=true") ||
+    window.location.hash.includes("type=recovery") ||
+    window.location.hash.includes("access_token");
 
+  if (publicOrderToken) {
+    return <PublicOrderPage token={publicOrderToken} />;
+  }
+  if (sessionLoading) return <LoadingScreen />;
 
-if (publicOrderToken) {
-  return <PublicOrderPage token={publicOrderToken} />;
-}
-if (sessionLoading) return <LoadingScreen />;
+  console.log("SEARCH:", window.location.search);
+  console.log("RESET PAGE:", isResetPasswordPage);
 
-console.log("SEARCH:", window.location.search);
-console.log("RESET PAGE:", isResetPasswordPage);
-
-if (isResetPasswordPage) {
-  console.log("ENTROU NO RESET");
-  return <ResetPasswordScreen />;
-}
-
-if (!session) {
-  if (authPage === "register") {
-    return <RegisterScreen onGoLogin={() => navigate("/login")} />;
+  if (isResetPasswordPage) {
+    console.log("ENTROU NO RESET");
+    return <ResetPasswordScreen />;
   }
 
-  if (authPage === "login") {
-    return <LoginScreen onGoRegister={() => navigate("/cadastrar")} />;
-  }
+  if (!session) {
+    if (authPage === "register") {
+      return <RegisterScreen onGoLogin={() => navigate("/login")} />;
+    }
 
-  if (authPage === "terms") {
-    return <TermsPage onBack={() => navigate("/")} />;
-  }
+    if (authPage === "login") {
+      return <LoginScreen onGoRegister={() => navigate("/cadastrar")} />;
+    }
 
-  if (authPage === "privacy") {
-    return <PrivacyPage onBack={() => navigate("/")} />;
-  }
+    if (authPage === "terms") {
+      return <TermsPage onBack={() => navigate("/")} />;
+    }
 
-  return (
-  <LandingPage
-    onGoLogin={() => navigate("/login")}
-    onGoRegister={() => navigate("/cadastrar")}
-    onGoTerms={() => navigate("/termos")}
-    onGoPrivacy={() => navigate("/privacidade")}
-  />
-);
-}
-/*
+    if (authPage === "privacy") {
+      return <PrivacyPage onBack={() => navigate("/")} />;
+    }
+
+    return (
+      <LandingPage
+        onGoLogin={() => navigate("/login")}
+        onGoRegister={() => navigate("/cadastrar")}
+        onGoTerms={() => navigate("/termos")}
+        onGoPrivacy={() => navigate("/privacidade")}
+      />
+    );
+  }
+  /*
   if (needsOnboarding) {
     return (
       <OnboardingScreen
@@ -3966,21 +4966,22 @@ if (!session) {
   if (!dataLoaded) return <LoadingScreen />;
 
   if (!profile || !isPaid(profile)) {
-  return (
-    <div className="min-h-screen bg-background flex flex-col items-center justify-center px-4">
-      <div className="w-full max-w-sm text-center">
-        <Logo />
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center px-4">
+        <div className="w-full max-w-sm text-center">
+          <Logo />
 
-        <Card className="p-6 mt-6">
-  <h1 className="font-heading font-bold text-2xl text-foreground mb-3">
-    Assinatura necessária
-  </h1>
+          <Card className="p-6 mt-6">
+            <h1 className="font-heading font-bold text-2xl text-foreground mb-3">
+              Assinatura necessária
+            </h1>
 
-  <p className="text-sm text-muted-foreground mb-5">
-    Sua conta está criada. Para acessar o painel, finalize a assinatura.
-  </p>
+            <p className="text-sm text-muted-foreground mb-5">
+              Sua conta está criada. Para acessar o painel, finalize a
+              assinatura.
+            </p>
 
-   {/* <Btn
+            {/* <Btn
     variant="primary"
     className="w-full justify-center"
     onClick={async () => {
@@ -4024,283 +5025,284 @@ if (!session) {
     Assinar agora
   </Btn> */}
 
-  <Btn
-  variant="primary"
-  className="w-full justify-center"
-  onClick={async () => {
-    try {
-      const session = (await supabase.auth.getSession()).data.session;
+            <Btn
+              variant="primary"
+              className="w-full justify-center"
+              onClick={async () => {
+                try {
+                  const session = (await supabase.auth.getSession()).data
+                    .session;
 
-      if (!session) {
-        alert("Sessão expirada. Faça login novamente.");
-        return;
-      }
+                  if (!session) {
+                    alert("Sessão expirada. Faça login novamente.");
+                    return;
+                  }
 
-      const res = await fetch(
-        "https://kddlzartfawqjnrafzdb.supabase.co/functions/v1/rapid-action/billing/create-subscription",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${session.access_token}`,
-          },
-        }
-      );
+                  const res = await fetch(
+                    "https://kddlzartfawqjnrafzdb.supabase.co/functions/v1/rapid-action/billing/create-subscription",
+                    {
+                      method: "POST",
+                      headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${session.access_token}`,
+                      },
+                    },
+                  );
 
-      const data = await res.json();
+                  const data = await res.json();
 
-      if (!res.ok) {
-        alert(data?.error || "Não foi possível criar a assinatura.");
-        return;
-      }
+                  if (!res.ok) {
+                    alert(
+                      data?.error || "Não foi possível criar a assinatura.",
+                    );
+                    return;
+                  }
 
-      const url = data?.init_point || data?.url;
+                  const url = data?.init_point || data?.url;
 
-      if (!url) {
-        alert("Mercado Pago não retornou o link da assinatura.");
-        return;
-      }
+                  if (!url) {
+                    alert("Mercado Pago não retornou o link da assinatura.");
+                    return;
+                  }
 
-      window.open(url, "_blank", "noopener,noreferrer");
-    } catch {
-      alert("Erro ao conectar com o Mercado Pago.");
-    }
-  }}
->
-  Assinar plano mensal
-</Btn>
+                  window.open(url, "_blank", "noopener,noreferrer");
+                } catch {
+                  alert("Erro ao conectar com o Mercado Pago.");
+                }
+              }}
+            >
+              Assinar plano mensal
+            </Btn>
 
-<Btn
-  variant="primary"
-  className="w-full justify-center mt-3"
-  onClick={async () => {
-    try {
-      const session = (await supabase.auth.getSession()).data.session;
+            <Btn
+              variant="primary"
+              className="w-full justify-center mt-3"
+              onClick={async () => {
+                try {
+                  const session = (await supabase.auth.getSession()).data
+                    .session;
 
-      if (!session) {
-        alert("Sessão expirada. Faça login novamente.");
-        return;
-      }
+                  if (!session) {
+                    alert("Sessão expirada. Faça login novamente.");
+                    return;
+                  }
 
-      const res = await fetch(
-        "https://kddlzartfawqjnrafzdb.supabase.co/functions/v1/rapid-action/billing/create-checkout",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${session.access_token}`,
-          },
-        }
-      );
+                  const res = await fetch(
+                    "https://kddlzartfawqjnrafzdb.supabase.co/functions/v1/rapid-action/billing/create-checkout",
+                    {
+                      method: "POST",
+                      headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${session.access_token}`,
+                      },
+                    },
+                  );
 
-      if (!res.ok) {
-        alert("Não foi possível gerar o pagamento agora.");
-        return;
-      }
+                  if (!res.ok) {
+                    alert("Não foi possível gerar o pagamento agora.");
+                    return;
+                  }
 
-      const data = await res.json();
-      const checkoutUrl = data?.checkout_url || data?.init_point || data?.url;
+                  const data = await res.json();
+                  const checkoutUrl =
+                    data?.checkout_url || data?.init_point || data?.url;
 
-      if (checkoutUrl) {
-        window.open(checkoutUrl, "_blank", "noopener,noreferrer");
-      } else {
-        alert("Checkout não retornou link.");
-      }
-    } catch {
-      alert("Erro ao conectar com pagamento.");
-    }
-  }}
->
-  Pagar apenas este mês
-</Btn>
+                  if (checkoutUrl) {
+                    window.open(checkoutUrl, "_blank", "noopener,noreferrer");
+                  } else {
+                    alert("Checkout não retornou link.");
+                  }
+                } catch {
+                  alert("Erro ao conectar com pagamento.");
+                }
+              }}
+            >
+              Pagar apenas este mês
+            </Btn>
 
+            <Btn
+              variant="secondary"
+              className="w-full max-w-[230px] mx-auto justify-center mt-3 text-sm"
+              loading={checkingPayment}
+              onClick={async () => {
+                setCheckingPayment(true);
 
-  <Btn
-    variant="secondary"
-    className="w-full max-w-[230px] mx-auto justify-center mt-3 text-sm"
-    loading={checkingPayment}
-    onClick={async () => {
-      setCheckingPayment(true);
+                try {
+                  const updated = await API.getProfile();
+                  console.log("PROFILE ATUALIZADO:", updated);
+                  setProfile(updated);
 
-      try {
-        const updated = await API.getProfile();
-console.log("PROFILE ATUALIZADO:", updated);
-setProfile(updated);
+                  if (isPaid(updated)) {
+                    setPage("dashboard");
+                    await loadAll();
+                  } else {
+                    alert("Pagamento ainda não confirmado.");
+                  }
+                } finally {
+                  setCheckingPayment(false);
+                }
+              }}
+            >
+              {!checkingPayment ? "Já paguei, atualizar acesso" : null}
+            </Btn>
 
-if (isPaid(updated)) {
-          setPage("dashboard");
-          await loadAll();
-        } else {
-          alert("Pagamento ainda não confirmado.");
-        }
-      } finally {
-        setCheckingPayment(false);
-      }
-    }}
-  >
-    {!checkingPayment ? "Já paguei, atualizar acesso" : null}
-  </Btn>
+            <Btn
+              variant="ghost"
+              className="w-full justify-center mt-2"
+              onClick={logout}
+            >
+              Sair
+            </Btn>
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
-  <Btn
-    variant="ghost"
-    className="w-full justify-center mt-2"
-    onClick={logout}
-  >
-    Sair
-  </Btn>
-</Card>
+  return (
+    <div
+      className="min-h-screen bg-[#05070A] dark relative overflow-hidden"
+      style={{ fontFamily: "var(--font-body, 'DM Sans', sans-serif)" }}
+    >
+      {/* Background premium do sistema logado */}
+      <div className="fixed left-[-280px] top-[8%] w-[720px] h-[720px] rounded-full bg-red-500/10 blur-[220px] pointer-events-none z-0" />
+      <div className="fixed right-[-280px] bottom-[5%] w-[720px] h-[720px] rounded-full bg-red-500/15 blur-[220px] pointer-events-none z-0" />
+      <div className="fixed inset-0 opacity-[0.025] pointer-events-none z-0 bg-[linear-gradient(rgba(239,68,68,1)_1px,transparent_1px),linear-gradient(90deg,rgba(239,68,68,1)_1px,transparent_1px)] bg-[size:80px_80px]" />
+
+      <div className="relative z-20">
+        <Sidebar
+          profile={profile}
+          page={page}
+          onNav={nav}
+          onLogout={logout}
+          open={sidebarOpen}
+          onClose={() => setSidebarOpen(false)}
+        />
+      </div>
+
+      <div className="relative z-10 lg:pl-64 min-h-screen flex flex-col">
+        {/* Mobile header */}
+        <header className="lg:hidden sticky top-0 z-20 bg-sidebar/90 backdrop-blur-md border-b border-sidebar-border px-4 py-3 flex items-center justify-between">
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="text-muted-foreground hover:text-foreground p-0.5"
+          >
+            <Menu size={20} />
+          </button>
+          <Logo size="sm" />
+          <div className="w-8" />
+        </header>
+
+        <main className="flex-1 px-4 py-5 max-w-6xl mx-auto w-full pb-8">
+          {page === "dashboard" && (
+            <Dashboard
+              clients={clients}
+              vehicles={vehicles}
+              orders={orders}
+              profile={profile}
+              onNav={nav}
+              onViewOrder={viewOrder}
+            />
+          )}
+
+          {page === "clients" && (
+            <ClientsPage clients={clients} onReload={loadAll} />
+          )}
+
+          {page === "vehicles" && (
+            <VehiclesPage
+              vehicles={vehicles}
+              clients={clients}
+              onReload={loadAll}
+            />
+          )}
+
+          {page === "orders" && (
+            <OrdersPage
+              orders={orders}
+              clients={clients}
+              vehicles={vehicles}
+              onReload={loadAll}
+              onView={viewOrder}
+            />
+          )}
+
+          {page === "order-detail" && activeOrder && (
+            <OrderDetail
+              profile={profile}
+              order={activeOrder}
+              clients={clients}
+              vehicles={vehicles}
+              onBack={() => nav("orders")}
+              onReload={loadAll}
+            />
+          )}
+
+          {page === "history" && (
+            <HistoryPage
+              orders={orders}
+              clients={clients}
+              vehicles={vehicles}
+              onView={(order) => {
+                setActiveOrder(order);
+                nav("order-detail");
+              }}
+            />
+          )}
+
+          {page === "financial" && (
+            <FinancialPage
+              orders={orders}
+              entries={financialEntries}
+              onReload={loadAll}
+            />
+          )}
+
+          {page === "admin" && profile?.is_admin && <AdminPage />}
+
+          {page === "settings" && <SettingsPage profile={profile} />}
+        </main>
       </div>
     </div>
   );
 }
 
-return (
-  <div
-    className="min-h-screen bg-[#05070A] dark relative overflow-hidden"
-    style={{ fontFamily: "var(--font-body, 'DM Sans', sans-serif)" }}
-  >
-    {/* Background premium do sistema logado */}
-    <div className="fixed left-[-280px] top-[8%] w-[720px] h-[720px] rounded-full bg-red-500/10 blur-[220px] pointer-events-none z-0" />
-    <div className="fixed right-[-280px] bottom-[5%] w-[720px] h-[720px] rounded-full bg-red-500/15 blur-[220px] pointer-events-none z-0" />
-    <div className="fixed inset-0 opacity-[0.025] pointer-events-none z-0 bg-[linear-gradient(rgba(239,68,68,1)_1px,transparent_1px),linear-gradient(90deg,rgba(239,68,68,1)_1px,transparent_1px)] bg-[size:80px_80px]" />
-
-    <div className="relative z-20">
-      <Sidebar
-        profile={profile}
-        page={page}
-        onNav={nav}
-        onLogout={logout}
-        open={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-      />
-    </div>
-
-    <div className="relative z-10 lg:pl-64 min-h-screen flex flex-col">
-      {/* Mobile header */}
-      <header className="lg:hidden sticky top-0 z-20 bg-sidebar/90 backdrop-blur-md border-b border-sidebar-border px-4 py-3 flex items-center justify-between">
-        <button onClick={() => setSidebarOpen(true)} className="text-muted-foreground hover:text-foreground p-0.5">
-          <Menu size={20} />
-        </button>
-        <Logo size="sm" />
-        <div className="w-8" />
-      </header>
-
-      <main className="flex-1 px-4 py-5 max-w-6xl mx-auto w-full pb-8">
-        {page === "dashboard" && (
-  <Dashboard
-    clients={clients}
-    vehicles={vehicles}
-    orders={orders}
-    profile={profile}
-    onNav={nav}
-    onViewOrder={viewOrder}
-  />
-)}
-
-        {page === "clients" && (
-          <ClientsPage clients={clients} onReload={loadAll} />
-        )}
-
-        {page === "vehicles" && (
-          <VehiclesPage vehicles={vehicles} clients={clients} onReload={loadAll} />
-        )}
-
-        {page === "orders" && (
-          <OrdersPage orders={orders} clients={clients} vehicles={vehicles} onReload={loadAll} onView={viewOrder} />
-        )}
-
-        {page === "order-detail" && activeOrder && (
-          <OrderDetail
-            profile={profile}
-            order={activeOrder}
-            clients={clients}
-            vehicles={vehicles}
-            onBack={() => nav("orders")}
-            onReload={loadAll}
-          />
-        )}
-
-        {page === "history" && (
-          <HistoryPage
-            orders={orders}
-            clients={clients}
-            vehicles={vehicles}
-            onView={(order) => {
-              setActiveOrder(order);
-              nav("order-detail");
-            }}
-          />
-        )}
-
-        {page === "financial" && (
-  <FinancialPage
-    orders={orders}
-    entries={financialEntries}
-    onReload={loadAll}
-  />
-)}
-
-{page === "admin" && profile?.is_admin && (
-  <AdminPage />
-)}
-
-{page === "settings" && (
-  <SettingsPage profile={profile} />
-)}
-      </main>
-    </div>
-  </div>
-);
-}
-
-
-
-
 function TermsPage({ onBack }: { onBack: () => void }) {
   const sections = [
     {
       title: "1. Aceite dos Termos",
-      body:
-        "Ao acessar ou utilizar a Vortan Oficina, o usuário declara estar de acordo com estes Termos de Uso. Caso não concorde com alguma condição, recomendamos que não utilize a plataforma.",
+      body: "Ao acessar ou utilizar a Vortan Oficina, o usuário declara estar de acordo com estes Termos de Uso. Caso não concorde com alguma condição, recomendamos que não utilize a plataforma.",
     },
     {
       title: "2. Sobre a Vortan Oficina",
-      body:
-        "A Vortan Oficina é uma plataforma de gestão para oficinas mecânicas, criada para auxiliar no controle de clientes, veículos, ordens de serviço, financeiro e comunicação com clientes.",
+      body: "A Vortan Oficina é uma plataforma de gestão para oficinas mecânicas, criada para auxiliar no controle de clientes, veículos, ordens de serviço, financeiro e comunicação com clientes.",
     },
     {
       title: "3. Responsabilidades do usuário",
-      body:
-        "O usuário é responsável pela veracidade das informações cadastradas no sistema, incluindo dados de clientes, veículos, serviços, valores, observações e movimentações financeiras.",
+      body: "O usuário é responsável pela veracidade das informações cadastradas no sistema, incluindo dados de clientes, veículos, serviços, valores, observações e movimentações financeiras.",
     },
     {
       title: "4. Assinatura e acesso",
-      body:
-        "O acesso ao sistema pode depender de assinatura ativa. Em caso de inadimplência, expiração do plano ou uso indevido, o acesso à plataforma poderá ser limitado ou suspenso.",
+      body: "O acesso ao sistema pode depender de assinatura ativa. Em caso de inadimplência, expiração do plano ou uso indevido, o acesso à plataforma poderá ser limitado ou suspenso.",
     },
 
     {
-  title: "5. Cobrança recorrente e cancelamento",
-  body:
-    "Ao contratar um plano da Vortan Oficina, o usuário autoriza a cobrança recorrente da assinatura pelo método de pagamento escolhido. O cancelamento poderá ser solicitado a qualquer momento, permanecendo o acesso ativo até o término do período já pago.",
-},
-{
-  title: "6. Inadimplência e suspensão",
-  body:
-    "Em caso de falha na cobrança, pagamento recusado, vencimento não quitado ou qualquer situação de inadimplência, a Vortan Oficina poderá limitar ou suspender o acesso à plataforma até a regularização dos valores pendentes. Após período prolongado de inadimplência, a assinatura poderá ser cancelada.",
-},
+      title: "5. Cobrança recorrente e cancelamento",
+      body: "Ao contratar um plano da Vortan Oficina, o usuário autoriza a cobrança recorrente da assinatura pelo método de pagamento escolhido. O cancelamento poderá ser solicitado a qualquer momento, permanecendo o acesso ativo até o término do período já pago.",
+    },
+    {
+      title: "6. Inadimplência e suspensão",
+      body: "Em caso de falha na cobrança, pagamento recusado, vencimento não quitado ou qualquer situação de inadimplência, a Vortan Oficina poderá limitar ou suspender o acesso à plataforma até a regularização dos valores pendentes. Após período prolongado de inadimplência, a assinatura poderá ser cancelada.",
+    },
 
     {
       title: "7. Uso adequado da plataforma",
-      body:
-        "O usuário se compromete a utilizar a Vortan Oficina apenas para fins lícitos, profissionais e relacionados à gestão da oficina, não podendo tentar violar, copiar, explorar ou prejudicar o funcionamento do sistema.",
+      body: "O usuário se compromete a utilizar a Vortan Oficina apenas para fins lícitos, profissionais e relacionados à gestão da oficina, não podendo tentar violar, copiar, explorar ou prejudicar o funcionamento do sistema.",
     },
     {
       title: "8. Alterações nos Termos",
-      body:
-        "Estes Termos podem ser atualizados a qualquer momento para refletir melhorias, mudanças legais ou ajustes operacionais. A versão mais recente estará sempre disponível nesta página.",
+      body: "Estes Termos podem ser atualizados a qualquer momento para refletir melhorias, mudanças legais ou ajustes operacionais. A versão mais recente estará sempre disponível nesta página.",
     },
-    
   ];
 
   return (
@@ -4335,9 +5337,10 @@ function TermsPage({ onBack }: { onBack: () => void }) {
                 </h1>
 
                 <p className="text-muted-foreground mt-4 text-base max-w-3xl leading-relaxed">
-                  Leia com atenção as condições de uso da plataforma Vortan Oficina.
-                  Este documento explica as principais regras para utilização do
-                  sistema, assinatura, responsabilidades e funcionamento geral.
+                  Leia com atenção as condições de uso da plataforma Vortan
+                  Oficina. Este documento explica as principais regras para
+                  utilização do sistema, assinatura, responsabilidades e
+                  funcionamento geral.
                 </p>
 
                 <div className="mt-6 flex flex-wrap gap-3 text-xs text-muted-foreground">
@@ -4367,9 +5370,7 @@ function TermsPage({ onBack }: { onBack: () => void }) {
             </div>
 
             <Card className="p-6 border-primary/20">
-              <h2 className="text-xl font-semibold mb-3">
-                Contato
-              </h2>
+              <h2 className="text-xl font-semibold mb-3">Contato</h2>
 
               <p className="text-sm text-muted-foreground leading-relaxed">
                 Em caso de dúvidas sobre estes Termos de Uso, entre em contato
@@ -4401,9 +5402,7 @@ function TermsPage({ onBack }: { onBack: () => void }) {
             </Card>
 
             <Card className="p-5">
-              <h3 className="font-semibold mb-4">
-                Resumo rápido
-              </h3>
+              <h3 className="font-semibold mb-4">Resumo rápido</h3>
 
               <div className="space-y-3">
                 {[
@@ -4413,7 +5412,10 @@ function TermsPage({ onBack }: { onBack: () => void }) {
                   "Termos podem ser atualizados",
                 ].map((item) => (
                   <div key={item} className="flex items-start gap-2">
-                    <CheckCircle size={15} className="text-primary mt-0.5 flex-shrink-0" />
+                    <CheckCircle
+                      size={15}
+                      className="text-primary mt-0.5 flex-shrink-0"
+                    />
                     <span className="text-sm text-muted-foreground">
                       {item}
                     </span>
@@ -4423,9 +5425,7 @@ function TermsPage({ onBack }: { onBack: () => void }) {
             </Card>
 
             <Card className="p-5 bg-red-500/[0.03] border-red-500/20">
-              <h3 className="font-semibold mb-2">
-                Precisa de ajuda?
-              </h3>
+              <h3 className="font-semibold mb-2">Precisa de ajuda?</h3>
 
               <p className="text-xs text-muted-foreground mb-4">
                 Fale com o suporte Vortan Oficina pelo WhatsApp.
@@ -4439,7 +5439,7 @@ function TermsPage({ onBack }: { onBack: () => void }) {
                   window.open(
                     "https://wa.me/5527996126147?text=Olá,%20tenho%20uma%20dúvida%20sobre%20os%20Termos%20de%20Uso%20da%20Vortan%20Oficina.",
                     "_blank",
-                    "noopener,noreferrer"
+                    "noopener,noreferrer",
                   )
                 }
               >
@@ -4458,33 +5458,27 @@ function PrivacyPage({ onBack }: { onBack: () => void }) {
   const sections = [
     {
       title: "1. Informações coletadas",
-      body:
-        "A Vortan Oficina coleta apenas as informações necessárias para o funcionamento da plataforma, como nome, e-mail, telefone, dados da oficina, clientes, veículos, ordens de serviço e movimentações financeiras cadastradas pelo usuário.",
+      body: "A Vortan Oficina coleta apenas as informações necessárias para o funcionamento da plataforma, como nome, e-mail, telefone, dados da oficina, clientes, veículos, ordens de serviço e movimentações financeiras cadastradas pelo usuário.",
     },
     {
       title: "2. Uso das informações",
-      body:
-        "As informações são utilizadas para permitir o funcionamento do sistema, autenticação de usuários, organização dos dados da oficina, geração de documentos, comunicação com clientes e melhoria da experiência na plataforma.",
+      body: "As informações são utilizadas para permitir o funcionamento do sistema, autenticação de usuários, organização dos dados da oficina, geração de documentos, comunicação com clientes e melhoria da experiência na plataforma.",
     },
     {
       title: "3. Armazenamento e segurança",
-      body:
-        "Os dados são armazenados em ambiente online e protegidos por medidas técnicas de segurança. Ainda assim, o usuário também deve proteger seu acesso, mantendo e-mail e senha em segurança.",
+      body: "Os dados são armazenados em ambiente online e protegidos por medidas técnicas de segurança. Ainda assim, o usuário também deve proteger seu acesso, mantendo e-mail e senha em segurança.",
     },
     {
       title: "4. Compartilhamento de dados",
-      body:
-        "A Vortan Oficina não vende informações dos usuários a terceiros. Dados poderão ser processados por serviços necessários para funcionamento da plataforma, como autenticação, banco de dados, hospedagem e pagamentos.",
+      body: "A Vortan Oficina não vende informações dos usuários a terceiros. Dados poderão ser processados por serviços necessários para funcionamento da plataforma, como autenticação, banco de dados, hospedagem e pagamentos.",
     },
     {
       title: "5. Dados cadastrados pelo usuário",
-      body:
-        "O usuário é responsável pelas informações inseridas na plataforma, incluindo dados de clientes da oficina, veículos, serviços, valores e observações internas.",
+      body: "O usuário é responsável pelas informações inseridas na plataforma, incluindo dados de clientes da oficina, veículos, serviços, valores e observações internas.",
     },
     {
       title: "6. Solicitações e contato",
-      body:
-        "O usuário pode entrar em contato com a equipe Vortan Oficina para solicitar informações, correções ou orientações relacionadas aos seus dados e uso da plataforma.",
+      body: "O usuário pode entrar em contato com a equipe Vortan Oficina para solicitar informações, correções ou orientações relacionadas aos seus dados e uso da plataforma.",
     },
   ];
 
@@ -4552,9 +5546,7 @@ function PrivacyPage({ onBack }: { onBack: () => void }) {
             </div>
 
             <Card className="p-6 border-primary/20">
-              <h2 className="text-xl font-semibold mb-3">
-                Canal de contato
-              </h2>
+              <h2 className="text-xl font-semibold mb-3">Canal de contato</h2>
 
               <p className="text-sm text-muted-foreground leading-relaxed">
                 Para dúvidas relacionadas à privacidade ou dados cadastrados na
@@ -4586,9 +5578,7 @@ function PrivacyPage({ onBack }: { onBack: () => void }) {
             </Card>
 
             <Card className="p-5">
-              <h3 className="font-semibold mb-4">
-                Compromissos
-              </h3>
+              <h3 className="font-semibold mb-4">Compromissos</h3>
 
               <div className="space-y-3">
                 {[
@@ -4598,7 +5588,10 @@ function PrivacyPage({ onBack }: { onBack: () => void }) {
                   "Usuário controla os dados cadastrados",
                 ].map((item) => (
                   <div key={item} className="flex items-start gap-2">
-                    <CheckCircle size={15} className="text-primary mt-0.5 flex-shrink-0" />
+                    <CheckCircle
+                      size={15}
+                      className="text-primary mt-0.5 flex-shrink-0"
+                    />
                     <span className="text-sm text-muted-foreground">
                       {item}
                     </span>
@@ -4608,9 +5601,7 @@ function PrivacyPage({ onBack }: { onBack: () => void }) {
             </Card>
 
             <Card className="p-5 bg-red-500/[0.03] border-red-500/20">
-              <h3 className="font-semibold mb-2">
-                Dúvidas sobre dados?
-              </h3>
+              <h3 className="font-semibold mb-2">Dúvidas sobre dados?</h3>
 
               <p className="text-xs text-muted-foreground mb-4">
                 Fale com o suporte Vortan Oficina pelo WhatsApp.
@@ -4624,7 +5615,7 @@ function PrivacyPage({ onBack }: { onBack: () => void }) {
                   window.open(
                     "https://wa.me/5527996126147?text=Olá,%20tenho%20uma%20dúvida%20sobre%20a%20Política%20de%20Privacidade%20da%20Vortan%20Oficina.",
                     "_blank",
-                    "noopener,noreferrer"
+                    "noopener,noreferrer",
                   )
                 }
               >
