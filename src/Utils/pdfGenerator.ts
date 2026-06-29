@@ -87,6 +87,32 @@ function labelValue(
   doc.text(value || "-", x, y + 5);
 }
 
+async function imageToDataUrl(url?: string) {
+  if (!url) return null;
+
+  try {
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const blob = await response.blob();
+
+    return await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = reject;
+
+      reader.readAsDataURL(blob);
+    });
+  } catch (error) {
+    console.warn("Não foi possível carregar a logo no PDF:", error);
+    return null;
+  }
+}
+
 export async function generateOrderPDF({
   order,
   client,
@@ -102,6 +128,8 @@ export async function generateOrderPDF({
 
   const pageWidth = doc.internal.pageSize.getWidth();
 
+  const logoDataUrl = await imageToDataUrl(workshop?.logo_url);
+
   // Fundo
   doc.setFillColor(247, 247, 248);
   doc.rect(0, 0, 210, 297, "F");
@@ -110,15 +138,26 @@ export async function generateOrderPDF({
   doc.setFillColor(12, 12, 14);
   doc.rect(0, 0, 210, 38, "F");
 
+  let headerTextX = 14;
+
+  if (logoDataUrl) {
+    try {
+      doc.addImage(logoDataUrl, "PNG", 14, 9, 18, 18);
+      headerTextX = 36;
+    } catch (error) {
+      console.warn("Erro ao adicionar logo no PDF:", error);
+    }
+  }
+
   doc.setTextColor(255, 255, 255);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(18);
-  doc.text(workshop?.workshop_name || "Vortan Oficina", 14, 17);
+  doc.text(workshop?.workshop_name || "Vortan Oficina", headerTextX, 17);
 
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(190, 190, 190);
-  doc.text("Ordem de Serviço", 14, 25);
+  doc.text("Ordem de Serviço", headerTextX, 25);
 
   doc.setTextColor(255, 80, 80);
   doc.setFont("helvetica", "bold");
