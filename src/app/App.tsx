@@ -35,6 +35,8 @@ import {
   TrendingUp,
   Shield,
   Target,
+  BarChart3,
+  TrendingDown,
 } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import * as API from "../lib/api";
@@ -49,6 +51,7 @@ import type {
 import jsPDF from "jspdf";
 import { useLocation, useNavigate } from "react-router-dom";
 import AdminPage from "../pages/AdminPage";
+import { generateOrderPDF } from "../Utils/pdfGenerator";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -1395,7 +1398,6 @@ function Dashboard({
   const getTrialDaysLeft = (endDate: string) => {
     const end = new Date(endDate).getTime();
     const now = new Date().getTime();
-
     const diff = end - now;
     const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
 
@@ -1406,18 +1408,29 @@ function Dashboard({
     ? getTrialDaysLeft(profile.subscription_ends_at)
     : 0;
 
-  const open = orders.filter((o) => o.status !== "finalizado");
+  const totalTrialDays = 15;
+
+  const trialProgress = profile?.subscription_ends_at
+    ? Math.min(
+        100,
+        Math.max(0, ((totalTrialDays - trialDaysLeft) / totalTrialDays) * 100),
+      )
+    : 0;
+
+  const now = new Date();
+  const currentMonth = now.getMonth();
+  const currentYear = now.getFullYear();
+  const todayKey = now.toISOString().slice(0, 10);
 
   const done = orders.filter((o) => o.status === "finalizado");
-  const inProgress = orders.filter((o) => o.status === "em_manutencao");
+  const activeOrdersList = orders.filter((o) => o.status !== "finalizado");
   const waiting = orders.filter((o) => o.status === "aguardando");
+  const inProgress = orders.filter((o) => o.status === "em_manutencao");
 
-  const totalRevenue = orders
-    .filter((o) => o.status === "finalizado")
-    .reduce((acc, o) => acc + Number(o.value || 0), 0);
-
-  const currentMonth = new Date().getMonth();
-  const currentYear = new Date().getFullYear();
+  const totalRevenue = done.reduce(
+    (acc, o) => acc + Number(String(o.value || "0").replace(",", ".")),
+    0,
+  );
 
   const monthlyRevenue = orders
     .filter((o) => {
@@ -1428,28 +1441,107 @@ function Dashboard({
         d.getFullYear() === currentYear
       );
     })
-    .reduce((acc, o) => acc + Number(o.value || 0), 0);
-
-  const averageTicket = done.length > 0 ? totalRevenue / done.length : 0;
+    .reduce(
+      (acc, o) => acc + Number(String(o.value || "0").replace(",", ".")),
+      0,
+    );
 
   const monthlyDone = done.filter((o) => {
     const d = new Date(o.updated_at);
-
     return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
   });
 
   const completionRate =
     orders.length > 0 ? Math.round((done.length / orders.length) * 100) : 0;
 
-  const activeOrders = orders.filter((o) => o.status !== "finalizado").length;
+  const averageTicket = done.length > 0 ? totalRevenue / done.length : 0;
+
+  const openRevenue = activeOrdersList.reduce(
+    (acc, o) => acc + Number(String(o.value || "0").replace(",", ".")),
+    0,
+  );
 
   const recent = [...orders]
     .sort((a, b) => b.updated_at.localeCompare(a.updated_at))
-    .slice(0, 6);
+    .slice(0, 5);
 
-  const openRevenue = orders
-    .filter((o) => o.status !== "finalizado")
-    .reduce((acc, o) => acc + Number(o.value || 0), 0);
+  const deliveriesToday = orders.filter((o) => {
+    const delivery = (o as any).delivery_date;
+    if (!delivery || o.status === "finalizado") return false;
+    return String(delivery).slice(0, 10) === todayKey;
+  });
+
+  const overdueDeliveries = orders.filter((o) => {
+    const delivery = (o as any).delivery_date;
+    if (!delivery || o.status === "finalizado") return false;
+    return new Date(delivery).getTime() < new Date(todayKey).getTime();
+  });
+
+  const staleOrders = activeOrdersList.filter((o) => {
+    const updated = new Date(o.updated_at || o.created_at).getTime();
+    const days = Math.floor((Date.now() - updated) / 86400000);
+    return days >= 3;
+  });
+
+  const clientsWithoutWhatsApp = clients.filter(
+    (c) => !String(c.whatsapp || c.phone || "").replace(/\D/g, ""),
+  );
+
+  const attentionItems = [
+    staleOrders.length > 0
+      ? {
+          label: `${staleOrders.length} OS parada(s)`,
+          description: "Há mais de 3 dias",
+        }
+      : null,
+    overdueDeliveries.length > 0
+      ? {
+          label: `${overdueDeliveries.length} entrega(s) atrasada(s)`,
+          description: "Passaram da previsão",
+        }
+      : null,
+    deliveriesToday.length > 0
+      ? {
+          label: `${deliveriesToday.length} entrega(s) hoje`,
+          description: "Previstas para hoje",
+        }
+      : null,
+    clientsWithoutWhatsApp.length > 0
+      ? {
+          label: `${clientsWithoutWhatsApp.length} cliente(s) sem contato`,
+          description: "Complete telefone/WhatsApp",
+        }
+      : null,
+  ].filter(Boolean) as { label: string; description: string }[];
+
+  const activityItems = orders
+    .slice()
+    .sort((a, b) => b.updated_at.localeCompare(a.updated_at))
+    .slice(0, 5)
+    .map((order) => {
+      const client = clients.find((c) => c.id === order.client_id);
+      const vehicle = vehicles.find((v) => v.id === order.vehicle_id);
+
+      return {
+        id: order.id,
+        title:
+          order.status === "finalizado"
+            ? `${client?.name || "Cliente"} finalizou uma OS`
+            : `${client?.name || "Cliente"} atualizou uma OS`,
+        description: vehicle
+          ? `${vehicle.brand} ${vehicle.model} · ${vehicle.plate}`
+          : "Ordem de serviço",
+        date: order.updated_at || order.created_at,
+        order,
+      };
+    });
+
+  const greeting =
+    now.getHours() < 12
+      ? "Bom dia"
+      : now.getHours() < 18
+        ? "Boa tarde"
+        : "Boa noite";
 
   function exportClients() {
     downloadCSV(
@@ -1522,15 +1614,6 @@ function Dashboard({
       }),
     );
   }
-
-  const totalTrialDays = 15;
-
-  const trialProgress = profile?.subscription_ends_at
-    ? Math.min(
-        100,
-        Math.max(0, ((totalTrialDays - trialDaysLeft) / totalTrialDays) * 100),
-      )
-    : 0;
 
   return (
     <div className="space-y-5">
@@ -1648,241 +1731,372 @@ function Dashboard({
         </div>
       )}
 
-      <div>
-        <h1 className="font-heading font-bold text-2xl text-foreground tracking-wide">
-          Dashboard
-        </h1>
-        <p className="text-sm text-muted-foreground">Visão geral da oficina</p>
+      <div className="overflow-hidden rounded-3xl border border-red-500/20 bg-gradient-to-br from-red-500/10 via-card to-black/40 p-5 shadow-[0_0_35px_rgba(239,68,68,0.08)]">
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <div className="inline-flex rounded-full border border-red-500/20 bg-red-500/10 px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-red-300">
+              Painel da Oficina
+            </div>
+
+            <h1 className="mt-4 font-heading text-3xl font-black tracking-tight text-foreground">
+              {greeting}, {profile?.owner_name || "gestor"} 👋
+            </h1>
+
+            <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+              {profile?.workshop_name
+                ? `Resumo rápido da ${profile.workshop_name}.`
+                : "Resumo rápido da sua oficina."}
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 sm:min-w-[360px]">
+            <button
+              onClick={() => onNav("orders")}
+              className="rounded-2xl border border-red-500/20 bg-red-500/10 p-4 text-left transition hover:bg-red-500/20"
+            >
+              <Plus size={18} className="mb-2 text-red-300" />
+              <p className="text-sm font-bold text-white">Nova OS</p>
+              <p className="text-xs text-muted-foreground">Criar serviço</p>
+            </button>
+
+            <button
+              onClick={() => onNav("clients")}
+              className="rounded-2xl border border-white/10 bg-white/5 p-4 text-left transition hover:bg-white/10"
+            >
+              <Users size={18} className="mb-2 text-red-300" />
+              <p className="text-sm font-bold text-white">Cliente</p>
+              <p className="text-xs text-muted-foreground">Abrir cadastro</p>
+            </button>
+          </div>
+        </div>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Card className="p-4">
-          <div className="text-xs text-muted-foreground">Faturamento Total</div>
-          <div className="text-2xl font-bold text-green-500">
-            {fmtMoney(totalRevenue)}
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="text-xs text-muted-foreground">
+                Faturamento do Mês
+              </div>
+              <div className="mt-2 text-2xl font-bold text-green-500">
+                {fmtMoney(monthlyRevenue)}
+              </div>
+            </div>
+            <DollarSign size={20} className="text-green-500" />
           </div>
         </Card>
 
         <Card className="p-4">
-          <div className="text-xs text-muted-foreground">
-            Faturamento do Mês
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="text-xs text-muted-foreground">OS Ativas</div>
+              <div className="mt-2 text-2xl font-bold text-amber-400">
+                {activeOrdersList.length}
+              </div>
+            </div>
+            <Wrench size={20} className="text-amber-400" />
           </div>
-          <div className="text-2xl font-bold text-green-500">
-            {fmtMoney(monthlyRevenue)}
+        </Card>
+
+        <Card className="p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="text-xs text-muted-foreground">Entregas Hoje</div>
+              <div className="mt-2 text-2xl font-bold text-blue-400">
+                {deliveriesToday.length}
+              </div>
+            </div>
+            <Calendar size={20} className="text-blue-400" />
+          </div>
+        </Card>
+
+        <Card className="p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="text-xs text-muted-foreground">Conclusão</div>
+              <div className="mt-2 text-2xl font-bold text-red-400">
+                {completionRate}%
+              </div>
+            </div>
+            <Target size={20} className="text-red-400" />
+          </div>
+        </Card>
+      </div>
+
+      <Card className="p-1">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex items-center gap-3">
+            <AlertCircle size={10} className="text-primary" />
+            <div>
+              <h2 className="font-heading text-base font-bold text-foreground">
+                Centro de atenção
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                O que merece atenção agora.
+              </p>
+            </div>
           </div>
 
-          <div className="flex items-center gap-2 mb-2">
-            <div className="text-xs text-muted-foreground">
-              Faturamento do Mês
+          {attentionItems.length === 0 ? (
+            <div className="rounded-xl border border-green-500/20 bg-green-500/10 px-4 py-3 text-sm font-semibold text-green-300">
+              Tudo certo por aqui.
+            </div>
+          ) : (
+            <div className="grid flex-1 gap-2 md:grid-cols-2 xl:grid-cols-4">
+              {attentionItems.map((item) => (
+                <div
+                  key={item.label}
+                  className="rounded-xl border border-yellow-500/20 bg-yellow-500/10 px-4 py-3"
+                >
+                  <p className="text-sm font-bold text-yellow-200">
+                    ⚠️ {item.label}
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {item.description}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </Card>
+
+      <div className="grid gap-4 xl:grid-cols-2">
+        <Card>
+          <div className="flex items-center justify-between border-b border-border px-4 py-3">
+            <div>
+              <h2 className="font-heading text-base font-semibold text-foreground">
+                Ordens Recentes
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                Últimas movimentações de serviço.
+              </p>
+            </div>
+
+            <button
+              onClick={() => onNav("orders")}
+              className="text-xs font-semibold text-primary hover:underline"
+            >
+              Ver todas
+            </button>
+          </div>
+
+          {recent.length === 0 ? (
+            <div className="px-4 py-10 text-center">
+              <ClipboardList
+                size={28}
+                className="mx-auto mb-2 text-muted-foreground/20"
+              />
+              <p className="text-sm text-muted-foreground">
+                Nenhuma ordem de serviço ainda.
+              </p>
+              <Btn
+                variant="primary"
+                size="sm"
+                className="mx-auto mt-3"
+                onClick={() => onNav("orders")}
+              >
+                <Plus size={13} /> Criar primeira OS
+              </Btn>
+            </div>
+          ) : (
+            <div className="divide-y divide-border">
+              {recent.map((o) => {
+                const client = clients.find((c) => c.id === o.client_id);
+                const vehicle = vehicles.find((v) => v.id === o.vehicle_id);
+
+                return (
+                  <button
+                    key={o.id}
+                    onClick={() => onViewOrder(o)}
+                    className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-secondary/40"
+                  >
+                    <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5">
+                      <Car size={15} className="text-primary" />
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-sm font-medium text-foreground">
+                          {vehicle
+                            ? `${vehicle.brand} ${vehicle.model}`
+                            : "Veículo não informado"}
+                        </span>
+                        <StatusBadge status={o.status} />
+                      </div>
+                      <div className="mt-0.5 truncate text-xs text-muted-foreground">
+                        {client?.name ?? "Cliente não informado"} ·{" "}
+                        {vehicle?.plate ?? "Sem placa"} · {fmt(o.created_at)}
+                      </div>
+                    </div>
+
+                    <div className="flex-shrink-0 text-sm font-medium text-green-500">
+                      {fmtMoney(o.value)}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </Card>
+
+        <Card>
+          <div className="flex items-center justify-between border-b border-border px-4 py-3">
+            <div>
+              <h2 className="font-heading text-base font-semibold text-foreground">
+                Atividade recente
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                Últimos acontecimentos da oficina.
+              </p>
+            </div>
+
+            <RefreshCw size={16} className="text-primary" />
+          </div>
+
+          {activityItems.length === 0 ? (
+            <div className="px-4 py-10 text-center">
+              <Clock
+                size={28}
+                className="mx-auto mb-2 text-muted-foreground/20"
+              />
+              <p className="text-sm text-muted-foreground">
+                Ainda não há atividades recentes.
+              </p>
+            </div>
+          ) : (
+            <div className="divide-y divide-border">
+              {activityItems.map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => onViewOrder(item.order)}
+                  className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-secondary/40"
+                >
+                  <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl border border-red-500/20 bg-red-500/10">
+                    <CheckCircle size={15} className="text-red-300" />
+                  </div>
+
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-foreground">
+                      {item.title}
+                    </p>
+                    <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                      {item.description}
+                    </p>
+                  </div>
+
+                  <div className="text-xs text-muted-foreground">
+                    {fmt(item.date)}
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </Card>
+      </div>
+
+      <div className="grid gap-4 xl:grid-cols-3">
+        <Card className="p-4">
+          <div className="mb-3 flex items-center justify-between">
+            <div>
+              <h2 className="font-heading text-base font-bold text-foreground">
+                Resumo rápido
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                Números úteis sem ocupar o topo.
+              </p>
+            </div>
+            <TrendingUp size={18} className="text-primary" />
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+              <p className="text-xs text-muted-foreground">Total</p>
+              <p className="mt-1 text-sm font-bold text-green-500">
+                {fmtMoney(totalRevenue)}
+              </p>
+            </div>
+
+            <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+              <p className="text-xs text-muted-foreground">Média</p>
+              <p className="mt-1 text-sm font-bold text-blue-400">
+                {fmtMoney(averageTicket)}
+              </p>
+            </div>
+
+            <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+              <p className="text-xs text-muted-foreground">Mês</p>
+              <p className="mt-1 text-sm font-bold text-emerald-400">
+                {monthlyDone.length} OS
+              </p>
+            </div>
+
+            <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+              <p className="text-xs text-muted-foreground">Aberto</p>
+              <p className="mt-1 text-sm font-bold text-amber-400">
+                {fmtMoney(openRevenue)}
+              </p>
             </div>
           </div>
         </Card>
 
-        <Card className="p-4">
-          <div className="text-xs text-muted-foreground">Ticket Médio</div>
-          <div className="text-2xl font-bold text-green-500">
-            {fmtMoney(averageTicket)}
+        <Card className="p-4 xl:col-span-2">
+          <div className="mb-3 flex items-center justify-between">
+            <div>
+              <h2 className="font-heading text-base font-bold text-foreground">
+                Ferramentas rápidas
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                Exportações CSV e atalhos úteis.
+              </p>
+            </div>
+            <Download size={18} className="text-primary" />
           </div>
-        </Card>
 
-        <Card className="p-4">
-          <div className="text-xs text-muted-foreground">
-            OS Finalizadas no Mês
-          </div>
-          <div className="text-2xl font-bold text-emerald-400">
-            {monthlyDone.length}
-          </div>
-        </Card>
-
-        <Card className="p-4">
-          <div className="text-xs text-muted-foreground">Taxa de Conclusão</div>
-          <div className="text-2xl font-bold text-blue-400">
-            {completionRate}%
-          </div>
-        </Card>
-
-        <Card className="p-4">
-          <div className="text-xs text-muted-foreground">OS Ativas</div>
-          <div className="text-2xl font-bold text-amber-400">
-            {activeOrders}
-          </div>
-        </Card>
-
-        <Card className="p-4">
-          <div className="text-xs text-muted-foreground">
-            Serviços em Aberto
-          </div>
-          <div className="text-2xl font-bold text-amber-400">
-            {fmtMoney(openRevenue)}
-          </div>
-        </Card>
-      </div>
-
-      <Card className="p-4">
-        <div className="flex items-center justify-between gap-3 flex-wrap mb-3">
-          <div>
-            <h2 className="font-heading font-semibold text-base text-foreground">
-              Exportações
-            </h2>
-            <p className="text-xs text-muted-foreground">
-              Baixe os dados da oficina em CSV.
-            </p>
-          </div>
-          <Download size={18} className="text-primary" />
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
-          <Btn
-            variant="secondary"
-            size="sm"
-            className="justify-center"
-            onClick={exportClients}
-          >
-            Exportar Clientes
-          </Btn>
-          <Btn
-            variant="secondary"
-            size="sm"
-            className="justify-center"
-            onClick={exportVehicles}
-          >
-            Exportar Veículos
-          </Btn>
-          <Btn
-            variant="secondary"
-            size="sm"
-            className="justify-center"
-            onClick={exportOrders}
-          >
-            Exportar OS
-          </Btn>
-          <Btn
-            variant="secondary"
-            size="sm"
-            className="justify-center"
-            onClick={exportFinance}
-          >
-            Exportar Financeiro
-          </Btn>
-        </div>
-      </Card>
-
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
-        {[
-          {
-            page: "clients" as Page,
-            label: "Clientes",
-            val: clients.length,
-            icon: Users,
-          },
-          {
-            page: "vehicles" as Page,
-            label: "Veículos",
-            val: vehicles.length,
-            icon: Car,
-          },
-          {
-            page: "history" as Page,
-            label: "Histórico",
-            val: orders.length,
-            icon: History,
-          },
-        ].map(({ page, label, val, icon: Icon }) => (
-          <button
-            key={page}
-            onClick={() => onNav(page)}
-            className="group text-left"
-          >
-            <Card className="p-4 flex items-center justify-between hover:border-primary/30 transition-colors">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <Icon size={15} className="text-primary" />
-                </div>
-                <div>
-                  <div className="text-base font-heading font-bold text-foreground">
-                    {val}
-                  </div>
-                  <div className="text-xs text-muted-foreground">{label}</div>
-                </div>
-              </div>
-              <ChevronRight
-                size={15}
-                className="text-muted-foreground group-hover:text-primary transition-colors"
-              />
-            </Card>
-          </button>
-        ))}
-      </div>
-
-      <Card>
-        <div className="px-4 py-3 border-b border-border flex items-center justify-between">
-          <h2 className="font-heading font-semibold text-base text-foreground">
-            Ordens Recentes
-          </h2>
-          <button
-            onClick={() => onNav("orders")}
-            className="text-xs text-primary hover:underline"
-          >
-            Ver todas
-          </button>
-        </div>
-        {recent.length === 0 ? (
-          <div className="px-4 py-10 text-center">
-            <ClipboardList
-              size={28}
-              className="mx-auto text-muted-foreground/20 mb-2"
-            />
-            <p className="text-sm text-muted-foreground">
-              Nenhuma ordem de serviço ainda.
-            </p>
+          <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
             <Btn
-              variant="primary"
+              variant="secondary"
               size="sm"
-              className="mt-3 mx-auto"
-              onClick={() => onNav("orders")}
+              className="justify-center"
+              onClick={exportClients}
             >
-              <Plus size={13} /> Criar primeira OS
+              Clientes CSV
+            </Btn>
+
+            <Btn
+              variant="secondary"
+              size="sm"
+              className="justify-center"
+              onClick={exportVehicles}
+            >
+              Veículos CSV
+            </Btn>
+
+            <Btn
+              variant="secondary"
+              size="sm"
+              className="justify-center"
+              onClick={exportOrders}
+            >
+              OS CSV
+            </Btn>
+
+            <Btn
+              variant="secondary"
+              size="sm"
+              className="justify-center"
+              onClick={exportFinance}
+            >
+              Financeiro CSV
             </Btn>
           </div>
-        ) : (
-          <div className="divide-y divide-border">
-            {recent.map((o) => {
-              const client = clients.find((c) => c.id === o.client_id);
-              const vehicle = vehicles.find((v) => v.id === o.vehicle_id);
-              return (
-                <button
-                  key={o.id}
-                  onClick={() => onViewOrder(o)}
-                  className="w-full px-4 py-3 flex items-center gap-3 hover:bg-secondary/40 transition-colors text-left"
-                >
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-sm font-medium text-foreground">
-                        {client?.name ?? "—"}
-                      </span>
-                      <StatusBadge status={o.status} />
-                    </div>
-                    <div className="text-xs text-muted-foreground mt-0.5 truncate">
-                      {vehicle
-                        ? `${vehicle.brand} ${vehicle.model} · ${vehicle.plate}`
-                        : "—"}{" "}
-                      · {fmt(o.created_at)}
-                    </div>
-                  </div>
-                  <div className="text-sm font-mono font-medium text-green-500 flex-shrink-0">
-                    {fmtMoney(o.value)}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        )}
-      </Card>
+        </Card>
+      </div>
     </div>
   );
 }
 
 // ─── Financeiro ─────────────────────────────────────────────────────────────────
-
 function FinancialPage({
   orders,
   entries,
@@ -1893,6 +2107,7 @@ function FinancialPage({
   onReload: () => Promise<void>;
 }) {
   const [modal, setModal] = useState<null | "income" | "expense">(null);
+  const [search, setSearch] = useState("");
   const [form, setForm] = useState({
     description: "",
     amount: "",
@@ -1900,10 +2115,29 @@ function FinancialPage({
   });
   const [loading, setLoading] = useState(false);
 
+  function parseMoney(value?: string | number | null) {
+    return Number(
+      String(value || "0")
+        .replace(/\./g, "")
+        .replace(",", "."),
+    );
+  }
+
+  function formatDate(date?: string | null) {
+    if (!date) return "—";
+    return new Date(date).toLocaleDateString("pt-BR");
+  }
+
   const finalizedOrders = orders.filter((o) => o.status === "finalizado");
+  const openOrders = orders.filter((o) => o.status !== "finalizado");
 
   const orderIncome = finalizedOrders.reduce(
-    (acc, o) => acc + Number(String(o.value || "0").replace(",", ".")),
+    (acc, o) => acc + parseMoney(o.value),
+    0,
+  );
+
+  const openOrderValue = openOrders.reduce(
+    (acc, o) => acc + parseMoney(o.value),
     0,
   );
 
@@ -1917,6 +2151,90 @@ function FinancialPage({
 
   const totalRevenue = orderIncome + manualIncome;
   const profit = totalRevenue - expenses;
+  const averageTicket =
+    finalizedOrders.length > 0 ? orderIncome / finalizedOrders.length : 0;
+
+  const now = new Date();
+  const currentMonth = now.getMonth();
+  const currentYear = now.getFullYear();
+
+  const monthlyOrderIncome = finalizedOrders
+    .filter((o) => {
+      const d = new Date(o.updated_at || o.created_at);
+      return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+    })
+    .reduce((acc, o) => acc + parseMoney(o.value), 0);
+
+  const monthlyManualIncome = entries
+    .filter((e) => {
+      const d = new Date(e.created_at);
+      return (
+        e.type === "income" &&
+        d.getMonth() === currentMonth &&
+        d.getFullYear() === currentYear
+      );
+    })
+    .reduce((acc, e) => acc + Number(e.amount || 0), 0);
+
+  const monthlyExpenses = entries
+    .filter((e) => {
+      const d = new Date(e.created_at);
+      return (
+        e.type === "expense" &&
+        d.getMonth() === currentMonth &&
+        d.getFullYear() === currentYear
+      );
+    })
+    .reduce((acc, e) => acc + Number(e.amount || 0), 0);
+
+  const monthlyRevenue = monthlyOrderIncome + monthlyManualIncome;
+  const monthlyProfit = monthlyRevenue - monthlyExpenses;
+
+  const expenseRate =
+    totalRevenue > 0
+      ? Math.min(100, Math.round((expenses / totalRevenue) * 100))
+      : 0;
+
+  const profitRate =
+    totalRevenue > 0 ? Math.round((profit / totalRevenue) * 100) : 0;
+
+  const incomeEntries = entries.filter((e) => e.type === "income").length;
+  const expenseEntries = entries.filter((e) => e.type === "expense").length;
+
+  const filteredEntries = entries
+    .filter((entry) => {
+      const term = search.trim().toLowerCase();
+
+      return (
+        !term ||
+        String(entry.description || "")
+          .toLowerCase()
+          .includes(term) ||
+        String(entry.category || "")
+          .toLowerCase()
+          .includes(term) ||
+        String(entry.type || "")
+          .toLowerCase()
+          .includes(term)
+      );
+    })
+    .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
+
+  const recentOrdersIncome = finalizedOrders
+    .sort((a, b) => String(b.updated_at).localeCompare(String(a.updated_at)))
+    .slice(0, 4);
+
+  const categories = Object.entries(
+    entries.reduce<Record<string, number>>((acc, entry) => {
+      const name = entry.category || "Sem categoria";
+      acc[name] = (acc[name] || 0) + Number(entry.amount || 0);
+      return acc;
+    }, {}),
+  )
+    .sort(([, a], [, b]) => b - a)
+    .slice(0, 5);
+
+  const maxCategoryValue = Math.max(...categories.map(([, value]) => value), 1);
 
   const set =
     (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
@@ -1969,152 +2287,441 @@ function FinancialPage({
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <h1 className="font-heading font-bold text-2xl text-foreground">
-            Financeiro
-          </h1>
+    <div className="space-y-5">
+      <div className="overflow-hidden rounded-3xl border border-red-500/20 bg-gradient-to-br from-red-500/10 via-card to-black/40 p-5 shadow-[0_0_35px_rgba(239,68,68,0.08)]">
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <div className="inline-flex rounded-full border border-red-500/20 bg-red-500/10 px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-red-300">
+              Controle financeiro
+            </div>
 
-          <p className="text-sm text-muted-foreground">
-            Controle financeiro da oficina
-          </p>
-        </div>
+            <h1 className="mt-4 font-heading text-3xl font-black tracking-tight text-foreground">
+              Financeiro
+            </h1>
 
-        <div className="flex gap-2">
-          <Btn
-            type="button"
-            variant="secondary"
-            size="sm"
-            onClick={() => setModal("expense")}
-          >
-            Nova Despesa
-          </Btn>
+            <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+              Acompanhe faturamento, despesas, lucro, OS finalizadas e
+              movimentações manuais da oficina.
+            </p>
+          </div>
 
-          <Btn
-            type="button"
-            variant="primary"
-            size="sm"
-            onClick={() => setModal("income")}
-          >
-            Nova Receita
-          </Btn>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Btn
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={() => setModal("expense")}
+            >
+              Nova Despesa
+            </Btn>
+
+            <Btn
+              type="button"
+              variant="primary"
+              size="sm"
+              onClick={() => setModal("income")}
+            >
+              Nova Receita
+            </Btn>
+          </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Card className="p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <DollarSign size={16} className="text-green-500" />
-            <div className="text-xs text-muted-foreground">
-              Faturamento Total
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="text-xs text-muted-foreground">
+                Faturamento total
+              </div>
+              <div className="mt-2 text-2xl font-bold text-green-500">
+                {fmtMoney(totalRevenue)}
+              </div>
+            </div>
+            <DollarSign size={20} className="text-green-500" />
+          </div>
+        </Card>
+
+        <Card className="p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="text-xs text-muted-foreground">Despesas</div>
+              <div className="mt-2 text-2xl font-bold text-red-500">
+                {fmtMoney(expenses)}
+              </div>
+            </div>
+            <TrendingDown size={20} className="text-red-500" />
+          </div>
+        </Card>
+
+        <Card className="p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="text-xs text-muted-foreground">Lucro</div>
+              <div
+                className={
+                  profit >= 0
+                    ? "mt-2 text-2xl font-bold text-green-500"
+                    : "mt-2 text-2xl font-bold text-red-500"
+                }
+              >
+                {fmtMoney(profit)}
+              </div>
+            </div>
+            <TrendingUp
+              size={20}
+              className={profit >= 0 ? "text-green-500" : "text-red-500"}
+            />
+          </div>
+        </Card>
+
+        <Card className="p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="text-xs text-muted-foreground">Ticket médio</div>
+              <div className="mt-2 text-2xl font-bold text-blue-400">
+                {fmtMoney(averageTicket)}
+              </div>
+            </div>
+            <Target size={20} className="text-blue-400" />
+          </div>
+        </Card>
+      </div>
+
+      <div className="grid gap-4 xl:grid-cols-3">
+        <Card className="p-5 xl:col-span-2">
+          <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h2 className="font-heading text-lg font-bold text-foreground">
+                Resumo do mês
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                Visão rápida do desempenho financeiro atual.
+              </p>
+            </div>
+
+            <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-bold text-white">
+              {new Date().toLocaleDateString("pt-BR", {
+                month: "long",
+                year: "numeric",
+              })}
             </div>
           </div>
 
-          <div className="text-2xl font-bold text-green-500">
-            {fmtMoney(totalRevenue)}
+          <div className="grid gap-3 md:grid-cols-3">
+            <div className="rounded-2xl border border-green-500/20 bg-green-500/10 p-4">
+              <p className="text-xs text-green-300">Receita do mês</p>
+              <p className="mt-2 text-2xl font-bold text-white">
+                {fmtMoney(monthlyRevenue)}
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-red-500/20 bg-red-500/10 p-4">
+              <p className="text-xs text-red-300">Despesas do mês</p>
+              <p className="mt-2 text-2xl font-bold text-white">
+                {fmtMoney(monthlyExpenses)}
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-blue-500/20 bg-blue-500/10 p-4">
+              <p className="text-xs text-blue-300">Lucro do mês</p>
+              <p className="mt-2 text-2xl font-bold text-white">
+                {fmtMoney(monthlyProfit)}
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-5 grid gap-3 md:grid-cols-2">
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+              <div className="mb-2 flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Peso das despesas</span>
+                <span className="font-bold text-foreground">
+                  {expenseRate}%
+                </span>
+              </div>
+
+              <div className="h-3 overflow-hidden rounded-full bg-white/10">
+                <div
+                  className="h-full rounded-full bg-red-500"
+                  style={{ width: `${expenseRate}%` }}
+                />
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+              <div className="mb-2 flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Margem estimada</span>
+                <span
+                  className={
+                    profitRate >= 0
+                      ? "font-bold text-green-400"
+                      : "font-bold text-red-400"
+                  }
+                >
+                  {profitRate}%
+                </span>
+              </div>
+
+              <div className="h-3 overflow-hidden rounded-full bg-white/10">
+                <div
+                  className={
+                    profitRate >= 0
+                      ? "h-full rounded-full bg-green-500"
+                      : "h-full rounded-full bg-red-500"
+                  }
+                  style={{ width: `${Math.min(Math.abs(profitRate), 100)}%` }}
+                />
+              </div>
+            </div>
           </div>
         </Card>
 
-        <Card className="p-4">
-          <div className="text-sm text-muted-foreground">Receitas</div>
-
-          <div className="text-2xl font-bold text-green-600">
-            {totalRevenue.toLocaleString("pt-BR", {
-              style: "currency",
-              currency: "BRL",
-            })}
+        <Card className="p-5">
+          <div className="mb-4 flex items-center justify-between">
+            <div>
+              <h2 className="font-heading text-lg font-bold text-foreground">
+                Saúde financeira
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                Indicadores simples da oficina.
+              </p>
+            </div>
+            <DollarSign size={20} className="text-primary" />
           </div>
-        </Card>
 
-        <Card className="p-4">
-          <div className="text-sm text-muted-foreground">Despesas</div>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3">
+              <span className="text-sm text-muted-foreground">
+                OS finalizadas
+              </span>
+              <span className="font-bold text-emerald-400">
+                {finalizedOrders.length}
+              </span>
+            </div>
 
-          <div className="text-2xl font-bold text-red-600">
-            {expenses.toLocaleString("pt-BR", {
-              style: "currency",
-              currency: "BRL",
-            })}
-          </div>
-        </Card>
+            <div className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3">
+              <span className="text-sm text-muted-foreground">
+                Receitas manuais
+              </span>
+              <span className="font-bold text-green-400">{incomeEntries}</span>
+            </div>
 
-        <Card className="p-4">
-          <div className="text-sm text-muted-foreground">Lucro</div>
+            <div className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3">
+              <span className="text-sm text-muted-foreground">
+                Despesas manuais
+              </span>
+              <span className="font-bold text-red-400">{expenseEntries}</span>
+            </div>
 
-          <div
-            className={
-              profit >= 0
-                ? "text-2xl font-bold text-green-600"
-                : "text-2xl font-bold text-red-600"
-            }
-          >
-            {profit.toLocaleString("pt-BR", {
-              style: "currency",
-              currency: "BRL",
-            })}
+            <div className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3">
+              <span className="text-sm text-muted-foreground">
+                Em aberto nas OS
+              </span>
+              <span className="font-bold text-amber-400">
+                {fmtMoney(openOrderValue)}
+              </span>
+            </div>
           </div>
         </Card>
       </div>
 
-      <Card>
-        <div className="px-4 py-3 border-b border-border">
-          <h2 className="font-heading font-semibold text-base text-foreground">
-            Movimentações
-          </h2>
-        </div>
+      <div className="grid gap-4 xl:grid-cols-3">
+        <Card className="p-5 xl:col-span-2">
+          <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h2 className="font-heading text-lg font-bold text-foreground">
+                Movimentações
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                {filteredEntries.length} registro(s) encontrado(s).
+              </p>
+            </div>
 
-        {entries.length === 0 ? (
-          <div className="p-5">
-            <p className="text-sm text-muted-foreground">
-              Nenhuma movimentação cadastrada.
-            </p>
+            <div className="relative w-full md:max-w-sm">
+              <Search
+                size={14}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+              />
+
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Buscar descrição ou categoria..."
+                className="w-full rounded-xl border border-border bg-input-background py-2.5 pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+            </div>
           </div>
-        ) : (
-          <div className="divide-y divide-border">
-            {entries.map((entry) => (
-              <div
-                key={entry.id}
-                className="px-4 py-3 flex items-center justify-between gap-3"
-              >
-                <div>
-                  <div className="text-sm font-medium text-foreground">
-                    {entry.description}
-                  </div>
 
-                  <div className="text-xs text-muted-foreground">
-                    {entry.category || "Sem categoria"} ·{" "}
-                    {new Date(entry.created_at).toLocaleDateString("pt-BR")}
+          {entries.length === 0 ? (
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-8 text-center">
+              <DollarSign
+                size={30}
+                className="mx-auto mb-2 text-muted-foreground/20"
+              />
+
+              <p className="text-sm text-muted-foreground">
+                Nenhuma movimentação cadastrada.
+              </p>
+            </div>
+          ) : filteredEntries.length === 0 ? (
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-8 text-center">
+              <p className="text-sm text-muted-foreground">
+                Nenhuma movimentação encontrada nessa busca.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {filteredEntries.map((entry) => (
+                <div
+                  key={entry.id}
+                  className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 transition hover:border-red-500/20 hover:bg-white/[0.05]"
+                >
+                  <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span
+                          className={
+                            entry.type === "income"
+                              ? "rounded-full border border-green-500/20 bg-green-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-green-300"
+                              : "rounded-full border border-red-500/20 bg-red-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-red-300"
+                          }
+                        >
+                          {entry.type === "income" ? "Receita" : "Despesa"}
+                        </span>
+
+                        <p className="text-sm font-bold text-foreground">
+                          {entry.description}
+                        </p>
+                      </div>
+
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        {entry.category || "Sem categoria"} ·{" "}
+                        {formatDate(entry.created_at)}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-3 md:justify-end">
+                      <div
+                        className={
+                          entry.type === "income"
+                            ? "text-lg font-bold text-green-500"
+                            : "text-lg font-bold text-red-500"
+                        }
+                      >
+                        {entry.type === "income" ? "+" : "-"}{" "}
+                        {fmtMoney(Number(entry.amount || 0))}
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => del(entry.id)}
+                        className="rounded-xl border border-red-500/20 bg-red-500/10 p-2 text-red-300 transition hover:bg-red-500/20"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
                   </div>
                 </div>
+              ))}
+            </div>
+          )}
+        </Card>
 
-                <div className="flex items-center gap-3">
-                  <div
-                    className={
-                      entry.type === "income"
-                        ? "text-sm font-bold text-green-600"
-                        : "text-sm font-bold text-red-600"
-                    }
-                  >
-                    {entry.type === "income" ? "+" : "-"}{" "}
-                    {Number(entry.amount || 0).toLocaleString("pt-BR", {
-                      style: "currency",
-                      currency: "BRL",
-                    })}
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => del(entry.id)}
-                    className="text-muted-foreground hover:text-destructive"
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </div>
+        <div className="space-y-4">
+          <Card className="p-5">
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <h2 className="font-heading text-lg font-bold text-foreground">
+                  Categorias
+                </h2>
+                <p className="text-xs text-muted-foreground">
+                  Maiores movimentações manuais.
+                </p>
               </div>
-            ))}
-          </div>
-        )}
-      </Card>
+              <TrendingUp size={20} className="text-primary" />
+            </div>
+
+            {categories.length === 0 ? (
+              <p className="rounded-xl border border-white/10 bg-white/[0.03] p-4 text-sm text-muted-foreground">
+                As categorias aparecerão após cadastrar movimentações.
+              </p>
+            ) : (
+              <div className="space-y-4">
+                {categories.map(([category, value]) => (
+                  <div key={category}>
+                    <div className="mb-2 flex items-center justify-between text-sm">
+                      <span className="font-semibold text-foreground">
+                        {category}
+                      </span>
+                      <span className="text-muted-foreground">
+                        {fmtMoney(value)}
+                      </span>
+                    </div>
+
+                    <div className="h-3 overflow-hidden rounded-full bg-white/10">
+                      <div
+                        className="h-full rounded-full bg-red-500"
+                        style={{
+                          width: `${(value / maxCategoryValue) * 100}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+
+          <Card className="p-5">
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <h2 className="font-heading text-lg font-bold text-foreground">
+                  Últimas OS recebidas
+                </h2>
+                <p className="text-xs text-muted-foreground">
+                  Receitas vindas de OS finalizadas.
+                </p>
+              </div>
+              <CheckCircle size={20} className="text-primary" />
+            </div>
+
+            {recentOrdersIncome.length === 0 ? (
+              <p className="rounded-xl border border-white/10 bg-white/[0.03] p-4 text-sm text-muted-foreground">
+                Finalize OS com valor para aparecerem aqui.
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {recentOrdersIncome.map((order) => (
+                  <div
+                    key={order.id}
+                    className="rounded-xl border border-white/10 bg-white/[0.03] p-4"
+                  >
+                    <p className="text-sm font-bold text-foreground">
+                      OS finalizada
+                    </p>
+
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {formatDate(order.updated_at)}
+                    </p>
+
+                    <p className="mt-2 text-sm font-bold text-green-500">
+                      {fmtMoney(order.value)}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+        </div>
+      </div>
+
+      <div className="rounded-3xl border border-red-500/20 bg-red-500/10 p-5">
+        <p className="text-sm leading-relaxed text-red-100">
+          Dica da Vortan: finalize as ordens de serviço assim que o cliente
+          pagar. Isso mantém o faturamento e o lucro da oficina mais próximos da
+          realidade.
+        </p>
+      </div>
 
       {modal && (
         <Modal
@@ -2156,6 +2763,13 @@ function FinancialPage({
               value={form.category}
               onChange={set("category")}
             />
+
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+              <p className="text-xs text-muted-foreground">
+                Dica: use categorias simples como Peças, Serviços, Aluguel,
+                Ferramentas e Outros para facilitar sua leitura financeira.
+              </p>
+            </div>
 
             <div className="flex gap-2 pt-1">
               <Btn
@@ -2203,12 +2817,52 @@ function ClientsPage({
     type: "error" | "success";
   } | null>(null);
 
-  const filtered = clients.filter(
-    (c) =>
-      c.name.toLowerCase().includes(search.toLowerCase()) ||
-      c.phone.includes(search) ||
-      c.whatsapp.includes(search),
-  );
+  function onlyDigits(value?: string | null) {
+    return String(value || "").replace(/\D/g, "");
+  }
+
+  function getWhatsAppLink(value?: string | null) {
+    const digits = onlyDigits(value);
+    if (!digits) return "";
+    const number = digits.startsWith("55") ? digits : `55${digits}`;
+    return `https://wa.me/${number}`;
+  }
+
+  function formatDate(date?: string | null) {
+    if (!date) return "—";
+    return new Date(date).toLocaleDateString("pt-BR");
+  }
+
+  function isCompleteClient(c: Client) {
+    return Boolean(c.name && (onlyDigits(c.whatsapp) || onlyDigits(c.phone)));
+  }
+
+  const filtered = clients.filter((c) => {
+    const term = search.trim().toLowerCase();
+
+    return (
+      !term ||
+      c.name.toLowerCase().includes(term) ||
+      String(c.phone || "")
+        .toLowerCase()
+        .includes(term) ||
+      String(c.whatsapp || "")
+        .toLowerCase()
+        .includes(term)
+    );
+  });
+
+  const withWhatsApp = clients.filter((c) => onlyDigits(c.whatsapp)).length;
+  const withPhone = clients.filter((c) => onlyDigits(c.phone)).length;
+  const incomplete = clients.filter((c) => !isCompleteClient(c)).length;
+  const completedRate =
+    clients.length > 0
+      ? Math.round(((clients.length - incomplete) / clients.length) * 100)
+      : 0;
+
+  const recentClients = [...clients]
+    .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))
+    .slice(0, 3);
 
   function showToast(msg: string, type: "error" | "success") {
     setToast({ msg, type });
@@ -2239,8 +2893,10 @@ function ClientsPage({
       } else if (modal && typeof modal === "object") {
         await API.updateClient(modal.id, form);
       }
+
       await onReload();
       setModal(null);
+
       showToast(
         modal === "add" ? "Cliente criado!" : "Cliente atualizado!",
         "success",
@@ -2248,6 +2904,7 @@ function ClientsPage({
     } catch (err: any) {
       showToast(err.message, "error");
     }
+
     setLoading(false);
   }
 
@@ -2267,103 +2924,275 @@ function ClientsPage({
       setForm((p) => ({ ...p, [k]: e.target.value }));
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       {toast && <Toast message={toast.msg} type={toast.type} />}
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <h1 className="font-heading font-bold text-2xl text-foreground tracking-wide">
-            Clientes
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            {clients.length} cadastrados
-          </p>
+
+      <div className="overflow-hidden rounded-3xl border border-red-500/20 bg-gradient-to-br from-red-500/10 via-card to-black/40 p-5 shadow-[0_0_35px_rgba(239,68,68,0.08)]">
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <div className="inline-flex rounded-full border border-red-500/20 bg-red-500/10 px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-red-300">
+              CRM da Oficina
+            </div>
+
+            <h1 className="mt-4 font-heading text-3xl font-black tracking-tight text-foreground">
+              Clientes
+            </h1>
+
+            <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+              Organize sua base de clientes, mantenha contatos atualizados e
+              encontre informações importantes com mais rapidez.
+            </p>
+          </div>
+
+          <Btn variant="primary" size="sm" onClick={openAdd}>
+            <Plus size={14} /> Novo cliente
+          </Btn>
         </div>
-        <Btn variant="primary" size="sm" onClick={openAdd}>
-          <Plus size={14} /> Novo
-        </Btn>
       </div>
 
-      <div className="relative">
-        <Search
-          size={14}
-          className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-        />
-        <input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Buscar clientes..."
-          className="w-full bg-input-background border border-border rounded-md pl-9 pr-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-        />
-      </div>
-
-      {filtered.length === 0 ? (
-        <Card className="py-14 text-center">
-          <Users size={30} className="mx-auto text-muted-foreground/20 mb-2" />
-          <p className="text-sm text-muted-foreground">
-            {search ? "Nenhum resultado." : "Nenhum cliente cadastrado."}
-          </p>
-          {!search && (
-            <Btn
-              variant="primary"
-              size="sm"
-              className="mt-3 mx-auto"
-              onClick={openAdd}
-            >
-              <Plus size={13} /> Adicionar cliente
-            </Btn>
-          )}
-        </Card>
-      ) : (
-        <Card>
-          <div className="divide-y divide-border">
-            {filtered.map((c) => (
-              <div
-                key={c.id}
-                className="px-4 py-3 flex items-center gap-3 group"
-              >
-                <div className="w-9 h-9 rounded-full bg-primary/15 flex items-center justify-center flex-shrink-0">
-                  <span className="text-primary font-heading font-bold text-sm">
-                    {c.name.charAt(0).toUpperCase()}
-                  </span>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium text-foreground">
-                    {c.name}
-                  </div>
-                  <div className="flex items-center gap-3 mt-0.5 flex-wrap">
-                    {c.phone && (
-                      <span className="text-xs text-muted-foreground flex items-center gap-1">
-                        <Phone size={10} />
-                        {c.phone}
-                      </span>
-                    )}
-                    {c.whatsapp && (
-                      <span className="text-xs text-red-400 flex items-center gap-1">
-                        <MessageCircle size={10} />
-                        {c.whatsapp}
-                      </span>
-                    )}
-                  </div>
-                </div>
-                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button
-                    onClick={() => openEdit(c)}
-                    className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-                  >
-                    <Edit2 size={13} />
-                  </button>
-                  <button
-                    onClick={() => setConfirmDel(c.id)}
-                    className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                  >
-                    <Trash2 size={13} />
-                  </button>
-                </div>
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Card className="p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="text-xs text-muted-foreground">
+                Total de clientes
               </div>
-            ))}
+              <div className="mt-2 text-2xl font-bold text-foreground">
+                {clients.length}
+              </div>
+            </div>
+            <Users size={20} className="text-primary" />
           </div>
         </Card>
-      )}
+
+        <Card className="p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="text-xs text-muted-foreground">Com WhatsApp</div>
+              <div className="mt-2 text-2xl font-bold text-green-500">
+                {withWhatsApp}
+              </div>
+            </div>
+            <MessageCircle size={20} className="text-green-500" />
+          </div>
+        </Card>
+
+        <Card className="p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="text-xs text-muted-foreground">Com telefone</div>
+              <div className="mt-2 text-2xl font-bold text-blue-400">
+                {withPhone}
+              </div>
+            </div>
+            <Phone size={20} className="text-blue-400" />
+          </div>
+        </Card>
+
+        <Card className="p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="text-xs text-muted-foreground">
+                Cadastro completo
+              </div>
+              <div className="mt-2 text-2xl font-bold text-red-400">
+                {completedRate}%
+              </div>
+            </div>
+            <CheckCircle size={20} className="text-red-400" />
+          </div>
+        </Card>
+      </div>
+
+      <div className="grid gap-4 xl:grid-cols-3">
+        <Card className="p-5 xl:col-span-2">
+          <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h2 className="font-heading text-lg font-bold text-foreground">
+                Base de clientes
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                {filtered.length} resultado(s) encontrado(s).
+              </p>
+            </div>
+
+            <div className="relative w-full md:max-w-sm">
+              <Search
+                size={14}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+              />
+
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Buscar por nome, telefone ou WhatsApp..."
+                className="w-full rounded-xl border border-border bg-input-background py-2.5 pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+            </div>
+          </div>
+
+          {filtered.length === 0 ? (
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] py-14 text-center">
+              <Users
+                size={30}
+                className="mx-auto mb-2 text-muted-foreground/20"
+              />
+              <p className="text-sm text-muted-foreground">
+                {search ? "Nenhum resultado." : "Nenhum cliente cadastrado."}
+              </p>
+
+              {!search && (
+                <Btn
+                  variant="primary"
+                  size="sm"
+                  className="mx-auto mt-3"
+                  onClick={openAdd}
+                >
+                  <Plus size={13} /> Adicionar cliente
+                </Btn>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {filtered.map((c) => {
+                const whatsappLink = getWhatsAppLink(c.whatsapp || c.phone);
+                const complete = isCompleteClient(c);
+
+                return (
+                  <div
+                    key={c.id}
+                    className="group rounded-2xl border border-white/10 bg-white/[0.03] p-4 transition hover:border-red-500/20 hover:bg-white/[0.05]"
+                  >
+                    <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                      <div className="flex min-w-0 items-start gap-3">
+                        <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl border border-primary/20 bg-primary/15">
+                          <span className="font-heading text-sm font-bold text-primary">
+                            {c.name.charAt(0).toUpperCase()}
+                          </span>
+                        </div>
+
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="truncate text-sm font-bold text-foreground">
+                              {c.name}
+                            </p>
+
+                            {complete ? (
+                              <span className="rounded-full border border-green-500/20 bg-green-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-green-300">
+                                Completo
+                              </span>
+                            ) : (
+                              <span className="rounded-full border border-yellow-500/20 bg-yellow-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-yellow-300">
+                                Revisar
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="mt-2 flex flex-wrap items-center gap-3">
+                            {c.phone ? (
+                              <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                                <Phone size={11} />
+                                {c.phone}
+                              </span>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">
+                                Sem telefone
+                              </span>
+                            )}
+
+                            {c.whatsapp ? (
+                              <span className="flex items-center gap-1 text-xs text-red-400">
+                                <MessageCircle size={11} />
+                                {c.whatsapp}
+                              </span>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">
+                                Sem WhatsApp
+                              </span>
+                            )}
+
+                            <span className="text-xs text-muted-foreground">
+                              Criado em {formatDate(c.created_at)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-2 md:justify-end">
+                        {whatsappLink && (
+                          <a
+                            href={whatsappLink}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-2 rounded-xl border border-green-500/20 bg-green-500/10 px-3 py-2 text-xs font-bold text-green-300 transition hover:bg-green-500/20"
+                          >
+                            <MessageCircle size={13} />
+                            WhatsApp
+                          </a>
+                        )}
+
+                        <button
+                          onClick={() => openEdit(c)}
+                          className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-bold text-white transition hover:bg-white/10"
+                        >
+                          <Edit2 size={13} />
+                          Editar
+                        </button>
+
+                        <button
+                          onClick={() => setConfirmDel(c.id)}
+                          className="inline-flex items-center gap-2 rounded-xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-xs font-bold text-red-300 transition hover:bg-red-500/20"
+                        >
+                          <Trash2 size={13} />
+                          Excluir
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </Card>
+
+        <div className="space-y-4">
+          <Card className="p-5">
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <h2 className="font-heading text-lg font-bold text-foreground">
+                  Últimos cadastros
+                </h2>
+                <p className="text-xs text-muted-foreground">
+                  Clientes adicionados recentemente.
+                </p>
+              </div>
+              <Users size={20} className="text-primary" />
+            </div>
+
+            {recentClients.length === 0 ? (
+              <p className="rounded-xl border border-white/10 bg-white/[0.03] p-4 text-sm text-muted-foreground">
+                Nenhum cliente cadastrado ainda.
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {recentClients.map((client) => (
+                  <div
+                    key={client.id}
+                    className="rounded-xl border border-white/10 bg-white/[0.03] p-4"
+                  >
+                    <p className="text-sm font-bold text-foreground">
+                      {client.name}
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {formatDate(client.created_at)}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+        </div>
+      </div>
 
       {modal && (
         <Modal
@@ -2378,18 +3207,28 @@ function ClientsPage({
               onChange={set("name")}
               required
             />
+
             <Input
               label="Telefone"
               placeholder="(11) 98765-4321"
               value={form.phone}
               onChange={set("phone")}
             />
+
             <Input
               label="WhatsApp"
               placeholder="(11) 98765-4321"
               value={form.whatsapp}
               onChange={set("whatsapp")}
             />
+
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+              <p className="text-xs text-muted-foreground">
+                Dica: se o WhatsApp for igual ao telefone, você pode repetir o
+                número nos dois campos para facilitar o contato rápido.
+              </p>
+            </div>
+
             <div className="flex gap-2 pt-1">
               <Btn
                 type="button"
@@ -2399,6 +3238,7 @@ function ClientsPage({
               >
                 Cancelar
               </Btn>
+
               <Btn
                 type="submit"
                 variant="primary"
@@ -2414,10 +3254,11 @@ function ClientsPage({
 
       {confirmDel && (
         <Modal title="Excluir cliente?" onClose={() => setConfirmDel(null)}>
-          <p className="text-sm text-muted-foreground mb-4">
+          <p className="mb-4 text-sm text-muted-foreground">
             Esta ação não pode ser desfeita. Todos os veículos e ordens
             vinculados também serão excluídos.
           </p>
+
           <div className="flex gap-2">
             <Btn
               variant="secondary"
@@ -2426,6 +3267,7 @@ function ClientsPage({
             >
               Cancelar
             </Btn>
+
             <Btn
               variant="danger"
               className="flex-1 justify-center"
@@ -2468,12 +3310,95 @@ function VehiclesPage({
     type: "error" | "success";
   } | null>(null);
 
-  const filtered = vehicles.filter(
-    (v) =>
-      v.plate.toLowerCase().includes(search.toLowerCase()) ||
-      v.model.toLowerCase().includes(search.toLowerCase()) ||
-      v.brand.toLowerCase().includes(search.toLowerCase()),
+  function formatDate(date?: string | null) {
+    if (!date) return "—";
+    return new Date(date).toLocaleDateString("pt-BR");
+  }
+
+  function formatKm(value?: string | number | null) {
+    const n = Number(String(value || "0").replace(/\D/g, ""));
+    if (!n) return "—";
+    return `${n.toLocaleString("pt-BR")} km`;
+  }
+
+  function normalizePlate(value?: string | null) {
+    return String(value || "")
+      .trim()
+      .toUpperCase();
+  }
+
+  function getClientName(clientId: string) {
+    return (
+      clients.find((c) => c.id === clientId)?.name || "Cliente não informado"
+    );
+  }
+
+  const filtered = vehicles.filter((v) => {
+    const term = search.trim().toLowerCase();
+    const client = clients.find((c) => c.id === v.client_id);
+
+    return (
+      !term ||
+      String(v.plate || "")
+        .toLowerCase()
+        .includes(term) ||
+      String(v.model || "")
+        .toLowerCase()
+        .includes(term) ||
+      String(v.brand || "")
+        .toLowerCase()
+        .includes(term) ||
+      String(v.year || "")
+        .toLowerCase()
+        .includes(term) ||
+      String(client?.name || "")
+        .toLowerCase()
+        .includes(term)
+    );
+  });
+
+  const brands = Array.from(
+    new Set(
+      vehicles
+        .map((v) => String(v.brand || "").trim())
+        .filter(Boolean)
+        .map((brand) => brand.toLowerCase()),
+    ),
   );
+
+  const vehiclesWithKm = vehicles.filter(
+    (v) => Number(String(v.mileage || "0").replace(/\D/g, "")) > 0,
+  );
+
+  const averageKm =
+    vehiclesWithKm.length > 0
+      ? Math.round(
+          vehiclesWithKm.reduce(
+            (acc, v) =>
+              acc + Number(String(v.mileage || "0").replace(/\D/g, "")),
+            0,
+          ) / vehiclesWithKm.length,
+        )
+      : 0;
+
+  const clientsWithVehicles = new Set(vehicles.map((v) => v.client_id)).size;
+  const withoutMileage = vehicles.filter(
+    (v) => !Number(String(v.mileage || "0").replace(/\D/g, "")),
+  ).length;
+
+  const recentVehicles = [...vehicles]
+    .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))
+    .slice(0, 3);
+
+  const topBrands = Object.entries(
+    vehicles.reduce<Record<string, number>>((acc, vehicle) => {
+      const brand = String(vehicle.brand || "Sem marca").trim() || "Sem marca";
+      acc[brand] = (acc[brand] || 0) + 1;
+      return acc;
+    }, {}),
+  )
+    .sort(([, a], [, b]) => b - a)
+    .slice(0, 4);
 
   function showToast(msg: string, type: "error" | "success") {
     setToast({ msg, type });
@@ -2506,15 +3431,27 @@ function VehiclesPage({
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
+
+    if (loading) return;
+    if (!modal) return;
+
     setLoading(true);
+
     try {
+      const payload = {
+        ...form,
+        plate: normalizePlate(form.plate),
+      };
+
       if (modal === "add") {
-        await API.createVehicle(form);
+        await API.createVehicle(payload);
       } else if (modal && typeof modal === "object") {
-        await API.updateVehicle(modal.id, form);
+        await API.updateVehicle(modal.id, payload);
       }
+
       await onReload();
       setModal(null);
+
       showToast(
         modal === "add" ? "Veículo cadastrado!" : "Veículo atualizado!",
         "success",
@@ -2522,6 +3459,7 @@ function VehiclesPage({
     } catch (err: any) {
       showToast(err.message, "error");
     }
+
     setLoading(false);
   }
 
@@ -2542,117 +3480,327 @@ function VehiclesPage({
       setForm((p) => ({ ...p, [k]: e.target.value }));
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       {toast && <Toast message={toast.msg} type={toast.type} />}
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <h1 className="font-heading font-bold text-2xl text-foreground tracking-wide">
-            Veículos
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            {vehicles.length} cadastrados
-          </p>
+
+      <div className="overflow-hidden rounded-3xl border border-red-500/20 bg-gradient-to-br from-red-500/10 via-card to-black/40 p-5 shadow-[0_0_35px_rgba(239,68,68,0.08)]">
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <div className="inline-flex rounded-full border border-red-500/20 bg-red-500/10 px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-red-300">
+              Garagem da Oficina
+            </div>
+
+            <h1 className="mt-4 font-heading text-3xl font-black tracking-tight text-foreground">
+              Veículos
+            </h1>
+
+            <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+              Controle os veículos dos clientes com placa, modelo, proprietário,
+              quilometragem e informações úteis para atendimento.
+            </p>
+          </div>
+
+          <Btn
+            variant="primary"
+            size="sm"
+            onClick={openAdd}
+            disabled={clients.length === 0}
+          >
+            <Plus size={14} /> Novo veículo
+          </Btn>
         </div>
-        <Btn
-          variant="primary"
-          size="sm"
-          onClick={openAdd}
-          disabled={clients.length === 0}
-        >
-          <Plus size={14} /> Novo
-        </Btn>
       </div>
 
       {clients.length === 0 && (
-        <div className="flex items-center gap-2 px-4 py-3 rounded-lg bg-amber-400/10 border border-amber-400/20 text-amber-400 text-sm">
+        <div className="flex items-center gap-2 rounded-2xl border border-amber-400/20 bg-amber-400/10 px-4 py-3 text-sm text-amber-300">
           <AlertCircle size={14} /> Cadastre um cliente antes de adicionar
           veículos.
         </div>
       )}
 
-      <div className="relative">
-        <Search
-          size={14}
-          className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-        />
-        <input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Buscar por placa, modelo..."
-          className="w-full bg-input-background border border-border rounded-md pl-9 pr-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-        />
-      </div>
-
-      {filtered.length === 0 ? (
-        <Card className="py-14 text-center">
-          <Car size={30} className="mx-auto text-muted-foreground/20 mb-2" />
-          <p className="text-sm text-muted-foreground">
-            {search ? "Nenhum resultado." : "Nenhum veículo cadastrado."}
-          </p>
-        </Card>
-      ) : (
-        <Card>
-          <div className="divide-y divide-border">
-            {filtered.map((v) => {
-              const client = clients.find((c) => c.id === v.client_id);
-              return (
-                <div
-                  key={v.id}
-                  className="px-4 py-3 flex items-center gap-3 group"
-                >
-                  <div className="w-9 h-9 rounded-lg bg-blue-400/10 flex items-center justify-center flex-shrink-0">
-                    <Car size={15} className="text-blue-400" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-sm font-medium text-foreground">
-                        {v.brand} {v.model}
-                      </span>
-                      <span className="font-mono text-xs px-1.5 py-0.5 rounded bg-secondary text-muted-foreground border border-border">
-                        {v.plate}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-3 mt-0.5 flex-wrap">
-                      {v.year && (
-                        <span className="text-xs text-muted-foreground flex items-center gap-1">
-                          <Calendar size={10} />
-                          {v.year}
-                        </span>
-                      )}
-                      {v.mileage && (
-                        <span className="text-xs text-muted-foreground flex items-center gap-1">
-                          <Gauge size={10} />
-                          {parseInt(v.mileage).toLocaleString("pt-BR")} km
-                        </span>
-                      )}
-                      {client && (
-                        <span className="text-xs text-muted-foreground flex items-center gap-1">
-                          <Users size={10} />
-                          {client.name}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button
-                      onClick={() => openEdit(v)}
-                      className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-                    >
-                      <Edit2 size={13} />
-                    </button>
-                    <button
-                      onClick={() => setConfirmDel(v.id)}
-                      className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                    >
-                      <Trash2 size={13} />
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Card className="p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="text-xs text-muted-foreground">
+                Total de veículos
+              </div>
+              <div className="mt-2 text-2xl font-bold text-foreground">
+                {vehicles.length}
+              </div>
+            </div>
+            <Car size={20} className="text-primary" />
           </div>
         </Card>
-      )}
+
+        <Card className="p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="text-xs text-muted-foreground">
+                Quilometragem média
+              </div>
+              <div className="mt-2 text-2xl font-bold text-blue-400">
+                {averageKm ? formatKm(averageKm) : "—"}
+              </div>
+            </div>
+            <Gauge size={20} className="text-blue-400" />
+          </div>
+        </Card>
+
+        <Card className="p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="text-xs text-muted-foreground">
+                Marcas cadastradas
+              </div>
+              <div className="mt-2 text-2xl font-bold text-red-400">
+                {brands.length}
+              </div>
+            </div>
+            <Building2 size={20} className="text-red-400" />
+          </div>
+        </Card>
+
+        <Card className="p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="text-xs text-muted-foreground">
+                Clientes com veículos
+              </div>
+              <div className="mt-2 text-2xl font-bold text-green-500">
+                {clientsWithVehicles}
+              </div>
+            </div>
+            <Users size={20} className="text-green-500" />
+          </div>
+        </Card>
+      </div>
+
+      <div className="grid gap-4 xl:grid-cols-3">
+        <Card className="p-5 xl:col-span-2">
+          <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h2 className="font-heading text-lg font-bold text-foreground">
+                Garagem cadastrada
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                {filtered.length} resultado(s) encontrado(s).
+              </p>
+            </div>
+
+            <div className="relative w-full md:max-w-sm">
+              <Search
+                size={14}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+              />
+
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Buscar placa, modelo, marca ou cliente..."
+                className="w-full rounded-xl border border-border bg-input-background py-2.5 pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+            </div>
+          </div>
+
+          {filtered.length === 0 ? (
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] py-14 text-center">
+              <Car
+                size={30}
+                className="mx-auto mb-2 text-muted-foreground/20"
+              />
+
+              <p className="text-sm text-muted-foreground">
+                {search ? "Nenhum resultado." : "Nenhum veículo cadastrado."}
+              </p>
+
+              {!search && clients.length > 0 && (
+                <Btn
+                  variant="primary"
+                  size="sm"
+                  className="mx-auto mt-3"
+                  onClick={openAdd}
+                >
+                  <Plus size={13} /> Adicionar veículo
+                </Btn>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {filtered.map((v) => {
+                const client = clients.find((c) => c.id === v.client_id);
+                const hasMileage =
+                  Number(String(v.mileage || "0").replace(/\D/g, "")) > 0;
+
+                return (
+                  <div
+                    key={v.id}
+                    className="group rounded-2xl border border-white/10 bg-white/[0.03] p-4 transition hover:border-red-500/20 hover:bg-white/[0.05]"
+                  >
+                    <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                      <div className="flex min-w-0 items-start gap-3">
+                        <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl border border-blue-400/20 bg-blue-400/10">
+                          <Car size={18} className="text-blue-400" />
+                        </div>
+
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="truncate text-sm font-bold text-foreground">
+                              {v.brand || "Sem marca"} {v.model || "Sem modelo"}
+                            </p>
+
+                            <span className="rounded-full border border-red-500/25 bg-red-500/10 px-3 py-1 font-mono text-xs font-bold uppercase tracking-wider text-red-300">
+                              {normalizePlate(v.plate) || "Sem placa"}
+                            </span>
+
+                            {!hasMileage && (
+                              <span className="rounded-full border border-yellow-500/20 bg-yellow-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-yellow-300">
+                                Sem km
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="mt-2 flex flex-wrap items-center gap-3">
+                            {v.year && (
+                              <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                                <Calendar size={11} />
+                                {v.year}
+                              </span>
+                            )}
+
+                            <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                              <Gauge size={11} />
+                              {formatKm(v.mileage)}
+                            </span>
+
+                            <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                              <Users size={11} />
+                              {client?.name || "Cliente não informado"}
+                            </span>
+
+                            <span className="text-xs text-muted-foreground">
+                              Criado em {formatDate(v.created_at)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-2 md:justify-end">
+                        <button
+                          onClick={() => openEdit(v)}
+                          className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-bold text-white transition hover:bg-white/10"
+                        >
+                          <Edit2 size={13} />
+                          Editar
+                        </button>
+
+                        <button
+                          onClick={() => setConfirmDel(v.id)}
+                          className="inline-flex items-center gap-2 rounded-xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-xs font-bold text-red-300 transition hover:bg-red-500/20"
+                        >
+                          <Trash2 size={13} />
+                          Excluir
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </Card>
+
+        <div className="space-y-4">
+          <Card className="p-5">
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <h2 className="font-heading text-lg font-bold text-foreground">
+                  Marcas mais comuns
+                </h2>
+                <p className="text-xs text-muted-foreground">
+                  Distribuição da garagem.
+                </p>
+              </div>
+              <BarChart3 size={20} className="text-primary" />
+            </div>
+
+            {topBrands.length === 0 ? (
+              <p className="rounded-xl border border-white/10 bg-white/[0.03] p-4 text-sm text-muted-foreground">
+                As marcas aparecerão aqui após cadastrar veículos.
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {topBrands.map(([brand, count]) => (
+                  <div key={brand}>
+                    <div className="mb-2 flex items-center justify-between text-sm">
+                      <span className="font-semibold text-foreground">
+                        {brand}
+                      </span>
+                      <span className="text-muted-foreground">
+                        {count} veículo(s)
+                      </span>
+                    </div>
+
+                    <div className="h-3 overflow-hidden rounded-full bg-white/10">
+                      <div
+                        className="h-full rounded-full bg-red-500"
+                        style={{
+                          width: `${Math.min(
+                            100,
+                            (count / Math.max(vehicles.length, 1)) * 100,
+                          )}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+
+          <Card className="p-5">
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <h2 className="font-heading text-lg font-bold text-foreground">
+                  Últimos veículos
+                </h2>
+                <p className="text-xs text-muted-foreground">
+                  Cadastrados recentemente.
+                </p>
+              </div>
+              <Car size={20} className="text-primary" />
+            </div>
+
+            {recentVehicles.length === 0 ? (
+              <p className="rounded-xl border border-white/10 bg-white/[0.03] p-4 text-sm text-muted-foreground">
+                Nenhum veículo cadastrado ainda.
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {recentVehicles.map((vehicle) => (
+                  <div
+                    key={vehicle.id}
+                    className="rounded-xl border border-white/10 bg-white/[0.03] p-4"
+                  >
+                    <p className="text-sm font-bold text-foreground">
+                      {vehicle.brand || "Sem marca"}{" "}
+                      {vehicle.model || "Sem modelo"}
+                    </p>
+
+                    <p className="mt-1 font-mono text-xs text-red-300">
+                      {normalizePlate(vehicle.plate) || "Sem placa"}
+                    </p>
+
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {getClientName(vehicle.client_id)}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+        </div>
+      </div>
 
       {modal && (
         <Modal
@@ -2673,6 +3821,7 @@ function VehiclesPage({
                 </option>
               ))}
             </Select>
+
             <Input
               label="Placa"
               placeholder="ABC-1234"
@@ -2681,6 +3830,7 @@ function VehiclesPage({
               required
               className="uppercase"
             />
+
             <div className="grid grid-cols-2 gap-3">
               <Input
                 label="Marca"
@@ -2688,6 +3838,7 @@ function VehiclesPage({
                 value={form.brand}
                 onChange={set("brand")}
               />
+
               <Input
                 label="Modelo"
                 placeholder="Corolla"
@@ -2695,6 +3846,7 @@ function VehiclesPage({
                 onChange={set("model")}
               />
             </div>
+
             <div className="grid grid-cols-2 gap-3">
               <Input
                 label="Ano"
@@ -2703,6 +3855,7 @@ function VehiclesPage({
                 value={form.year}
                 onChange={set("year")}
               />
+
               <Input
                 label="Quilometragem"
                 placeholder="45000"
@@ -2711,6 +3864,14 @@ function VehiclesPage({
                 onChange={set("mileage")}
               />
             </div>
+
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+              <p className="text-xs text-muted-foreground">
+                Dica: manter a quilometragem atualizada ajuda a oficina a
+                recomendar futuras revisões com mais precisão.
+              </p>
+            </div>
+
             <div className="flex gap-2 pt-1">
               <Btn
                 type="button"
@@ -2720,6 +3881,7 @@ function VehiclesPage({
               >
                 Cancelar
               </Btn>
+
               <Btn
                 type="submit"
                 variant="primary"
@@ -2735,9 +3897,10 @@ function VehiclesPage({
 
       {confirmDel && (
         <Modal title="Excluir veículo?" onClose={() => setConfirmDel(null)}>
-          <p className="text-sm text-muted-foreground mb-4">
+          <p className="mb-4 text-sm text-muted-foreground">
             Esta ação não pode ser desfeita.
           </p>
+
           <div className="flex gap-2">
             <Btn
               variant="secondary"
@@ -2746,6 +3909,7 @@ function VehiclesPage({
             >
               Cancelar
             </Btn>
+
             <Btn
               variant="danger"
               className="flex-1 justify-center"
@@ -2776,6 +3940,7 @@ function OrdersPage({
   onView: (o: ServiceOrder) => void;
 }) {
   const [filter, setFilter] = useState<"all" | OrderStatus>("all");
+  const [search, setSearch] = useState("");
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState({
     client_id: "",
@@ -2787,6 +3952,7 @@ function OrdersPage({
     status: "aguardando" as OrderStatus,
     notes: "",
   });
+
   const [loading, setLoading] = useState(false);
   const [confirmDel, setConfirmDel] = useState<string | null>(null);
   const [toast, setToast] = useState<{
@@ -2794,11 +3960,85 @@ function OrdersPage({
     type: "error" | "success";
   } | null>(null);
 
+  function parseMoney(value?: string | number | null) {
+    return Number(
+      String(value || "0")
+        .replace(/\./g, "")
+        .replace(",", "."),
+    );
+  }
+
+  function formatDate(date?: string | null) {
+    if (!date) return "—";
+    return new Date(date).toLocaleDateString("pt-BR");
+  }
+
+  function getClient(order: ServiceOrder) {
+    return clients.find((c) => c.id === order.client_id);
+  }
+
+  function getVehicle(order: ServiceOrder) {
+    return vehicles.find((v) => v.id === order.vehicle_id);
+  }
+
   const clientVehicles = vehicles.filter((v) => v.client_id === form.client_id);
-  const filtered =
-    filter === "all" ? orders : orders.filter((o) => o.status === filter);
+
+  const totalRevenue = orders.reduce(
+    (acc, order) => acc + parseMoney(order.value),
+    0,
+  );
+
+  const finishedOrders = orders.filter(
+    (order) => order.status === "finalizado",
+  );
+  const activeOrders = orders.filter((order) => order.status !== "finalizado");
+  const waitingOrders = orders.filter((order) => order.status === "aguardando");
+  const maintenanceOrders = orders.filter(
+    (order) => order.status === "em_manutencao",
+  );
+
+  const filteredByStatus =
+    filter === "all"
+      ? orders
+      : orders.filter((order) => order.status === filter);
+
+  const filtered = filteredByStatus.filter((order) => {
+    const term = search.trim().toLowerCase();
+
+    if (!term) return true;
+
+    const client = getClient(order);
+    const vehicle = getVehicle(order);
+
+    return (
+      String(client?.name || "")
+        .toLowerCase()
+        .includes(term) ||
+      String(vehicle?.plate || "")
+        .toLowerCase()
+        .includes(term) ||
+      String(vehicle?.brand || "")
+        .toLowerCase()
+        .includes(term) ||
+      String(vehicle?.model || "")
+        .toLowerCase()
+        .includes(term) ||
+      String(order.reported_issue || "")
+        .toLowerCase()
+        .includes(term) ||
+      String(order.services_performed || "")
+        .toLowerCase()
+        .includes(term) ||
+      String((order as any).employee_name || "")
+        .toLowerCase()
+        .includes(term)
+    );
+  });
+
   const sorted = [...filtered].sort((a, b) =>
-    b.updated_at.localeCompare(a.updated_at),
+    String(b.updated_at || b.created_at).localeCompare(
+      String(a.updated_at || a.created_at),
+    ),
   );
 
   function showToast(msg: string, type: "error" | "success") {
@@ -2829,6 +4069,11 @@ function OrdersPage({
   async function save(e: React.FormEvent) {
     e.preventDefault();
 
+    if (!form.client_id) {
+      showToast("Selecione um cliente.", "error");
+      return;
+    }
+
     if (!form.vehicle_id) {
       showToast("Selecione um veículo.", "error");
       return;
@@ -2853,10 +4098,10 @@ function OrdersPage({
       setModal(false);
       showToast("Ordem de serviço criada!", "success");
     } catch (err: any) {
-      showToast(err.message, "error");
+      showToast(err.message || "Erro ao criar ordem de serviço.", "error");
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   }
 
   async function del(id: string) {
@@ -2866,7 +4111,7 @@ function OrdersPage({
       setConfirmDel(null);
       showToast("Ordem excluída.", "success");
     } catch (err: any) {
-      showToast(err.message, "error");
+      showToast(err.message || "Erro ao excluir ordem.", "error");
     }
   }
 
@@ -2878,136 +4123,308 @@ function OrdersPage({
       >,
     ) => {
       const val = e.target.value;
+
       setForm((p) => {
         const next = { ...p, [k]: val };
+
         if (k === "client_id") {
           const veh = vehicles.find((v) => v.client_id === val);
           next.vehicle_id = veh?.id ?? "";
         }
+
         return next;
       });
     };
 
+  const filters: Array<{
+    key: "all" | OrderStatus;
+    label: string;
+    count: number;
+  }> = [
+    { key: "all", label: "Todas", count: orders.length },
+    { key: "aguardando", label: "Aguardando", count: waitingOrders.length },
+    {
+      key: "em_manutencao",
+      label: "Em manutenção",
+      count: maintenanceOrders.length,
+    },
+    { key: "finalizado", label: "Finalizadas", count: finishedOrders.length },
+  ];
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       {toast && <Toast message={toast.msg} type={toast.type} />}
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <h1 className="font-heading font-bold text-2xl text-foreground tracking-wide">
-            Ordens de Serviço
-          </h1>
-          <p className="text-sm text-muted-foreground">{orders.length} total</p>
+
+      <div className="overflow-hidden rounded-3xl border border-red-500/20 bg-gradient-to-br from-red-500/10 via-card to-black/40 p-5 shadow-[0_0_35px_rgba(239,68,68,0.08)]">
+        <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
+          <div>
+            <div className="inline-flex rounded-full border border-red-500/20 bg-red-500/10 px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-red-300">
+              Central de Serviços
+            </div>
+
+            <h1 className="mt-4 font-heading text-3xl font-black tracking-tight text-foreground">
+              Ordens de Serviço
+            </h1>
+
+            <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+              Gerencie serviços em andamento, acompanhe status, valores e
+              histórico de atendimento da oficina.
+            </p>
+          </div>
+
+          <Btn
+            variant="primary"
+            onClick={openAdd}
+            disabled={!clients.length || !vehicles.length}
+            className="justify-center"
+          >
+            <Plus size={16} />
+            Nova OS
+          </Btn>
         </div>
-        <Btn
-          variant="primary"
-          size="sm"
-          onClick={openAdd}
-          disabled={!clients.length || !vehicles.length}
-        >
-          <Plus size={14} /> Nova OS
-        </Btn>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Card className="p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="text-xs text-muted-foreground">Total de OS</div>
+              <div className="mt-2 text-2xl font-bold text-foreground">
+                {orders.length}
+              </div>
+            </div>
+            <ClipboardList size={20} className="text-primary" />
+          </div>
+        </Card>
+
+        <Card className="p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="text-xs text-muted-foreground">OS Ativas</div>
+              <div className="mt-2 text-2xl font-bold text-amber-400">
+                {activeOrders.length}
+              </div>
+            </div>
+            <Wrench size={20} className="text-amber-400" />
+          </div>
+        </Card>
+
+        <Card className="p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="text-xs text-muted-foreground">Finalizadas</div>
+              <div className="mt-2 text-2xl font-bold text-green-500">
+                {finishedOrders.length}
+              </div>
+            </div>
+            <CheckCircle size={20} className="text-green-500" />
+          </div>
+        </Card>
+
+        <Card className="p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="text-xs text-muted-foreground">Valor total</div>
+              <div className="mt-2 text-2xl font-bold text-green-500">
+                {fmtMoney(totalRevenue)}
+              </div>
+            </div>
+            <DollarSign size={20} className="text-green-500" />
+          </div>
+        </Card>
       </div>
 
       {(!clients.length || !vehicles.length) && (
-        <div className="flex items-center gap-2 px-4 py-3 rounded-lg bg-amber-400/10 border border-amber-400/20 text-amber-400 text-sm">
-          <AlertCircle size={14} /> Cadastre clientes e veículos antes de abrir
-          uma ordem de serviço.
+        <div className="flex items-start gap-3 rounded-2xl border border-amber-400/20 bg-amber-400/10 px-4 py-3 text-sm text-amber-200">
+          <AlertCircle size={16} className="mt-0.5 flex-shrink-0" />
+          <div>
+            <p className="font-bold">Cadastro incompleto</p>
+            <p className="text-xs text-amber-100/80">
+              Cadastre pelo menos um cliente e um veículo antes de abrir uma
+              ordem de serviço.
+            </p>
+          </div>
         </div>
       )}
 
-      <div className="flex gap-1.5 flex-wrap">
-        {(["all", "aguardando", "em_manutencao", "finalizado"] as const).map(
-          (s) => {
-            const count =
-              s === "all"
-                ? orders.length
-                : orders.filter((o) => o.status === s).length;
-            return (
-              <button
-                key={s}
-                onClick={() => setFilter(s)}
-                className={`px-3 py-1.5 rounded-md text-xs font-medium border transition-all ${
-                  filter === s
-                    ? s === "all"
-                      ? "bg-primary/15 text-primary border-primary/30"
-                      : STATUS_COLOR[s as OrderStatus]
-                    : "text-muted-foreground border-border hover:text-foreground"
-                }`}
-              >
-                {s === "all" ? "Todas" : STATUS_LABEL[s as OrderStatus]} (
-                {count})
-              </button>
-            );
-          },
-        )}
-      </div>
+      <Card className="p-4">
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+          <div className="relative w-full xl:max-w-md">
+            <Search
+              size={15}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+            />
 
-      {sorted.length === 0 ? (
-        <Card className="py-14 text-center">
-          <ClipboardList
-            size={30}
-            className="mx-auto text-muted-foreground/20 mb-2"
-          />
-          <p className="text-sm text-muted-foreground">
-            Nenhuma ordem de serviço.
-          </p>
-        </Card>
-      ) : (
-        <Card>
-          <div className="divide-y divide-border">
-            {sorted.map((o) => {
-              const client = clients.find((c) => c.id === o.client_id);
-              const vehicle = vehicles.find((v) => v.id === o.vehicle_id);
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar cliente, placa, veículo, problema..."
+              className="w-full rounded-xl border border-border bg-input-background py-3 pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+            />
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            {filters.map((item) => {
+              const active = filter === item.key;
+
               return (
-                <div
-                  key={o.id}
-                  className="px-4 py-3 flex items-center gap-3 group"
+                <button
+                  key={item.key}
+                  type="button"
+                  onClick={() => setFilter(item.key)}
+                  className={`rounded-xl border px-3 py-2 text-xs font-bold transition-all ${
+                    active
+                      ? item.key === "all"
+                        ? "border-red-500/30 bg-red-500/15 text-red-300"
+                        : STATUS_COLOR[item.key as OrderStatus]
+                      : "border-white/10 bg-white/[0.03] text-muted-foreground hover:border-red-500/20 hover:text-foreground"
+                  }`}
                 >
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-sm font-medium text-foreground">
-                        {client?.name ?? "—"}
-                      </span>
-                      <StatusBadge status={o.status} />
-                    </div>
-                    <div className="text-xs text-muted-foreground mt-0.5">
-                      {vehicle
-                        ? `${vehicle.brand} ${vehicle.model} · ${vehicle.plate}`
-                        : "—"}
-                    </div>
-                    {o.reported_issue && (
-                      <div className="text-xs text-muted-foreground/60 mt-0.5 truncate">
-                        {o.reported_issue}
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex-shrink-0 text-right">
-                    <div className="text-sm font-mono font-medium text-green-500">
-                      {fmtMoney(o.value)}
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      {fmt(o.created_at)}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button
-                      onClick={() => onView(o)}
-                      className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-                    >
-                      <Eye size={13} />
-                    </button>
-                    <button
-                      onClick={() => setConfirmDel(o.id)}
-                      className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                    >
-                      <Trash2 size={13} />
-                    </button>
-                  </div>
-                </div>
+                  {item.label} ({item.count})
+                </button>
               );
             })}
           </div>
+        </div>
+      </Card>
+
+      {sorted.length === 0 ? (
+        <Card className="py-16 text-center">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-red-500/20 bg-red-500/10">
+            <ClipboardList size={26} className="text-red-300" />
+          </div>
+
+          <h2 className="font-heading text-xl font-bold text-foreground">
+            Nenhuma ordem encontrada
+          </h2>
+
+          <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
+            {search
+              ? "Tente buscar por outro cliente, placa ou serviço."
+              : "Crie a primeira Ordem de Serviço para começar a organizar os atendimentos."}
+          </p>
+
+          {!search && (
+            <Btn
+              type="button"
+              variant="primary"
+              className="mx-auto mt-5"
+              onClick={openAdd}
+              disabled={!clients.length || !vehicles.length}
+            >
+              <Plus size={15} />
+              Criar primeira OS
+            </Btn>
+          )}
         </Card>
+      ) : (
+        <div className="space-y-3">
+          {sorted.map((order) => {
+            const client = getClient(order);
+            const vehicle = getVehicle(order);
+            const employeeName = (order as any).employee_name;
+            const deliveryDate = (order as any).delivery_date;
+
+            return (
+              <Card
+                key={order.id}
+                className="group overflow-hidden border-white/10 bg-[#0A0E13]/90 hover:border-red-500/25"
+              >
+                <div className="flex flex-col gap-4 p-4 xl:flex-row xl:items-center xl:justify-between">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-red-500/20 bg-red-500/10 text-red-300">
+                        <Car size={18} />
+                      </div>
+
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h2 className="font-heading text-base font-bold text-foreground">
+                            {client?.name || "Cliente não informado"}
+                          </h2>
+
+                          <StatusBadge status={order.status} />
+                        </div>
+
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {vehicle
+                            ? `${vehicle.brand} ${vehicle.model} • ${vehicle.plate}`
+                            : "Veículo não informado"}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 grid gap-3 md:grid-cols-3">
+                      <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                          Problema
+                        </p>
+
+                        <p className="mt-1 truncate text-sm text-foreground">
+                          {order.reported_issue || "Não informado"}
+                        </p>
+                      </div>
+
+                      <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                          Responsável
+                        </p>
+
+                        <p className="mt-1 truncate text-sm text-foreground">
+                          {employeeName || "Não definido"}
+                        </p>
+                      </div>
+
+                      <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                          Previsão
+                        </p>
+
+                        <p className="mt-1 truncate text-sm text-foreground">
+                          {deliveryDate ? formatDate(deliveryDate) : "Sem data"}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-3 xl:w-64 xl:items-end">
+                    <div className="w-full rounded-2xl border border-green-500/20 bg-green-500/10 px-4 py-3 xl:text-right">
+                      <p className="text-xs text-muted-foreground">Valor</p>
+
+                      <p className="mt-1 text-2xl font-black text-green-400">
+                        {fmtMoney(order.value)}
+                      </p>
+
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Criada em {formatDate(order.created_at)}
+                      </p>
+                    </div>
+
+                    <div className="flex w-full flex-wrap gap-2 xl:justify-end">
+                      <button
+                        type="button"
+                        onClick={() => onView(order)}
+                        className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-bold text-white transition hover:border-red-500/25 hover:bg-red-500/10 xl:flex-none"
+                      >
+                        <Eye size={13} />
+                        Visualizar
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setConfirmDel(order.id)}
+                        className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-xs font-bold text-red-300 transition hover:bg-red-500/20 xl:flex-none"
+                      >
+                        <Trash2 size={13} />
+                        Excluir
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            );
+          })}
+        </div>
       )}
 
       {modal && (
@@ -3019,75 +4436,88 @@ function OrdersPage({
               onChange={set("client_id")}
               required
             >
-              <option value="">Selecione...</option>
-              {clients.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
+              <option value="">Selecione um cliente</option>
+
+              {clients.map((client) => (
+                <option key={client.id} value={client.id}>
+                  {client.name}
                 </option>
               ))}
             </Select>
+
             <Select
               label="Veículo"
               value={form.vehicle_id}
               onChange={set("vehicle_id")}
               required
             >
-              <option value="">Selecione...</option>
-              {clientVehicles.map((v) => (
-                <option key={v.id} value={v.id}>
-                  {v.brand} {v.model} — {v.plate}
+              <option value="">Selecione um veículo</option>
+
+              {clientVehicles.map((vehicle) => (
+                <option key={vehicle.id} value={vehicle.id}>
+                  {vehicle.brand} {vehicle.model} • {vehicle.plate}
                 </option>
               ))}
             </Select>
+
             <Textarea
               label="Problema relatado"
+              placeholder="Ex: Barulho na suspensão dianteira..."
               value={form.reported_issue}
               onChange={set("reported_issue")}
+              required
+              rows={3}
+            />
+
+            <Textarea
+              label="Serviços executados"
+              placeholder="Ex: Diagnóstico, troca de peça, revisão..."
+              value={form.services_performed}
+              onChange={set("services_performed")}
               rows={3}
             />
 
             <Input
               label="Funcionário responsável"
-              placeholder="Ex: João, Lucas, Rafael"
+              placeholder="Ex: João"
               value={form.employee_name}
               onChange={set("employee_name")}
             />
 
-            <Textarea
-              label="Serviços previstos"
-              placeholder="Revisão, troca de óleo..."
-              value={form.services_performed}
-              onChange={set("services_performed")}
-              rows={2}
-            />
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
               <Input
-                label="Valor (R$)"
-                placeholder="0,00"
+                label="Valor"
+                placeholder="Ex: 450,00"
                 value={form.value}
                 onChange={set("value")}
               />
+
               <Select
                 label="Status"
                 value={form.status}
                 onChange={set("status")}
               >
-                {(
-                  ["aguardando", "em_manutencao", "finalizado"] as OrderStatus[]
-                ).map((s) => (
-                  <option key={s} value={s}>
-                    {STATUS_LABEL[s]}
-                  </option>
-                ))}
+                <option value="aguardando">Aguardando</option>
+                <option value="em_manutencao">Em manutenção</option>
+                <option value="finalizado">Finalizado</option>
               </Select>
             </div>
+
             <Textarea
               label="Observações"
-              placeholder="Notas adicionais..."
+              placeholder="Observações internas da oficina..."
               value={form.notes}
               onChange={set("notes")}
-              rows={2}
+              rows={3}
             />
+
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+              <p className="text-xs text-muted-foreground">
+                Dica: quanto mais completa a OS, melhor fica o histórico do
+                cliente, o PDF e o link público enviado pelo WhatsApp.
+              </p>
+            </div>
+
             <div className="flex gap-2 pt-1">
               <Btn
                 type="button"
@@ -3097,13 +4527,15 @@ function OrdersPage({
               >
                 Cancelar
               </Btn>
+
               <Btn
                 type="submit"
                 variant="primary"
                 className="flex-1 justify-center"
                 loading={loading}
+                disabled={loading}
               >
-                {!loading && "Abrir OS"}
+                {!loading && "Salvar OS"}
               </Btn>
             </div>
           </form>
@@ -3111,10 +4543,14 @@ function OrdersPage({
       )}
 
       {confirmDel && (
-        <Modal title="Excluir ordem?" onClose={() => setConfirmDel(null)}>
-          <p className="text-sm text-muted-foreground mb-4">
-            Esta ação não pode ser desfeita.
+        <Modal
+          title="Excluir ordem de serviço?"
+          onClose={() => setConfirmDel(null)}
+        >
+          <p className="mb-4 text-sm text-muted-foreground">
+            Esta ação não pode ser desfeita. A ordem será removida do sistema.
           </p>
+
           <div className="flex gap-2">
             <Btn
               variant="secondary"
@@ -3123,12 +4559,14 @@ function OrdersPage({
             >
               Cancelar
             </Btn>
+
             <Btn
               variant="danger"
               className="flex-1 justify-center"
               onClick={() => del(confirmDel)}
             >
-              <Trash2 size={13} /> Excluir
+              <Trash2 size={13} />
+              Excluir
             </Btn>
           </div>
         </Modal>
@@ -3279,7 +4717,29 @@ function OrderDetail({
   }
 
   async function sendPdfWhatsApp() {
-    await generatePDF();
+    if (!client || !vehicle || !profile) {
+      showToast("Não foi possível gerar o PDF. Dados incompletos.", "error");
+      return;
+    }
+
+    await generateOrderPDF({
+      order: {
+        ...current,
+        delivery_date: (current as any).delivery_date || undefined,
+      },
+      client,
+      vehicle,
+      workshop: {
+        workshop_name: profile.workshop_name || undefined,
+        owner_name: profile.owner_name || undefined,
+        phone: profile.phone || undefined,
+        whatsapp: profile.whatsapp || undefined,
+        city: profile.city || undefined,
+        state: profile.state || undefined,
+        logo_url: profile.logo_url || undefined,
+      },
+    });
+
     openWhatsApp(buildUpdateMessage(true));
   }
 
@@ -3441,505 +4901,417 @@ function OrderDetail({
     }
   }
 
-  async function generatePDF() {
-    const doc = new jsPDF();
-    const pageWidth = doc.internal.pageSize.getWidth();
-    async function imageToBase64(url: string): Promise<string> {
-      const res = await fetch(url);
-      const blob = await res.blob();
+  const publicUrl = getPublicOrderUrl(current);
 
-      return await new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result as string);
-        reader.readAsDataURL(blob);
-      });
-    }
-
-    doc.setFillColor(8, 13, 23);
-    doc.rect(0, 0, pageWidth, 34, "F");
-    if (profile?.logo_url) {
-      try {
-        const logoBase64 = await imageToBase64(profile.logo_url);
-        doc.addImage(logoBase64, "PNG", 16, 6, 20, 20);
-      } catch (err) {
-        console.warn("Erro ao carregar logo no PDF:", err);
-      }
-    }
-
-    doc.setTextColor(255, 255, 255);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(18);
-    doc.text(workshopName.toUpperCase(), profile?.logo_url ? 46 : 20, 17);
-
-    doc.setFontSize(9);
-    doc.setFont("helvetica", "normal");
-    doc.text("Ordem de Serviço digital", 20, 25);
-
-    doc.setTextColor(0, 0, 0);
-    doc.setDrawColor(0, 150, 90);
-    doc.setLineWidth(1.2);
-    doc.line(20, 42, 190, 42);
-
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(16);
-    doc.text("ORDEM DE SERVICO", 20, 54);
-
-    doc.setFontSize(9);
-    doc.setFont("helvetica", "normal");
-    doc.text(
-      `Data: ${new Date(current.created_at).toLocaleDateString("pt-BR")}`,
-      150,
-      52,
-    );
-    doc.text(`Status: ${STATUS_LABEL[form.status]}`, 150, 58);
-
-    doc.setDrawColor(220, 220, 220);
-    doc.roundedRect(20, 65, 80, 38, 3, 3);
-    doc.roundedRect(110, 65, 80, 38, 3, 3);
-
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(11);
-    doc.text("CLIENTE", 25, 75);
-    doc.text("VEICULO", 115, 75);
-
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(9);
-    doc.text(`Nome: ${client?.name || "-"}`, 25, 84);
-    doc.text(`Telefone: ${client?.phone || "-"}`, 25, 91);
-    doc.text(`WhatsApp: ${client?.whatsapp || "-"}`, 25, 98);
-
-    doc.text(
-      `Modelo: ${vehicle?.brand || ""} ${vehicle?.model || ""}`,
-      115,
-      84,
-    );
-    doc.text(`Placa: ${vehicle?.plate || "-"}`, 115, 91);
-    doc.text(`KM: ${vehicle?.mileage || "-"}`, 115, 98);
-
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(11);
-    doc.text("PROBLEMA RELATADO", 20, 118);
-
-    doc.setDrawColor(230, 230, 230);
-    doc.roundedRect(20, 123, 170, 30, 3, 3);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(9);
-    doc.text(doc.splitTextToSize(current.reported_issue || "-", 160), 25, 133);
-
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(11);
-    doc.text("SERVICOS EXECUTADOS", 20, 166);
-
-    doc.setDrawColor(230, 230, 230);
-    doc.roundedRect(20, 171, 170, 32, 3, 3);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(9);
-    doc.text(doc.splitTextToSize(form.services_performed || "-", 160), 25, 181);
-
-    if (form.delivery_date) {
-      doc.setFont("helvetica", "bold");
-      doc.text("PREVISAO DE ENTREGA", 20, 216);
-      doc.setFont("helvetica", "normal");
-      doc.text(
-        new Date(form.delivery_date).toLocaleDateString("pt-BR"),
-        70,
-        216,
-      );
-    }
-
-    doc.setFillColor(0, 150, 90);
-    doc.roundedRect(20, 225, 170, 25, 3, 3, "F");
-
-    doc.setTextColor(255, 255, 255);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(12);
-    doc.text("VALOR TOTAL", 25, 235);
-
-    doc.setFontSize(18);
-    doc.text(fmtMoney(form.value), 25, 245);
-
-    doc.setTextColor(0, 0, 0);
-    doc.setDrawColor(0, 150, 90);
-    doc.line(20, 270, 90, 270);
-
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(10);
-    doc.text("Assinatura do Cliente", 20, 277);
-
-    doc.setFontSize(8);
-    doc.setTextColor(120, 120, 120);
-    doc.text(`Documento gerado por ${workshopName}`, 20, 290);
-    doc.text("Sistema Vortan Oficina", 155, 290);
-
-    doc.save(`OS-${vehicle?.plate || "VORTAN"}.pdf`);
-  }
+  const detailItems = [
+    { label: "Cliente", value: client?.name || "Cliente não informado" },
+    {
+      label: "Contato",
+      value: client?.whatsapp || client?.phone || "Sem contato",
+    },
+    {
+      label: "Veículo",
+      value: vehicle
+        ? `${vehicle.brand} ${vehicle.model}`
+        : "Veículo não informado",
+    },
+    { label: "Placa", value: vehicle?.plate || "Sem placa" },
+  ];
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       {toast && <Toast message={toast.msg} type={toast.type} />}
 
-      <button
-        onClick={onBack}
-        className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-      >
-        <ArrowLeft size={14} /> Voltar
-      </button>
+      <div className="overflow-hidden rounded-3xl border border-red-500/20 bg-[radial-gradient(circle_at_top_right,rgba(239,68,68,0.22),transparent_34%),linear-gradient(135deg,rgba(239,68,68,0.10),rgba(11,15,20,0.95)_42%,rgba(0,0,0,0.92))] p-5 shadow-[0_0_45px_rgba(239,68,68,0.10)]">
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+          <div className="min-w-0">
+            <button
+              type="button"
+              onClick={onBack}
+              className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-bold text-muted-foreground transition hover:border-red-500/30 hover:text-red-300"
+            >
+              <ArrowLeft size={13} />
+              Voltar para ordens
+            </button>
 
-      <div className="flex items-start justify-between gap-3 flex-wrap">
-        <div>
-          <h1 className="font-heading font-bold text-2xl text-foreground tracking-wide">
-            Ordem de Serviço
-          </h1>
-          <div className="flex items-center gap-2 mt-1 flex-wrap">
-            <StatusBadge status={form.status} />
-            <span className="text-xs font-mono text-muted-foreground">
-              {fmt(current.created_at)}
-            </span>
-          </div>
-        </div>
-
-        <div className="flex gap-2 flex-wrap">
-          <Btn
-            variant="secondary"
-            size="sm"
-            onClick={() => setEditing(!editing)}
-          >
-            <Edit2 size={13} /> {editing ? "Cancelar" : "Editar"}
-          </Btn>
-
-          <Btn variant="secondary" size="sm" onClick={sendUpdateWhatsApp}>
-            <Send size={14} /> Enviar atualização
-          </Btn>
-
-          <Btn variant="secondary" size="sm" onClick={sendPdfWhatsApp}>
-            <FileText size={14} /> Enviar PDF
-          </Btn>
-
-          <Btn
-            type="button"
-            onClick={() => {
-              const publicUrl = getPublicOrderUrl(current);
-
-              if (!publicUrl) {
-                showToast("Essa OS ainda não tem link público.", "error");
-                return;
-              }
-
-              navigator.clipboard.writeText(publicUrl);
-
-              alert("Link copiado!");
-            }}
-          >
-            📲 Compartilhar acompanhamento
-          </Btn>
-        </div>
-      </div>
-
-      {!editing && (
-        <div className="flex gap-2 flex-wrap">
-          {(["aguardando", "em_manutencao", "finalizado"] as OrderStatus[]).map(
-            (s) => (
-              <button
-                key={s}
-                onClick={() => quickStatus(s)}
-                disabled={form.status === s}
-                className={`px-3 py-1.5 rounded-md text-xs font-medium border transition-all disabled:opacity-40 disabled:cursor-default ${
-                  form.status === s
-                    ? STATUS_COLOR[s]
-                    : "text-muted-foreground border-border hover:text-foreground hover:border-border/60"
-                }`}
-              >
-                {STATUS_LABEL[s]}
-              </button>
-            ),
-          )}
-        </div>
-      )}
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <Card className="p-4">
-          <div className="text-xs text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">
-            <Users size={10} /> Cliente
-          </div>
-          <div className="text-sm font-medium text-foreground">
-            {client?.name ?? "—"}
-          </div>
-          {client?.phone && (
-            <div className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
-              <Phone size={10} />
-              {client.phone}
-            </div>
-          )}
-          {client?.whatsapp && (
-            <div className="text-xs text-red-400 mt-1 flex items-center gap-1">
-              <MessageCircle size={10} />
-              {client.whatsapp}
-            </div>
-          )}
-        </Card>
-
-        <Card className="p-4">
-          <div className="text-xs text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">
-            <Car size={10} /> Veículo
-          </div>
-          {vehicle ? (
-            <>
-              <div className="text-sm font-medium text-foreground">
-                {vehicle.brand} {vehicle.model}
-              </div>
-              <div className="flex items-center gap-2 mt-1 flex-wrap">
-                <span className="font-mono text-xs px-1.5 py-0.5 rounded bg-secondary text-muted-foreground border border-border">
-                  {vehicle.plate}
-                </span>
-                {vehicle.year && (
-                  <span className="text-xs text-muted-foreground">
-                    {vehicle.year}
-                  </span>
-                )}
-                {vehicle.mileage && (
-                  <span className="text-xs text-muted-foreground">
-                    {parseInt(vehicle.mileage).toLocaleString("pt-BR")} km
-                  </span>
-                )}
-              </div>
-            </>
-          ) : (
-            <div className="text-sm text-muted-foreground">—</div>
-          )}
-        </Card>
-      </div>
-
-      <Card className="p-4">
-        <div className="text-xs text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">
-          <AlertCircle size={10} /> Problema Relatado
-        </div>
-        <p className="text-sm text-foreground leading-relaxed">
-          {current.reported_issue || "—"}
-        </p>
-      </Card>
-
-      <Card className="p-4">
-        <div className="text-xs text-muted-foreground mb-2">
-          <span> ° </span>
-          FUNCIONÁRIO RESPONSÁVEL
-        </div>
-
-        <div className="font-medium">{order.employee_name}</div>
-      </Card>
-
-      {editing ? (
-        <form onSubmit={save}>
-          <Card className="p-4 space-y-4">
-            <Textarea
-              label="Serviços executados"
-              value={form.services_performed}
-              onChange={set("services_performed")}
-              rows={3}
-              placeholder="Descreva os serviços realizados..."
-            />
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <Input
-                label="Valor (R$)"
-                value={form.value}
-                onChange={set("value")}
-                placeholder="0,00"
-              />
-              <Select
-                label="Status"
-                value={form.status}
-                onChange={set("status")}
-              >
-                {(
-                  ["aguardando", "em_manutencao", "finalizado"] as OrderStatus[]
-                ).map((s) => (
-                  <option key={s} value={s}>
-                    {STATUS_LABEL[s]}
-                  </option>
-                ))}
-              </Select>
-              <Input
-                label="Previsão de entrega"
-                type="date"
-                value={form.delivery_date}
-                onChange={set("delivery_date")}
-              />
+            <div className="inline-flex rounded-full border border-red-500/25 bg-red-500/10 px-3 py-1 text-xs font-black uppercase tracking-[0.2em] text-red-300">
+              Ordem de Serviço
             </div>
 
-            <Textarea
-              label="Checklist do veículo"
-              value={form.checklist}
-              onChange={set("checklist")}
-              rows={3}
-              placeholder="Ex: documento, chave, estepe, macaco, triângulo, avarias visíveis..."
-            />
-            <Textarea
-              label="Observações"
-              value={form.notes}
-              onChange={set("notes")}
-              rows={2}
-              placeholder="Notas adicionais..."
-            />
+            <h1 className="mt-4 font-heading text-3xl font-black tracking-tight text-white md:text-4xl">
+              {vehicle ? `${vehicle.brand} ${vehicle.model}` : "Detalhe da OS"}
+            </h1>
 
-            <div className="flex gap-2">
+            <div className="mt-3 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+              <span>{client?.name || "Cliente não informado"}</span>
+              <span className="text-red-500/60">•</span>
+              <span className="font-mono uppercase text-red-300">
+                {vehicle?.plate || "Sem placa"}
+              </span>
+              <span className="text-red-500/60">•</span>
+              <span>{fmt(current.created_at)}</span>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-3 lg:items-end">
+            <StatusBadge status={current.status} />
+
+            <div className="text-left lg:text-right">
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-muted-foreground">
+                Valor da OS
+              </p>
+              <p className="mt-1 text-3xl font-black text-green-500">
+                {fmtMoney(current.value)}
+              </p>
+            </div>
+
+            <div className="flex flex-wrap gap-2 lg:justify-end">
               <Btn
                 type="button"
                 variant="secondary"
-                className="flex-1 justify-center"
-                onClick={() => setEditing(false)}
+                onClick={sendUpdateWhatsApp}
               >
-                Cancelar
+                <MessageCircle size={14} />
+                WhatsApp
+              </Btn>
+
+              <Btn type="button" variant="primary" onClick={sendPdfWhatsApp}>
+                <FileText size={14} />
+                Enviar PDF
+              </Btn>
+
+              <Btn
+                type="button"
+                variant={editing ? "ghost" : "secondary"}
+                onClick={() => setEditing((v) => !v)}
+              >
+                <Edit2 size={14} />
+                {editing ? "Cancelar" : "Editar"}
+              </Btn>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {detailItems.map((item) => (
+          <Card key={item.label} className="p-4">
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">
+              {item.label}
+            </p>
+            <p className="mt-2 truncate text-sm font-bold text-foreground">
+              {item.value}
+            </p>
+          </Card>
+        ))}
+      </div>
+
+      <div className="grid gap-4 xl:grid-cols-[1fr_340px]">
+        <Card className="p-5">
+          <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h2 className="font-heading text-xl font-black text-foreground">
+                {editing ? "Editar ordem" : "Resumo do serviço"}
+              </h2>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Problema, execução, checklist, observações e dados da entrega.
+              </p>
+            </div>
+
+            {!editing && (
+              <button
+                type="button"
+                onClick={() => setEditing(true)}
+                className="inline-flex items-center gap-2 rounded-xl border border-red-500/25 bg-red-500/10 px-4 py-2 text-sm font-bold text-red-300 transition hover:bg-red-500/20"
+              >
+                <Edit2 size={14} />
+                Editar OS
+              </button>
+            )}
+          </div>
+
+          {editing ? (
+            <form onSubmit={save} className="space-y-4">
+              <div className="grid gap-4 md:grid-cols-2">
+                <Select
+                  label="Status"
+                  value={form.status}
+                  onChange={set("status")}
+                >
+                  <option value="aguardando">Aguardando</option>
+                  <option value="em_manutencao">Em manutenção</option>
+                  <option value="finalizado">Finalizado</option>
+                </Select>
+
+                <Input
+                  label="Valor"
+                  value={form.value}
+                  onChange={set("value")}
+                />
+
+                <Input
+                  label="Funcionário responsável"
+                  value={form.employee_name}
+                  onChange={set("employee_name")}
+                  placeholder="Ex: João"
+                />
+
+                <Input
+                  label="Previsão de entrega"
+                  type="date"
+                  value={form.delivery_date}
+                  onChange={set("delivery_date")}
+                />
+              </div>
+
+              <Textarea
+                label="Problema relatado"
+                rows={4}
+                value={form.reported_issue}
+                onChange={set("reported_issue")}
+              />
+
+              <Textarea
+                label="Serviços realizados"
+                rows={4}
+                value={form.services_performed}
+                onChange={set("services_performed")}
+              />
+
+              <Textarea
+                label="Checklist"
+                rows={3}
+                value={form.checklist}
+                onChange={set("checklist")}
+                placeholder="Itens verificados, peças, testes..."
+              />
+
+              <Textarea
+                label="Observações"
+                rows={3}
+                value={form.notes}
+                onChange={set("notes")}
+              />
+
+              <div className="flex flex-wrap justify-end gap-2 border-t border-white/10 pt-4">
+                <Btn
+                  type="button"
+                  variant="secondary"
+                  onClick={() => setEditing(false)}
+                >
+                  Cancelar
+                </Btn>
+                <Btn type="submit" variant="primary" loading={loading}>
+                  {!loading && "Salvar alterações"}
+                </Btn>
+              </div>
+            </form>
+          ) : (
+            <div className="space-y-4">
+              <div className="grid gap-3 md:grid-cols-3">
+                <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                  <p className="text-xs text-muted-foreground">Status</p>
+                  <div className="mt-2">
+                    <StatusBadge status={current.status} />
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                  <p className="text-xs text-muted-foreground">Funcionário</p>
+                  <p className="mt-2 text-sm font-bold text-foreground">
+                    {form.employee_name || "—"}
+                  </p>
+                </div>
+
+                <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                  <p className="text-xs text-muted-foreground">
+                    Entrega prevista
+                  </p>
+                  <p className="mt-2 text-sm font-bold text-foreground">
+                    {form.delivery_date
+                      ? new Date(form.delivery_date).toLocaleDateString("pt-BR")
+                      : "—"}
+                  </p>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-red-500/15 bg-black/20 p-4">
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-red-300">
+                  Problema relatado
+                </p>
+                <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-foreground">
+                  {current.reported_issue || "—"}
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-green-500/15 bg-green-500/[0.04] p-4">
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-green-300">
+                  Serviços realizados
+                </p>
+                <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-foreground">
+                  {current.services_performed || "Em andamento"}
+                </p>
+              </div>
+
+              <div className="grid gap-3 md:grid-cols-2">
+                <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                  <p className="text-xs font-black uppercase tracking-[0.18em] text-muted-foreground">
+                    Checklist
+                  </p>
+                  <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-foreground">
+                    {form.checklist || "—"}
+                  </p>
+                </div>
+
+                <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                  <p className="text-xs font-black uppercase tracking-[0.18em] text-muted-foreground">
+                    Observações
+                  </p>
+                  <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-foreground">
+                    {current.notes || "—"}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+        </Card>
+
+        <div className="space-y-4">
+          <Card className="p-5">
+            <h2 className="font-heading text-lg font-black text-foreground">
+              Ações rápidas
+            </h2>
+            <div className="mt-4 grid gap-2">
+              <Btn
+                type="button"
+                variant="secondary"
+                onClick={() => quickStatus("aguardando")}
+              >
+                <Clock size={14} /> Aguardando
               </Btn>
               <Btn
-                type="submit"
-                variant="primary"
-                className="flex-1 justify-center"
-                loading={loading}
+                type="button"
+                variant="secondary"
+                onClick={() => quickStatus("em_manutencao")}
               >
-                {!loading && "Salvar"}
+                <Wrench size={14} /> Em manutenção
+              </Btn>
+              <Btn
+                type="button"
+                variant="secondary"
+                onClick={() => quickStatus("finalizado")}
+              >
+                <CheckCircle size={14} /> Finalizar OS
               </Btn>
             </div>
           </Card>
-        </form>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <Card className="p-4">
-            <div className="text-xs text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">
-              <Wrench size={10} /> Serviços Executados
-            </div>
-            <p className="text-sm text-foreground leading-relaxed">
-              {form.services_performed || (
-                <span className="text-muted-foreground/50 italic">
-                  Nenhum serviço registrado ainda.
-                </span>
-              )}
-            </p>
-          </Card>
 
-          <div className="space-y-3">
-            <Card className="p-4">
-              <div className="text-xs text-muted-foreground uppercase tracking-wider mb-1 flex items-center gap-1.5">
-                <DollarSign size={10} /> Valor
-              </div>
-              <div className="text-xl font-heading font-bold text-primary">
-                {fmtMoney(form.value)}
-              </div>
-            </Card>
-
-            {form.delivery_date && (
-              <Card className="p-4">
-                <div className="text-xs text-muted-foreground uppercase tracking-wider mb-1 flex items-center gap-1.5">
-                  <Calendar size={10} /> Previsão de entrega
-                </div>
-                <div className="text-sm text-foreground">
-                  {new Date(form.delivery_date).toLocaleDateString("pt-BR")}
-                </div>
-              </Card>
-            )}
-
-            {form.checklist && (
-              <Card className="p-4">
-                <div className="text-xs text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                  <CheckCircle size={10} /> Checklist do veículo
-                </div>
-                <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">
-                  {form.checklist}
-                </p>
-              </Card>
-            )}
-
-            {form.notes && (
-              <Card className="p-4">
-                <div className="text-xs text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                  <FileText size={10} /> Observações
-                </div>
-                <p className="text-sm text-foreground leading-relaxed">
-                  {form.notes}
-                </p>
-              </Card>
-            )}
-          </div>
-        </div>
-      )}
-
-      <Card className="p-4 space-y-4">
-        <div className="flex items-center justify-between gap-3 flex-wrap">
-          <div>
-            <h2 className="font-heading font-semibold text-base text-foreground flex items-center gap-2">
-              <ImageIcon size={16} className="text-primary" /> Fotos da OS
+          <Card className="p-5">
+            <h2 className="font-heading text-lg font-black text-foreground">
+              Link público
             </h2>
-            <p className="text-xs text-muted-foreground">
-              Anexe fotos antes, depois ou gerais do serviço.
+            <p className="mt-2 text-sm text-muted-foreground">
+              Envie para o cliente acompanhar a ordem sem login.
+            </p>
+            {publicUrl ? (
+              <button
+                type="button"
+                onClick={() => {
+                  navigator.clipboard.writeText(publicUrl);
+                  showToast("Link copiado.", "success");
+                }}
+                className="mt-4 w-full rounded-xl border border-red-500/25 bg-red-500/10 px-4 py-3 text-sm font-bold text-red-300 transition hover:bg-red-500/20"
+              >
+                Copiar link público
+              </button>
+            ) : (
+              <p className="mt-4 rounded-xl border border-white/10 bg-white/[0.03] p-3 text-xs text-muted-foreground">
+                Esta OS ainda não possui token público.
+              </p>
+            )}
+          </Card>
+        </div>
+      </div>
+
+      <Card className="p-5">
+        <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h2 className="font-heading text-xl font-black text-foreground">
+              Fotos da OS
+            </h2>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Antes, depois e registros gerais do serviço.
             </p>
           </div>
-        </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-          {(["antes", "depois", "geral"] as OrderPhoto["photo_type"][]).map(
-            (type) => (
-              <label
-                key={type}
-                className="inline-flex items-center justify-center gap-2 px-3 py-2 rounded-md border border-border bg-secondary text-sm text-secondary-foreground hover:bg-secondary/80 cursor-pointer transition-colors"
-              >
-                <Upload size={14} />{" "}
-                {type === "antes"
-                  ? "Foto antes"
-                  : type === "depois"
-                    ? "Foto depois"
-                    : "Foto geral"}
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  disabled={uploading}
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    e.currentTarget.value = "";
-                    if (file) uploadPhoto(file, type);
-                  }}
-                />
-              </label>
-            ),
-          )}
+          <div className="flex flex-wrap gap-2">
+            {(["antes", "depois", "geral"] as OrderPhoto["photo_type"][]).map(
+              (type) => (
+                <label
+                  key={type}
+                  className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-2.5 text-sm font-bold text-red-300 transition hover:bg-red-500/20"
+                >
+                  <Upload size={14} />
+                  {type === "antes"
+                    ? "Antes"
+                    : type === "depois"
+                      ? "Depois"
+                      : "Geral"}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    disabled={uploading}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) uploadPhoto(file, type);
+                      e.currentTarget.value = "";
+                    }}
+                  />
+                </label>
+              ),
+            )}
+          </div>
         </div>
-
-        {uploading && (
-          <p className="text-xs text-muted-foreground">Enviando foto...</p>
-        )}
 
         {photos.length === 0 ? (
-          <div className="text-sm text-muted-foreground border border-dashed border-border rounded-lg p-6 text-center">
-            Nenhuma foto anexada ainda.
+          <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.03] py-12 text-center">
+            <ImageIcon
+              size={30}
+              className="mx-auto mb-2 text-muted-foreground/30"
+            />
+            <p className="text-sm text-muted-foreground">
+              Nenhuma foto anexada.
+            </p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {photos.map((photo) => (
               <div
                 key={photo.id}
-                className="border border-border rounded-lg overflow-hidden bg-secondary/30"
+                className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03]"
               >
-                <a href={photo.public_url} target="_blank" rel="noreferrer">
-                  <img
-                    src={photo.public_url}
-                    alt={photo.file_name}
-                    className="w-full h-32 object-cover"
-                  />
-                </a>
-                <div className="p-2 flex items-center justify-between gap-2">
-                  <div className="min-w-0">
-                    <div className="text-xs font-medium text-foreground truncate">
+                <img
+                  src={photo.public_url}
+                  alt={photo.file_name}
+                  className="h-44 w-full object-cover"
+                />
+                <div className="p-3">
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <span className="rounded-full border border-red-500/20 bg-red-500/10 px-2 py-0.5 text-[10px] font-bold uppercase text-red-300">
                       {photo.photo_type}
-                    </div>
-                    <div className="text-[10px] text-muted-foreground truncate">
-                      {photo.file_name}
-                    </div>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => deletePhoto(photo)}
+                      className="text-muted-foreground transition hover:text-destructive"
+                    >
+                      <Trash2 size={14} />
+                    </button>
                   </div>
-                  <button
-                    onClick={() => deletePhoto(photo)}
-                    className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                  >
-                    <Trash2 size={13} />
-                  </button>
+                  <p className="truncate text-xs text-muted-foreground">
+                    {photo.file_name}
+                  </p>
                 </div>
               </div>
             ))}
@@ -3949,7 +5321,6 @@ function OrderDetail({
     </div>
   );
 }
-
 function SettingsPage({ profile }: { profile: Profile | null }) {
   const [form, setForm] = useState({
     workshop_name: profile?.workshop_name ?? "",
@@ -3971,6 +5342,29 @@ function SettingsPage({ profile }: { profile: Profile | null }) {
   const setSettings =
     (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
       setForm((p) => ({ ...p, [k]: e.target.value }));
+
+  function onlyDigits(value?: string | null) {
+    return String(value || "").replace(/\D/g, "");
+  }
+
+  function getCompletionRate() {
+    const fields = [
+      form.workshop_name,
+      form.owner_name,
+      form.phone,
+      form.whatsapp,
+      form.city,
+      form.state,
+      form.zip_code,
+      form.logo_url,
+    ];
+
+    const filled = fields.filter((value) => String(value || "").trim()).length;
+
+    return Math.round((filled / fields.length) * 100);
+  }
+
+  const completionRate = getCompletionRate();
 
   async function handleCepChange(e: React.ChangeEvent<HTMLInputElement>) {
     const cep = e.target.value.replace(/\D/g, "");
@@ -3994,8 +5388,11 @@ function SettingsPage({ profile }: { profile: Profile | null }) {
         city: data.localidade || "",
         state: data.uf || "",
       }));
-    } catch (err) {
-      console.error("Erro ao buscar CEP", err);
+    } catch {
+      setToast({
+        msg: "Não foi possível buscar o CEP automaticamente.",
+        type: "error",
+      });
     }
   }
 
@@ -4009,7 +5406,10 @@ function SettingsPage({ profile }: { profile: Profile | null }) {
       } = await supabase.auth.getUser();
 
       if (!user) {
-        alert("Usuário não encontrado");
+        setToast({
+          msg: "Usuário não encontrado.",
+          type: "error",
+        });
         return;
       }
 
@@ -4038,186 +5438,375 @@ function SettingsPage({ profile }: { profile: Profile | null }) {
         msg: "Logo enviada com sucesso! Agora clique em Salvar Alterações.",
         type: "success",
       });
-    } catch (err) {
-      console.error(err);
-      alert("Erro ao enviar logo");
+    } catch {
+      setToast({
+        msg: "Erro ao enviar logo.",
+        type: "error",
+      });
+    }
+  }
+
+  async function saveSettings() {
+    try {
+      const updatedProfile = await API.upsertProfile(form);
+
+      setForm({
+        workshop_name: updatedProfile.workshop_name ?? "",
+        owner_name: updatedProfile.owner_name ?? "",
+        phone: updatedProfile.phone ?? "",
+        whatsapp: updatedProfile.whatsapp ?? "",
+        instagram: updatedProfile.instagram ?? "",
+        city: updatedProfile.city ?? "",
+        state: updatedProfile.state ?? "",
+        zip_code: updatedProfile.zip_code ?? "",
+        logo_url: updatedProfile.logo_url ?? "",
+      });
+
+      setToast({
+        msg: "Configurações salvas com sucesso!",
+        type: "success",
+      });
+
+      setTimeout(() => {
+        window.location.reload();
+      }, 800);
+    } catch (err: any) {
+      setToast({
+        msg: err.message || "Erro ao salvar configurações.",
+        type: "error",
+      });
+    }
+  }
+
+  async function cancelSubscription() {
+    const confirmCancel = window.confirm(
+      "Tem certeza que deseja cancelar sua assinatura? Você continuará com acesso até o fim do período já pago.",
+    );
+
+    if (!confirmCancel) return;
+
+    try {
+      const session = (await supabase.auth.getSession()).data.session;
+
+      if (!session) {
+        alert("Sessão expirada. Faça login novamente.");
+        return;
+      }
+
+      const res = await fetch(
+        "https://kddlzartfawqjnrafzdb.supabase.co/functions/v1/rapid-action/billing/cancel-subscription",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
+        },
+      );
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        if (res.status === 404) {
+          alert(
+            "Você não possui uma assinatura mensal recorrente para cancelar.",
+          );
+          return;
+        }
+
+        alert(data?.error || "Erro ao cancelar assinatura.");
+        return;
+      }
+
+      alert(data.message || "Assinatura cancelada com sucesso.");
+    } catch {
+      alert("Erro ao cancelar assinatura.");
     }
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       {toast && <Toast message={toast.msg} type={toast.type} />}
-      <div>
-        <h1 className="font-heading font-bold text-2xl text-foreground">
-          Configurações
-        </h1>
 
-        <p className="text-sm text-muted-foreground">Dados da oficina</p>
-      </div>
+      <div className="overflow-hidden rounded-3xl border border-red-500/20 bg-gradient-to-br from-red-500/10 via-card to-black/40 p-5 shadow-[0_0_35px_rgba(239,68,68,0.08)]">
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <div className="inline-flex rounded-full border border-red-500/20 bg-red-500/10 px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-red-300">
+              Central da Oficina
+            </div>
 
-      <Card className="p-5">
-        <div className="mb-5">
-          {form.logo_url && (
-            <img
-              src={form.logo_url}
-              alt="Logo"
-              className="h-20 w-auto object-contain mb-3 border border-border rounded p-2"
-            />
-          )}
+            <h1 className="mt-4 font-heading text-3xl font-black tracking-tight text-foreground">
+              Configurações
+            </h1>
 
-          <label className="inline-flex items-center gap-2 px-4 py-2.5 rounded-md bg-secondary text-secondary-foreground border border-border hover:bg-secondary/80 cursor-pointer text-sm font-medium">
-            <Upload size={14} />
-            Escolher logo da oficina
-            <input
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={handleLogoUpload}
-            />
-          </label>
+            <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+              Mantenha os dados da oficina atualizados para melhorar PDFs,
+              mensagens, identificação visual e atendimento ao cliente.
+            </p>
+          </div>
 
-          <p className="text-xs text-muted-foreground mt-2">
-            PNG transparente • Recomendado 1500x900 px
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Input
-            label="Nome da Oficina"
-            value={form.workshop_name}
-            onChange={setSettings("workshop_name")}
-          />
-
-          <Input
-            label="Responsável"
-            value={form.owner_name}
-            onChange={setSettings("owner_name")}
-          />
-
-          <Input
-            label="Telefone"
-            value={form.phone}
-            onChange={setSettings("phone")}
-          />
-
-          <Input
-            label="WhatsApp"
-            value={form.whatsapp}
-            onChange={setSettings("whatsapp")}
-          />
-
-          <Input
-            label="Instagram"
-            value={form.instagram}
-            onChange={setSettings("instagram")}
-          />
-
-          <Input
-            label="Cidade"
-            value={form.city}
-            onChange={setSettings("city")}
-          />
-
-          <Input
-            label="Estado"
-            value={form.state}
-            onChange={setSettings("state")}
-          />
-
-          <Input label="CEP" value={form.zip_code} onChange={handleCepChange} />
-        </div>
-
-        <div className="mt-4">
-          <Btn
-            type="button"
-            onClick={async () => {
-              try {
-                console.log("LOGO URL:", form.logo_url);
-                console.log("FORM SALVANDO:", JSON.stringify(form, null, 2));
-
-                const updatedProfile = await API.upsertProfile(form);
-
-                setForm({
-                  workshop_name: updatedProfile.workshop_name ?? "",
-                  owner_name: updatedProfile.owner_name ?? "",
-                  phone: updatedProfile.phone ?? "",
-                  whatsapp: updatedProfile.whatsapp ?? "",
-                  instagram: updatedProfile.instagram ?? "",
-                  city: updatedProfile.city ?? "",
-                  state: updatedProfile.state ?? "",
-                  zip_code: updatedProfile.zip_code ?? "",
-                  logo_url: updatedProfile.logo_url ?? "",
-                });
-
-                setToast({
-                  msg: "Configurações salvas com sucesso!",
-                  type: "success",
-                });
-
-                setTimeout(() => {
-                  window.location.reload();
-                }, 800);
-              } catch (err: any) {
-                alert(err.message);
-              }
-            }}
-          >
+          <Btn type="button" variant="primary" onClick={saveSettings}>
             Salvar Alterações
           </Btn>
-
-          <Btn
-            variant="secondary"
-            className="w-full justify-center mt-3 border border-red-500/40 bg-red-500/10 text-red-300 hover:bg-red-500/20"
-            onClick={async () => {
-              const confirmCancel = window.confirm(
-                "Tem certeza que deseja cancelar sua assinatura? Você continuará com acesso até o fim do período já pago.",
-              );
-
-              if (!confirmCancel) return;
-
-              try {
-                const session = (await supabase.auth.getSession()).data.session;
-
-                if (!session) {
-                  alert("Sessão expirada. Faça login novamente.");
-                  return;
-                }
-
-                const res = await fetch(
-                  "https://kddlzartfawqjnrafzdb.supabase.co/functions/v1/rapid-action/billing/cancel-subscription",
-                  {
-                    method: "POST",
-                    headers: {
-                      "Content-Type": "application/json",
-                      Authorization: `Bearer ${session.access_token}`,
-                    },
-                  },
-                );
-
-                const data = await res.json();
-
-                if (!res.ok) {
-                  if (res.status === 404) {
-                    alert(
-                      "Você não possui uma assinatura mensal recorrente para cancelar.",
-                    );
-                    return;
-                  }
-
-                  alert(data?.error || "Erro ao cancelar assinatura.");
-                  return;
-                }
-
-                alert(data.message || "Assinatura cancelada com sucesso.");
-              } catch (err) {
-                alert("Erro ao cancelar assinatura.");
-              }
-            }}
-          >
-            Cancelar assinatura mensal
-          </Btn>
         </div>
-      </Card>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Card className="p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="text-xs text-muted-foreground">
+                Perfil completo
+              </div>
+              <div className="mt-2 text-2xl font-bold text-red-400">
+                {completionRate}%
+              </div>
+            </div>
+            <CheckCircle size={20} className="text-red-400" />
+          </div>
+        </Card>
+
+        <Card className="p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="text-xs text-muted-foreground">Logo</div>
+              <div className="mt-2 text-2xl font-bold text-foreground">
+                {form.logo_url ? "OK" : "—"}
+              </div>
+            </div>
+            <ImageIcon size={20} className="text-primary" />
+          </div>
+        </Card>
+
+        <Card className="p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="text-xs text-muted-foreground">WhatsApp</div>
+              <div className="mt-2 text-2xl font-bold text-green-500">
+                {onlyDigits(form.whatsapp) ? "OK" : "—"}
+              </div>
+            </div>
+            <MessageCircle size={20} className="text-green-500" />
+          </div>
+        </Card>
+
+        <Card className="p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="text-xs text-muted-foreground">Localização</div>
+              <div className="mt-2 text-2xl font-bold text-blue-400">
+                {form.city && form.state ? "OK" : "—"}
+              </div>
+            </div>
+            <Building2 size={20} className="text-blue-400" />
+          </div>
+        </Card>
+      </div>
+
+      <div className="grid gap-4 xl:grid-cols-3">
+        <div className="space-y-4 xl:col-span-2">
+          <Card className="p-5">
+            <div className="mb-5 flex items-center justify-between gap-3">
+              <div>
+                <h2 className="font-heading text-lg font-bold text-foreground">
+                  Identidade da oficina
+                </h2>
+                <p className="text-xs text-muted-foreground">
+                  Nome, responsável e imagem que aparecem na Vortan.
+                </p>
+              </div>
+              <Building2 size={20} className="text-primary" />
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <Input
+                label="Nome da Oficina"
+                value={form.workshop_name}
+                onChange={setSettings("workshop_name")}
+              />
+
+              <Input
+                label="Responsável"
+                value={form.owner_name}
+                onChange={setSettings("owner_name")}
+              />
+            </div>
+
+            <div className="mt-5 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+              <p className="text-xs text-muted-foreground">
+                Esses dados ajudam a personalizar o painel, os PDFs e as
+                mensagens enviadas aos clientes.
+              </p>
+            </div>
+          </Card>
+
+          <Card className="p-5">
+            <div className="mb-5 flex items-center justify-between gap-3">
+              <div>
+                <h2 className="font-heading text-lg font-bold text-foreground">
+                  Contato e redes
+                </h2>
+                <p className="text-xs text-muted-foreground">
+                  Informações usadas em atendimento, WhatsApp e comunicação.
+                </p>
+              </div>
+              <Phone size={20} className="text-primary" />
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <Input
+                label="Telefone"
+                value={form.phone}
+                onChange={setSettings("phone")}
+              />
+
+              <Input
+                label="WhatsApp"
+                value={form.whatsapp}
+                onChange={setSettings("whatsapp")}
+              />
+
+              <Input
+                label="Instagram"
+                value={form.instagram}
+                onChange={setSettings("instagram")}
+              />
+            </div>
+          </Card>
+
+          <Card className="p-5">
+            <div className="mb-5 flex items-center justify-between gap-3">
+              <div>
+                <h2 className="font-heading text-lg font-bold text-foreground">
+                  Endereço
+                </h2>
+                <p className="text-xs text-muted-foreground">
+                  Use o CEP para preencher cidade e estado automaticamente.
+                </p>
+              </div>
+              <Building2 size={20} className="text-primary" />
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+              <Input
+                label="CEP"
+                value={form.zip_code}
+                onChange={handleCepChange}
+              />
+
+              <Input
+                label="Cidade"
+                value={form.city}
+                onChange={setSettings("city")}
+              />
+
+              <Input
+                label="Estado"
+                value={form.state}
+                onChange={setSettings("state")}
+              />
+            </div>
+          </Card>
+        </div>
+
+        <div className="space-y-4">
+          <Card className="p-5">
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <h2 className="font-heading text-lg font-bold text-foreground">
+                  Logo da oficina
+                </h2>
+                <p className="text-xs text-muted-foreground">
+                  Aparece no sistema e nos PDFs.
+                </p>
+              </div>
+              <ImageIcon size={20} className="text-primary" />
+            </div>
+
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+              {form.logo_url ? (
+                <img
+                  src={form.logo_url}
+                  alt="Logo"
+                  className="mx-auto mb-4 h-28 w-auto object-contain"
+                />
+              ) : (
+                <div className="mb-4 flex h-28 items-center justify-center rounded-2xl border border-dashed border-white/10 bg-black/20 text-sm text-muted-foreground">
+                  Sem logo enviada
+                </div>
+              )}
+
+              <label className="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-bold text-white transition hover:bg-white/10">
+                <Upload size={14} />
+                Escolher logo
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleLogoUpload}
+                />
+              </label>
+
+              <p className="mt-3 text-xs text-muted-foreground">
+                PNG transparente recomendado. Tamanho sugerido: 1500x900 px.
+              </p>
+            </div>
+          </Card>
+
+          <Card className="p-5">
+            <h2 className="font-heading text-lg font-bold text-foreground">
+              Qualidade do perfil
+            </h2>
+
+            <div className="mt-4">
+              <div className="mb-2 flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Preenchimento</span>
+                <span className="font-bold text-foreground">
+                  {completionRate}%
+                </span>
+              </div>
+
+              <div className="h-3 overflow-hidden rounded-full bg-white/10">
+                <div
+                  className="h-full rounded-full bg-red-500"
+                  style={{ width: `${completionRate}%` }}
+                />
+              </div>
+            </div>
+
+            <p className="mt-4 rounded-2xl border border-red-500/20 bg-red-500/10 p-4 text-sm leading-relaxed text-red-100">
+              Quanto mais completo o perfil, mais profissional ficam os PDFs,
+              mensagens e links públicos enviados aos clientes.
+            </p>
+          </Card>
+
+          <Card className="p-5">
+            <h2 className="font-heading text-lg font-bold text-foreground">
+              Assinatura
+            </h2>
+
+            <p className="mt-2 text-sm text-muted-foreground">
+              Gerencie sua assinatura mensal recorrente da Vortan Oficina.
+            </p>
+
+            <Btn
+              variant="secondary"
+              className="mt-4 w-full justify-center border border-red-500/40 bg-red-500/10 text-red-300 hover:bg-red-500/20"
+              onClick={cancelSubscription}
+            >
+              Cancelar assinatura mensal
+            </Btn>
+          </Card>
+        </div>
+      </div>
+
+      <div className="rounded-3xl border border-red-500/20 bg-red-500/10 p-5">
+        <p className="text-sm leading-relaxed text-red-100">
+          Dica da Vortan: mantenha logo, WhatsApp e nome da oficina sempre
+          atualizados. Isso aumenta a confiança do cliente quando ele recebe um
+          PDF ou link público da ordem de serviço.
+        </p>
+      </div>
     </div>
   );
 }
@@ -4236,113 +5825,345 @@ function HistoryPage({
   onView: (o: ServiceOrder) => void;
 }) {
   const [search, setSearch] = useState("");
-  console.log("ORDERS NO HISTORICO:", orders);
-  console.log(
-    "STATUS DAS OS:",
-    orders.map((o) => o.status),
-  );
+
+  function parseMoney(value?: string | number | null) {
+    return Number(
+      String(value || "0")
+        .replace(/\./g, "")
+        .replace(",", "."),
+    );
+  }
+
+  function formatDate(date?: string | null) {
+    if (!date) return "—";
+    return new Date(date).toLocaleDateString("pt-BR");
+  }
+
+  function getClient(order: ServiceOrder) {
+    return clients.find((c) => c.id === order.client_id);
+  }
+
+  function getVehicle(order: ServiceOrder) {
+    return vehicles.find((v) => v.id === order.vehicle_id);
+  }
 
   const done = orders.filter(
     (o) => String(o.status).trim().toLowerCase() === "finalizado",
   );
-  const filtered = done.filter((o) => {
-    const client = clients.find((c) => c.id === o.client_id);
-    const vehicle = vehicles.find((v) => v.id === o.vehicle_id);
-    const q = search.toLowerCase();
+
+  const totalRevenue = done.reduce(
+    (acc, order) => acc + parseMoney(order.value),
+    0,
+  );
+  const averageTicket = done.length > 0 ? totalRevenue / done.length : 0;
+
+  const currentMonth = new Date().getMonth();
+  const currentYear = new Date().getFullYear();
+
+  const doneThisMonth = done.filter((order) => {
+    const d = new Date(order.updated_at || order.created_at);
+    return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+  });
+
+  const revenueThisMonth = doneThisMonth.reduce(
+    (acc, order) => acc + parseMoney(order.value),
+    0,
+  );
+
+  const uniqueClients = new Set(done.map((order) => order.client_id)).size;
+
+  const filtered = done.filter((order) => {
+    const client = getClient(order);
+    const vehicle = getVehicle(order);
+    const q = search.trim().toLowerCase();
+
     return (
       !q ||
-      client?.name.toLowerCase().includes(q) ||
-      vehicle?.plate.toLowerCase().includes(q) ||
-      o.reported_issue.toLowerCase().includes(q)
+      String(client?.name || "")
+        .toLowerCase()
+        .includes(q) ||
+      String(vehicle?.plate || "")
+        .toLowerCase()
+        .includes(q) ||
+      String(vehicle?.brand || "")
+        .toLowerCase()
+        .includes(q) ||
+      String(vehicle?.model || "")
+        .toLowerCase()
+        .includes(q) ||
+      String(order.reported_issue || "")
+        .toLowerCase()
+        .includes(q) ||
+      String(order.services_performed || "")
+        .toLowerCase()
+        .includes(q) ||
+      String((order as any).employee_name || "")
+        .toLowerCase()
+        .includes(q)
     );
   });
+
   const sorted = [...filtered].sort(
     (a, b) =>
       new Date(b.updated_at || b.created_at).getTime() -
       new Date(a.updated_at || a.created_at).getTime(),
   );
 
+  const topClients = Object.entries(
+    done.reduce<Record<string, { count: number; total: number }>>(
+      (acc, order) => {
+        const clientId = order.client_id || "sem-cliente";
+        const current = acc[clientId] || { count: 0, total: 0 };
+
+        acc[clientId] = {
+          count: current.count + 1,
+          total: current.total + parseMoney(order.value),
+        };
+
+        return acc;
+      },
+      {},
+    ),
+  )
+    .map(([clientId, data]) => ({
+      client: clients.find((c) => c.id === clientId),
+      ...data,
+    }))
+    .sort((a, b) => b.total - a.total)
+    .slice(0, 4);
+
+  const recentVehicles = Object.entries(
+    done.reduce<Record<string, number>>((acc, order) => {
+      const vehicleId = order.vehicle_id || "sem-veiculo";
+      acc[vehicleId] = (acc[vehicleId] || 0) + 1;
+      return acc;
+    }, {}),
+  )
+    .map(([vehicleId, count]) => ({
+      vehicle: vehicles.find((v) => v.id === vehicleId),
+      count,
+    }))
+    .filter((item) => item.vehicle)
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 4);
+
   return (
-    <div className="space-y-4">
-      <div>
-        <h1 className="font-heading font-bold text-2xl text-foreground tracking-wide">
-          Histórico
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          {done.length} ordens finalizadas
-        </p>
+    <div className="space-y-5">
+      <div className="overflow-hidden rounded-3xl border border-red-500/20 bg-gradient-to-br from-red-500/10 via-card to-black/40 p-5 shadow-[0_0_35px_rgba(239,68,68,0.08)]">
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <div className="inline-flex rounded-full border border-red-500/20 bg-red-500/10 px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-red-300">
+              Memória da Oficina
+            </div>
+
+            <h1 className="mt-4 font-heading text-3xl font-black tracking-tight text-foreground">
+              Histórico
+            </h1>
+
+            <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+              Consulte ordens finalizadas, serviços executados, clientes
+              atendidos e faturamento registrado.
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+            <p className="text-xs text-muted-foreground">OS finalizadas</p>
+            <p className="mt-1 text-2xl font-black text-white">{done.length}</p>
+          </div>
+        </div>
       </div>
 
-      <div className="relative">
-        <Search
-          size={14}
-          className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-        />
-        <input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Buscar histórico..."
-          className="w-full bg-input-background border border-border rounded-md pl-9 pr-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-        />
-      </div>
-
-      {sorted.length === 0 ? (
-        <Card className="py-14 text-center">
-          <History
-            size={30}
-            className="mx-auto text-muted-foreground/20 mb-2"
-          />
-          <p className="text-sm text-muted-foreground">
-            {search ? "Nenhum resultado." : "Nenhuma ordem finalizada ainda."}
-          </p>
-        </Card>
-      ) : (
-        <Card>
-          <div className="divide-y divide-border">
-            {sorted.map((o) => {
-              const client = clients.find((c) => c.id === o.client_id);
-              const vehicle = vehicles.find((v) => v.id === o.vehicle_id);
-              return (
-                <button
-                  key={o.id}
-                  onClick={() => onView(o)}
-                  className="w-full px-4 py-3 flex items-center gap-3 hover:bg-secondary/40 transition-colors text-left"
-                >
-                  <div className="w-1 h-10 rounded-full bg-red-400/40 flex-shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-sm font-medium text-foreground">
-                        {client?.name ?? "—"}
-                      </span>
-                      {vehicle && (
-                        <span className="font-mono text-xs px-1.5 py-0.5 rounded bg-secondary text-muted-foreground border border-border">
-                          {vehicle.plate}
-                        </span>
-                      )}
-                    </div>
-                    <div className="text-xs text-muted-foreground mt-0.5 truncate">
-                      {o.reported_issue}
-                    </div>
-                    {o.services_performed && (
-                      <div className="text-xs text-muted-foreground/50 mt-0.5 truncate">
-                        {o.services_performed}
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex-shrink-0 text-right">
-                    <div className="text-sm font-mono font-medium text-green-500">
-                      {fmtMoney(o.value)}
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      {fmt(o.updated_at)}
-                    </div>
-                  </div>
-                </button>
-              );
-            })}
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Card className="p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="text-xs text-muted-foreground">
+                Faturamento histórico
+              </div>
+              <div className="mt-2 text-2xl font-bold text-green-500">
+                {fmtMoney(totalRevenue)}
+              </div>
+            </div>
+            <DollarSign size={20} className="text-green-500" />
           </div>
         </Card>
-      )}
+
+        <Card className="p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="text-xs text-muted-foreground">
+                Faturamento do mês
+              </div>
+              <div className="mt-2 text-2xl font-bold text-blue-400">
+                {fmtMoney(revenueThisMonth)}
+              </div>
+            </div>
+            <TrendingUp size={20} className="text-blue-400" />
+          </div>
+        </Card>
+
+        <Card className="p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="text-xs text-muted-foreground">Ticket médio</div>
+              <div className="mt-2 text-2xl font-bold text-red-400">
+                {fmtMoney(averageTicket)}
+              </div>
+            </div>
+            <Target size={20} className="text-red-400" />
+          </div>
+        </Card>
+
+        <Card className="p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="text-xs text-muted-foreground">
+                Clientes atendidos
+              </div>
+              <div className="mt-2 text-2xl font-bold text-foreground">
+                {uniqueClients}
+              </div>
+            </div>
+            <Users size={20} className="text-primary" />
+          </div>
+        </Card>
+      </div>
+
+      <div className="grid gap-4 xl:grid-cols-3">
+        <Card className="p-5 xl:col-span-2">
+          <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h2 className="font-heading text-lg font-bold text-foreground">
+                Ordens finalizadas
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                {sorted.length} resultado(s) encontrado(s).
+              </p>
+            </div>
+
+            <div className="relative w-full md:max-w-sm">
+              <Search
+                size={14}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+              />
+
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Buscar cliente, placa, serviço..."
+                className="w-full rounded-xl border border-border bg-input-background py-2.5 pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+            </div>
+          </div>
+
+          {sorted.length === 0 ? (
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] py-14 text-center">
+              <History
+                size={30}
+                className="mx-auto mb-2 text-muted-foreground/20"
+              />
+
+              <p className="text-sm text-muted-foreground">
+                {search
+                  ? "Nenhum resultado."
+                  : "Nenhuma ordem finalizada ainda."}
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {sorted.map((order) => {
+                const client = getClient(order);
+                const vehicle = getVehicle(order);
+                const employeeName = (order as any).employee_name;
+
+                return (
+                  <button
+                    key={order.id}
+                    onClick={() => onView(order)}
+                    className="group w-full rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-left transition hover:border-red-500/20 hover:bg-white/[0.05]"
+                  >
+                    <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-sm font-bold text-foreground">
+                            {client?.name || "Cliente não informado"}
+                          </span>
+
+                          <span className="rounded-full border border-green-500/20 bg-green-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-green-300">
+                            Finalizada
+                          </span>
+
+                          {vehicle && (
+                            <span className="rounded-full border border-red-500/25 bg-red-500/10 px-3 py-1 font-mono text-xs font-bold uppercase tracking-wider text-red-300">
+                              {vehicle.plate}
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                          <span className="flex items-center gap-1">
+                            <Car size={11} />
+                            {vehicle
+                              ? `${vehicle.brand} ${vehicle.model}`
+                              : "Veículo não informado"}
+                          </span>
+
+                          <span className="flex items-center gap-1">
+                            <Calendar size={11} />
+                            Finalizada em {formatDate(order.updated_at)}
+                          </span>
+
+                          {employeeName && (
+                            <span className="flex items-center gap-1">
+                              <Users size={11} />
+                              {employeeName}
+                            </span>
+                          )}
+                        </div>
+
+                        {order.reported_issue && (
+                          <p className="mt-3 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
+                            <span className="font-semibold text-foreground">
+                              Problema:
+                            </span>{" "}
+                            {order.reported_issue}
+                          </p>
+                        )}
+
+                        {order.services_performed && (
+                          <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
+                            <span className="font-semibold text-foreground">
+                              Serviço:
+                            </span>{" "}
+                            {order.services_performed}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="flex flex-col gap-3 xl:items-end">
+                        <div className="xl:text-right">
+                          <div className="text-lg font-bold text-green-500">
+                            {fmtMoney(order.value)}
+                          </div>
+
+                          <div className="text-xs text-muted-foreground">
+                            Criada em {formatDate(order.created_at)}
+                          </div>
+                        </div>
+
+                        <div className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-bold text-white transition group-hover:bg-white/10">
+                          <Eye size={13} />
+                          Visualizar
+                        </div>
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </Card>
+      </div>
     </div>
   );
 }

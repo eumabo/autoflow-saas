@@ -6,6 +6,7 @@ import { StatsTab } from "./admin/components/StatsTab";
 import { FilterButton } from "./admin/components/FilterButton";
 import { ActionButton } from "./admin/components/ActionButton";
 import { Info } from "./admin/components/Info";
+import { FinanceTab } from "./admin/components/FinanceTab";
 
 type AdminProfile = {
   id: string;
@@ -82,9 +83,10 @@ export default function AdminPage() {
   const [filter, setFilter] = useState<"all" | "trial" | "active" | "expired">(
     "all",
   );
-  const [tab, setTab] = useState<"dashboard" | "workshops" | "stats">(
-    "dashboard",
-  );
+  const [tab, setTab] = useState<
+    "dashboard" | "workshops" | "stats" | "finance"
+  >("dashboard");
+
   const [selected, setSelected] = useState<AdminProfile | null>(null);
 
   function getDaysLeft(profile: AdminProfile) {
@@ -414,6 +416,13 @@ export default function AdminPage() {
           >
             Estatísticas
           </FilterButton>
+
+          <FilterButton
+            active={tab === "finance"}
+            onClick={() => setTab("finance")}
+          >
+            Financeiro
+          </FilterButton>
         </div>
       </div>
 
@@ -435,6 +444,9 @@ export default function AdminPage() {
       )}
 
       {tab === "stats" && <StatsTab stats={stats} fmtMoney={fmtMoney} />}
+      {tab === "finance" && (
+        <FinanceTab profiles={profiles} fmtMoney={fmtMoney} />
+      )}
 
       {selected && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-0 backdrop-blur-sm md:items-center md:p-6">
