@@ -2,9 +2,9 @@
 
 :root {
   --font-size: 15px;
-  --font-heading: 'Rajdhani', sans-serif;
-  --font-body: 'DM Sans', sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
+  --font-heading: "Rajdhani", sans-serif;
+  --font-body: "DM Sans", sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
 
   --background: #0c0d0f;
   --foreground: #e8eaed;
@@ -181,5 +181,77 @@
     font-size: var(--text-base);
     font-weight: var(--font-weight-normal);
     line-height: 1.5;
+  }
+}
+
+/* ===========================================
+   VORTAN LED SCROLLBAR
+=========================================== */
+
+html,
+body,
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #dc2626 transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: linear-gradient(
+    180deg,
+    #ff7b7b 0%,
+    #ef4444 20%,
+    #dc2626 45%,
+    #991b1b 100%
+  );
+  box-shadow:
+    0 0 8px rgba(239, 68, 68, 0.3),
+    0 0 14px rgba(239, 68, 68, 0.18);
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.25s ease,
+    background 0.25s ease;
+  animation: vortanGlow 2.8s ease-in-out infinite;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  transform: scaleX(1.35);
+  box-shadow:
+    0 0 12px rgba(255, 80, 80, 0.55),
+    0 0 24px rgba(255, 80, 80, 0.28);
+  background: linear-gradient(180deg, #ff9b9b, #ff5d5d, #ef4444, #b91c1c);
+}
+
+*::-webkit-scrollbar-thumb:active {
+  transform: scaleX(1.5);
+  box-shadow: 0 0 18px rgba(255, 90, 90, 0.75);
+}
+
+@keyframes vortanGlow {
+  0% {
+    box-shadow:
+      0 0 6px rgba(239, 68, 68, 0.18),
+      0 0 12px rgba(239, 68, 68, 0.08);
+  }
+
+  50% {
+    box-shadow:
+      0 0 14px rgba(239, 68, 68, 0.45),
+      0 0 24px rgba(239, 68, 68, 0.2);
+  }
+
+  100% {
+    box-shadow:
+      0 0 6px rgba(239, 68, 68, 0.18),
+      0 0 12px rgba(239, 68, 68, 0.08);
   }
 }

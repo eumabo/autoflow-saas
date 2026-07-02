@@ -51,7 +51,7 @@ import type {
 import jsPDF from "jspdf";
 import { useLocation, useNavigate } from "react-router-dom";
 import AdminPage from "../pages/AdminPage";
-import { generateOrderPDF } from "../Utils/pdfGenerator";
+import { generateBudgetPDF, generateOrderPDF } from "../Utils/pdfGenerator";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -60,6 +60,7 @@ type Page =
   | "dashboard"
   | "clients"
   | "vehicles"
+  | "budgets"
   | "orders"
   | "history"
   | "order-detail"
@@ -95,6 +96,84 @@ function StatusBadge({ status }: { status: OrderStatus }) {
       {STATUS_LABEL[status]}
     </span>
   );
+}
+
+const BUDGET_NOTE_MARKER = "[VORTAN_ORCAMENTO]";
+const BUDGET_NOTE_END_MARKER = "[FIM_VORTAN_ORCAMENTO]";
+
+type BudgetItem = {
+  description: string;
+  value: string;
+};
+
+type BudgetDetails = {
+  payment_method?: string;
+  payment_details?: string;
+  validity?: string;
+  client_note?: string;
+  internal_note?: string;
+  parts?: BudgetItem[];
+  labor?: BudgetItem[];
+};
+
+function isBudgetOrder(order: ServiceOrder) {
+  return String(order.notes || "").includes(BUDGET_NOTE_MARKER);
+}
+
+function buildBudgetNotes(details: BudgetDetails) {
+  return [
+    BUDGET_NOTE_MARKER,
+    `payment_method=${details.payment_method || ""}`,
+    `payment_details=${details.payment_details || ""}`,
+    `validity=${details.validity || ""}`,
+    `client_note=${String(details.client_note || "").replace(/\n/g, "\\n")}`,
+    `internal_note=${String(details.internal_note || "").replace(/\n/g, "\\n")}`,
+    `parts=${encodeURIComponent(JSON.stringify(details.parts || []))}`,
+    `labor=${encodeURIComponent(JSON.stringify(details.labor || []))}`,
+    BUDGET_NOTE_END_MARKER,
+  ].join("\n");
+}
+
+function getBudgetDetails(notes?: string | null): BudgetDetails {
+  const text = String(notes || "");
+  const details: BudgetDetails = {};
+
+  const start = text.indexOf(BUDGET_NOTE_MARKER);
+  const end = text.indexOf(BUDGET_NOTE_END_MARKER);
+  if (start === -1) return details;
+
+  const block = text.slice(start, end === -1 ? undefined : end).split("\n");
+  for (const line of block) {
+    const eq = line.indexOf("=");
+    if (eq === -1) continue;
+    const key = line.slice(0, eq).trim() as keyof BudgetDetails;
+    const value = line
+      .slice(eq + 1)
+      .replace(/\\n/g, "\n")
+      .trim();
+    if (key === "parts" || key === "labor") {
+      try {
+        (details as any)[key] = JSON.parse(decodeURIComponent(value || "[]"));
+      } catch {
+        (details as any)[key] = [];
+      }
+    } else {
+      (details as any)[key] = value;
+    }
+  }
+
+  return details;
+}
+
+function cleanBudgetNotes(notes?: string | null) {
+  const text = String(notes || "");
+  const start = text.indexOf(BUDGET_NOTE_MARKER);
+  if (start === -1) return text.trim();
+
+  const end = text.indexOf(BUDGET_NOTE_END_MARKER);
+  if (end === -1) return text.replace(BUDGET_NOTE_MARKER, "").trim();
+
+  return `${text.slice(0, start)}${text.slice(end + BUDGET_NOTE_END_MARKER.length)}`.trim();
 }
 
 // ─── Formatting ───────────────────────────────────────────────────────────────
@@ -1207,6 +1286,7 @@ function OnboardingScreen({
 
 const NAV = [
   { page: "dashboard" as Page, label: "Dashboard", icon: LayoutDashboard },
+  { page: "budgets" as Page, label: "Orçamentos", icon: FileText },
   { page: "orders" as Page, label: "Ordens de Serviço", icon: ClipboardList },
   { page: "clients" as Page, label: "Clientes", icon: Users },
   { page: "vehicles" as Page, label: "Veículos", icon: Car },
@@ -3925,6 +4005,887 @@ function VehiclesPage({
 }
 
 // ─── Orders ───────────────────────────────────────────────────────────────────
+
+function BudgetsPage({
+  profile,
+  orders,
+  clients,
+  vehicles,
+  onReload,
+}: {
+  profile: Profile | null;
+  orders: ServiceOrder[];
+  clients: Client[];
+  vehicles: Vehicle[];
+  onReload: () => Promise<void>;
+}) {
+  const [search, setSearch] = useState("");
+  const [modal, setModal] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [confirmDel, setConfirmDel] = useState<string | null>(null);
+  const [toast, setToast] = useState<{
+    msg: string;
+    type: "error" | "success";
+  } | null>(null);
+  const [form, setForm] = useState({
+    client_id: "",
+    vehicle_id: "",
+    reported_issue: "",
+    employee_name: "",
+    services_performed: "",
+    value: "",
+    payment_method: "PIX",
+    payment_details: "",
+    validity: "15 dias",
+    custom_validity: "",
+    client_note: "",
+    internal_note: "",
+    parts: [{ description: "", value: "" }] as BudgetItem[],
+    labor: [{ description: "", value: "" }] as BudgetItem[],
+  });
+
+  function showToast(msg: string, type: "error" | "success") {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 3500);
+  }
+
+  function parseMoney(value?: string | number | null) {
+    return Number(
+      String(value || "0")
+        .replace(/\./g, "")
+        .replace(",", "."),
+    );
+  }
+
+  function formatDate(date?: string | null) {
+    if (!date) return "—";
+    return new Date(date).toLocaleDateString("pt-BR");
+  }
+
+  function getClient(order: ServiceOrder) {
+    return clients.find((c) => c.id === order.client_id);
+  }
+
+  function getVehicle(order: ServiceOrder) {
+    return vehicles.find((v) => v.id === order.vehicle_id);
+  }
+
+  const clientVehicles = vehicles.filter((v) => v.client_id === form.client_id);
+  const totalValue = orders.reduce(
+    (acc, order) => acc + parseMoney(order.value),
+    0,
+  );
+
+  const filtered = orders.filter((order) => {
+    const term = search.trim().toLowerCase();
+    if (!term) return true;
+    const client = getClient(order);
+    const vehicle = getVehicle(order);
+    return (
+      String(client?.name || "")
+        .toLowerCase()
+        .includes(term) ||
+      String(vehicle?.plate || "")
+        .toLowerCase()
+        .includes(term) ||
+      String(vehicle?.brand || "")
+        .toLowerCase()
+        .includes(term) ||
+      String(vehicle?.model || "")
+        .toLowerCase()
+        .includes(term) ||
+      String(order.reported_issue || "")
+        .toLowerCase()
+        .includes(term) ||
+      String(order.services_performed || "")
+        .toLowerCase()
+        .includes(term)
+    );
+  });
+
+  const sorted = [...filtered].sort((a, b) =>
+    String(b.updated_at || b.created_at).localeCompare(
+      String(a.updated_at || a.created_at),
+    ),
+  );
+
+  function openAdd() {
+    const firstClient = clients[0];
+    const firstVehicle = firstClient
+      ? vehicles.find((v) => v.client_id === firstClient.id)
+      : null;
+    setForm({
+      client_id: firstClient?.id ?? "",
+      vehicle_id: firstVehicle?.id ?? "",
+      reported_issue: "",
+      employee_name: "",
+      services_performed: "",
+      value: "",
+      payment_method: "PIX",
+      payment_details: "",
+      validity: "15 dias",
+      custom_validity: "",
+      client_note: "",
+      internal_note: "",
+      parts: [{ description: "", value: "" }],
+      labor: [{ description: "", value: "" }],
+    });
+    setModal(true);
+  }
+
+  const set =
+    (k: keyof typeof form) =>
+    (
+      e: React.ChangeEvent<
+        HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+      >,
+    ) => {
+      const val = e.target.value;
+      setForm((p) => {
+        const next = { ...p, [k]: val };
+        if (k === "client_id") {
+          const veh = vehicles.find((v) => v.client_id === val);
+          next.vehicle_id = veh?.id ?? "";
+        }
+        return next;
+      });
+    };
+
+  function updateBudgetItem(
+    kind: "parts" | "labor",
+    index: number,
+    field: keyof BudgetItem,
+    value: string,
+  ) {
+    setForm((p) => ({
+      ...p,
+      [kind]: p[kind].map((item, i) =>
+        i === index ? { ...item, [field]: value } : item,
+      ),
+    }));
+  }
+
+  function addBudgetItem(kind: "parts" | "labor") {
+    setForm((p) => ({
+      ...p,
+      [kind]: [...p[kind], { description: "", value: "" }],
+    }));
+  }
+
+  function removeBudgetItem(kind: "parts" | "labor", index: number) {
+    setForm((p) => ({
+      ...p,
+      [kind]:
+        p[kind].length <= 1
+          ? [{ description: "", value: "" }]
+          : p[kind].filter((_, i) => i !== index),
+    }));
+  }
+
+  function sumBudgetItems(items?: BudgetItem[]) {
+    return (items ?? []).reduce(
+      (acc, item) => acc + parseMoney(item?.value ?? 0),
+      0,
+    );
+  }
+
+  function cleanBudgetItems(items?: BudgetItem[]) {
+    return (items ?? [])
+      .map((item) => ({
+        description: item.description.trim(),
+        value: String(parseMoney(item.value)),
+      }))
+      .filter((item) => item.description || parseMoney(item.value) > 0);
+  }
+
+  const partsTotal = sumBudgetItems(form.parts);
+  const laborTotal = sumBudgetItems(form.labor);
+  const budgetTotal = partsTotal + laborTotal;
+
+  async function save(e: React.FormEvent) {
+    e.preventDefault();
+    if (!form.client_id) return showToast("Selecione um cliente.", "error");
+    if (!form.vehicle_id) return showToast("Selecione um veículo.", "error");
+    setLoading(true);
+    try {
+      const validity =
+        form.validity === "Data personalizada"
+          ? form.custom_validity || "Data personalizada"
+          : form.validity;
+
+      await API.createOrder({
+        client_id: form.client_id,
+        vehicle_id: form.vehicle_id,
+        reported_issue: form.reported_issue,
+        employee_name: form.employee_name,
+        services_performed: cleanBudgetItems(form.labor)
+          .map((item) => item.description)
+          .join("\n"),
+        status: "aguardando",
+        value: String(budgetTotal),
+        notes: buildBudgetNotes({
+          payment_method: form.payment_method,
+          payment_details: form.payment_details,
+          validity,
+          client_note: form.client_note,
+          internal_note: form.internal_note,
+          parts: cleanBudgetItems(form.parts),
+          labor: cleanBudgetItems(form.labor),
+        }),
+      } as any);
+      await onReload();
+      setModal(false);
+      showToast("Orçamento criado!", "success");
+    } catch (err: any) {
+      showToast(err.message || "Erro ao criar orçamento.", "error");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function convertToOrder(order: ServiceOrder) {
+    try {
+      await API.updateOrder(order.id, {
+        notes: cleanBudgetNotes(order.notes),
+        status: "aguardando",
+      });
+      await onReload();
+      showToast("Orçamento convertido em O.S.!", "success");
+    } catch (err: any) {
+      showToast(err.message || "Erro ao converter orçamento.", "error");
+    }
+  }
+
+  async function del(id: string) {
+    try {
+      await API.deleteOrder(id);
+      await onReload();
+      setConfirmDel(null);
+      showToast("Orçamento excluído.", "success");
+    } catch (err: any) {
+      showToast(err.message || "Erro ao excluir orçamento.", "error");
+    }
+  }
+
+  async function generateBudget(order: ServiceOrder) {
+    const client = getClient(order);
+    const vehicle = getVehicle(order);
+
+    if (!client || !vehicle || !profile) {
+      showToast("Não foi possível gerar o PDF. Dados incompletos.", "error");
+      return;
+    }
+
+    await generateBudgetPDF({
+      order: {
+        ...order,
+        delivery_date: (order as any).delivery_date || undefined,
+      },
+      client,
+      vehicle,
+      workshop: {
+        workshop_name: profile.workshop_name || undefined,
+        owner_name: profile.owner_name || undefined,
+        phone: profile.phone || undefined,
+        whatsapp: profile.whatsapp || undefined,
+        city: profile.city || undefined,
+        state: profile.state || undefined,
+        logo_url: profile.logo_url || undefined,
+      },
+      details: getBudgetDetails(order.notes),
+    });
+  }
+
+  async function sendBudgetWhatsApp(order: ServiceOrder) {
+    const client = getClient(order);
+    const vehicle = getVehicle(order);
+    const num = (client?.whatsapp || client?.phone || "").replace(/\D/g, "");
+
+    if (!client || !vehicle) {
+      showToast("Cliente ou veículo não encontrado.", "error");
+      return;
+    }
+
+    if (!num) {
+      showToast("Cliente sem WhatsApp cadastrado.", "error");
+      return;
+    }
+
+    await generateBudget(order);
+
+    const details = getBudgetDetails(order.notes);
+    const payment =
+      `${details.payment_method || ""}${details.payment_details ? ` • ${details.payment_details}` : ""}`.trim();
+    const signature = `${profile?.workshop_name || "Oficina"}${profile?.whatsapp || profile?.phone ? `\nTel/WhatsApp: ${profile?.whatsapp || profile?.phone}` : ""}`;
+    const message =
+      `Olá, ${client.name}.\n\n` +
+      `Seu orçamento já está pronto.\n\n` +
+      `Veículo: ${vehicle.brand || ""} ${vehicle.model || ""} (${vehicle.plate || "-"})\n` +
+      `Valor: ${fmtMoney(order.value)}\n` +
+      (payment ? `Pagamento: ${payment}\n` : "") +
+      (details.validity ? `Validade: ${details.validity}\n` : "") +
+      `\nServiços orçados:\n${order.services_performed || "-"}\n\n` +
+      `O PDF do orçamento foi gerado pela oficina para envio ao cliente. Qualquer dúvida, estamos à disposição.\n\n` +
+      signature;
+
+    window.open(
+      `https://wa.me/55${num}?text=${encodeURIComponent(message)}`,
+      "_blank",
+    );
+  }
+
+  return (
+    <div className="space-y-5">
+      {toast && <Toast message={toast.msg} type={toast.type} />}
+
+      <div className="overflow-hidden rounded-3xl border border-red-500/20 bg-gradient-to-br from-red-500/10 via-card to-black/40 p-5 shadow-[0_0_35px_rgba(239,68,68,0.08)]">
+        <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
+          <div>
+            <div className="inline-flex rounded-full border border-red-500/20 bg-red-500/10 px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-red-300">
+              Propostas da Oficina
+            </div>
+            <h1 className="mt-4 font-heading text-3xl font-black tracking-tight text-foreground">
+              Orçamentos
+            </h1>
+            <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+              Crie orçamentos separados das Ordens de Serviço e converta em O.S.
+              somente quando o cliente aprovar.
+            </p>
+          </div>
+          <Btn
+            variant="primary"
+            onClick={openAdd}
+            disabled={!clients.length || !vehicles.length}
+            className="justify-center"
+          >
+            <Plus size={16} />
+            Novo Orçamento
+          </Btn>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+        <Card className="p-4">
+          <div className="text-xs text-muted-foreground">
+            Total de Orçamentos
+          </div>
+          <div className="mt-2 text-2xl font-bold text-foreground">
+            {orders.length}
+          </div>
+        </Card>
+        <Card className="p-4">
+          <div className="text-xs text-muted-foreground">Valor orçado</div>
+          <div className="mt-2 text-2xl font-bold text-green-500">
+            {fmtMoney(totalValue)}
+          </div>
+        </Card>
+        <Card className="p-4">
+          <div className="text-xs text-muted-foreground">Fluxo</div>
+          <div className="mt-2 text-sm font-bold text-red-300">
+            Orçamento → Converter em O.S.
+          </div>
+        </Card>
+      </div>
+
+      {(!clients.length || !vehicles.length) && (
+        <div className="flex items-start gap-3 rounded-2xl border border-amber-400/20 bg-amber-400/10 px-4 py-3 text-sm text-amber-200">
+          <AlertCircle size={16} className="mt-0.5 flex-shrink-0" />
+          <div>
+            <p className="font-bold">Cadastro incompleto</p>
+            <p className="text-xs text-amber-100/80">
+              Cadastre pelo menos um cliente e um veículo antes de abrir um
+              orçamento.
+            </p>
+          </div>
+        </div>
+      )}
+
+      <Card className="p-4">
+        <div className="relative w-full xl:max-w-md">
+          <Search
+            size={15}
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+          />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Buscar cliente, placa, veículo ou serviço..."
+            className="w-full rounded-xl border border-border bg-input-background py-3 pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+          />
+        </div>
+      </Card>
+
+      {sorted.length === 0 ? (
+        <Card className="py-16 text-center">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-red-500/20 bg-red-500/10">
+            <FileText size={26} className="text-red-300" />
+          </div>
+          <h2 className="font-heading text-xl font-bold text-foreground">
+            Nenhum orçamento encontrado
+          </h2>
+          <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
+            {search
+              ? "Tente buscar por outro cliente, placa ou serviço."
+              : "Crie o primeiro orçamento para enviar ao cliente antes de abrir a O.S."}
+          </p>
+          {!search && (
+            <Btn
+              type="button"
+              variant="primary"
+              className="mx-auto mt-5"
+              onClick={openAdd}
+              disabled={!clients.length || !vehicles.length}
+            >
+              <Plus size={15} />
+              Criar primeiro orçamento
+            </Btn>
+          )}
+        </Card>
+      ) : (
+        <div className="space-y-3">
+          {sorted.map((order) => {
+            const client = getClient(order);
+            const vehicle = getVehicle(order);
+            return (
+              <Card
+                key={order.id}
+                className="group overflow-hidden border-white/10 bg-[#0A0E13]/90 hover:border-red-500/25"
+              >
+                <div className="flex flex-col gap-4 p-4 xl:flex-row xl:items-center xl:justify-between">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-red-500/20 bg-red-500/10 text-red-300">
+                        <FileText size={18} />
+                      </div>
+                      <div className="min-w-0">
+                        <h2 className="font-heading text-base font-bold text-foreground">
+                          {client?.name || "Cliente não informado"}
+                        </h2>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {vehicle
+                            ? `${vehicle.brand} ${vehicle.model} • ${vehicle.plate}`
+                            : "Veículo não informado"}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="mt-4 grid gap-3 md:grid-cols-2">
+                      <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                          Solicitação
+                        </p>
+                        <p className="mt-1 truncate text-sm text-foreground">
+                          {order.reported_issue || "Não informado"}
+                        </p>
+                      </div>
+                      <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                          Serviços orçados
+                        </p>
+                        <p className="mt-1 truncate text-sm text-foreground">
+                          {order.services_performed || "Não informado"}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-3 xl:w-72 xl:items-end">
+                    <div className="w-full rounded-2xl border border-green-500/20 bg-green-500/10 px-4 py-3 xl:text-right">
+                      <p className="text-xs text-muted-foreground">
+                        Valor orçado
+                      </p>
+                      <p className="mt-1 text-2xl font-black text-green-400">
+                        {fmtMoney(order.value)}
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Criado em {formatDate(order.created_at)}
+                      </p>
+                    </div>
+                    <div className="flex w-full flex-wrap gap-2 xl:justify-end">
+                      <button
+                        type="button"
+                        onClick={() => generateBudget(order)}
+                        className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-blue-500/20 bg-blue-500/10 px-3 py-2 text-xs font-bold text-blue-300 transition hover:bg-blue-500/20 xl:flex-none"
+                      >
+                        <Download size={13} />
+                        PDF
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => sendBudgetWhatsApp(order)}
+                        className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-xs font-bold text-emerald-300 transition hover:bg-emerald-500/20 xl:flex-none"
+                      >
+                        <MessageCircle size={13} />
+                        WhatsApp
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => convertToOrder(order)}
+                        className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-green-500/20 bg-green-500/10 px-3 py-2 text-xs font-bold text-green-300 transition hover:bg-green-500/20 xl:flex-none"
+                      >
+                        <CheckCircle size={13} />
+                        Converter em O.S.
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setConfirmDel(order.id)}
+                        className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-xs font-bold text-red-300 transition hover:bg-red-500/20 xl:flex-none"
+                      >
+                        <Trash2 size={13} />
+                        Excluir
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+
+      {modal && (
+        <Modal title="Novo Orçamento" onClose={() => setModal(false)}>
+          <form onSubmit={save} className="flex flex-col gap-4">
+            <Select
+              label="Cliente"
+              value={form.client_id}
+              onChange={set("client_id")}
+              required
+            >
+              <option value="">Selecione um cliente</option>
+              {clients.map((client) => (
+                <option key={client.id} value={client.id}>
+                  {client.name}
+                </option>
+              ))}
+            </Select>
+            <Select
+              label="Veículo"
+              value={form.vehicle_id}
+              onChange={set("vehicle_id")}
+              required
+            >
+              <option value="">Selecione um veículo</option>
+              {clientVehicles.map((vehicle) => (
+                <option key={vehicle.id} value={vehicle.id}>
+                  {vehicle.brand} {vehicle.model} • {vehicle.plate}
+                </option>
+              ))}
+            </Select>
+            <Textarea
+              label="Solicitação do cliente"
+              placeholder="Ex: Revisar suspensão e freios..."
+              value={form.reported_issue}
+              onChange={set("reported_issue")}
+              required
+              rows={3}
+            />
+            <Input
+              label="Funcionário responsável"
+              placeholder="Ex: João"
+              value={form.employee_name}
+              onChange={set("employee_name")}
+            />
+
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2 text-sm font-bold text-foreground">
+                  <Wrench size={15} className="text-red-300" />
+                  Peças
+                </div>
+                <button
+                  type="button"
+                  onClick={() => addBudgetItem("parts")}
+                  className="inline-flex items-center gap-1 rounded-xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-xs font-bold text-red-200 hover:bg-red-500/20"
+                >
+                  <Plus size={13} />
+                  Adicionar peça
+                </button>
+              </div>
+              <div className="space-y-2">
+                {form.parts.map((item, index) => (
+                  <div
+                    key={`part-${index}`}
+                    className="grid gap-2 rounded-xl border border-white/10 bg-black/20 p-3 md:grid-cols-[1fr_160px_38px]"
+                  >
+                    <Input
+                      label="Peça"
+                      placeholder="Ex: Pastilha de freio"
+                      value={item.description}
+                      onChange={(e) =>
+                        updateBudgetItem(
+                          "parts",
+                          index,
+                          "description",
+                          e.target.value,
+                        )
+                      }
+                    />
+                    <Input
+                      label="Valor R$"
+                      placeholder="Ex: 180,00"
+                      value={item.value}
+                      onChange={(e) =>
+                        updateBudgetItem(
+                          "parts",
+                          index,
+                          "value",
+                          e.target.value,
+                        )
+                      }
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeBudgetItem("parts", index)}
+                      className="mt-6 inline-flex h-10 items-center justify-center rounded-xl border border-red-500/20 bg-red-500/10 text-red-300 hover:bg-red-500/20"
+                      aria-label="Remover peça"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-3 text-right text-xs font-bold text-muted-foreground">
+                Total peças:{" "}
+                <span className="text-foreground">{fmtMoney(partsTotal)}</span>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2 text-sm font-bold text-foreground">
+                  <ClipboardList size={15} className="text-blue-300" />
+                  Mão de obra / Serviços
+                </div>
+                <button
+                  type="button"
+                  onClick={() => addBudgetItem("labor")}
+                  className="inline-flex items-center gap-1 rounded-xl border border-blue-500/20 bg-blue-500/10 px-3 py-2 text-xs font-bold text-blue-200 hover:bg-blue-500/20"
+                >
+                  <Plus size={13} />
+                  Adicionar serviço
+                </button>
+              </div>
+              <div className="space-y-2">
+                {form.labor.map((item, index) => (
+                  <div
+                    key={`labor-${index}`}
+                    className="grid gap-2 rounded-xl border border-white/10 bg-black/20 p-3 md:grid-cols-[1fr_160px_38px]"
+                  >
+                    <Input
+                      label="Serviço / mão de obra"
+                      placeholder="Ex: Troca das pastilhas"
+                      value={item.description}
+                      onChange={(e) =>
+                        updateBudgetItem(
+                          "labor",
+                          index,
+                          "description",
+                          e.target.value,
+                        )
+                      }
+                    />
+                    <Input
+                      label="Valor R$"
+                      placeholder="Ex: 120,00"
+                      value={item.value}
+                      onChange={(e) =>
+                        updateBudgetItem(
+                          "labor",
+                          index,
+                          "value",
+                          e.target.value,
+                        )
+                      }
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeBudgetItem("labor", index)}
+                      className="mt-6 inline-flex h-10 items-center justify-center rounded-xl border border-red-500/20 bg-red-500/10 text-red-300 hover:bg-red-500/20"
+                      aria-label="Remover serviço"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-3 text-right text-xs font-bold text-muted-foreground">
+                Total mão de obra:{" "}
+                <span className="text-foreground">{fmtMoney(laborTotal)}</span>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-red-500/20 bg-red-500/10 p-4 text-right">
+              <div className="text-xs font-bold uppercase tracking-wider text-red-200">
+                Valor total do orçamento
+              </div>
+              <div className="mt-1 text-2xl font-black text-foreground">
+                {fmtMoney(budgetTotal)}
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+              <div className="mb-3 flex items-center gap-2 text-sm font-bold text-foreground">
+                <DollarSign size={15} className="text-green-400" />
+                Condições de pagamento
+              </div>
+              <div className="grid grid-cols-2 gap-2 md:grid-cols-5">
+                {[
+                  "PIX",
+                  "Dinheiro",
+                  "Cartão",
+                  "Entrada + entrega",
+                  "Personalizado",
+                ].map((option) => (
+                  <button
+                    key={option}
+                    type="button"
+                    onClick={() =>
+                      setForm((p) => ({ ...p, payment_method: option }))
+                    }
+                    className={`rounded-xl border px-3 py-3 text-xs font-bold transition ${form.payment_method === option ? "border-red-500/40 bg-red-500/15 text-red-200" : "border-white/10 bg-black/20 text-muted-foreground hover:border-red-500/25 hover:text-foreground"}`}
+                  >
+                    {option}
+                  </button>
+                ))}
+              </div>
+              {(form.payment_method === "Cartão" ||
+                form.payment_method === "Entrada + entrega" ||
+                form.payment_method === "Personalizado") && (
+                <div className="mt-3">
+                  <Input
+                    label="Detalhe da condição"
+                    placeholder={
+                      form.payment_method === "Cartão"
+                        ? "Ex: em até 3x sem juros"
+                        : form.payment_method === "Entrada + entrega"
+                          ? "Ex: 50% de entrada e 50% na entrega"
+                          : "Ex: boleto, transferência, combinado com cliente..."
+                    }
+                    value={form.payment_details}
+                    onChange={set("payment_details")}
+                  />
+                </div>
+              )}
+            </div>
+
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+              <div className="mb-3 flex items-center gap-2 text-sm font-bold text-foreground">
+                <Calendar size={15} className="text-red-300" />
+                Validade do orçamento
+              </div>
+              <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+                {["7 dias", "15 dias", "30 dias", "Data personalizada"].map(
+                  (option) => (
+                    <button
+                      key={option}
+                      type="button"
+                      onClick={() =>
+                        setForm((p) => ({ ...p, validity: option }))
+                      }
+                      className={`rounded-xl border px-3 py-3 text-xs font-bold transition ${form.validity === option ? "border-red-500/40 bg-red-500/15 text-red-200" : "border-white/10 bg-black/20 text-muted-foreground hover:border-red-500/25 hover:text-foreground"}`}
+                    >
+                      {option}
+                    </button>
+                  ),
+                )}
+              </div>
+              {form.validity === "Data personalizada" && (
+                <div className="mt-3">
+                  <Input
+                    label="Data ou prazo personalizado"
+                    placeholder="Ex: válido até 20/07/2026"
+                    value={form.custom_validity}
+                    onChange={set("custom_validity")}
+                  />
+                </div>
+              )}
+            </div>
+
+            <div className="grid gap-3 md:grid-cols-2">
+              <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                <div className="mb-3 flex items-center gap-2 text-sm font-bold text-foreground">
+                  <MessageCircle size={15} className="text-blue-300" />
+                  Observação para o cliente
+                </div>
+                <Textarea
+                  label=""
+                  placeholder="Aparece no orçamento/PDF. Ex: Peças sujeitas à disponibilidade."
+                  value={form.client_note}
+                  onChange={set("client_note")}
+                  rows={4}
+                />
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                <div className="mb-3 flex items-center gap-2 text-sm font-bold text-foreground">
+                  <Shield size={15} className="text-amber-300" />
+                  Detalhes internos
+                </div>
+                <Textarea
+                  label=""
+                  placeholder="Só a oficina vê. Ex: cliente pediu desconto, aguardar fornecedor..."
+                  value={form.internal_note}
+                  onChange={set("internal_note")}
+                  rows={4}
+                />
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+              <p className="text-xs text-muted-foreground">
+                Esse orçamento fica separado das Ordens de Serviço. Quando o
+                cliente aprovar, clique em “Converter em O.S.”.
+              </p>
+            </div>
+            <div className="flex gap-2 pt-1">
+              <Btn
+                type="button"
+                variant="secondary"
+                className="flex-1 justify-center"
+                onClick={() => setModal(false)}
+              >
+                Cancelar
+              </Btn>
+              <Btn
+                type="submit"
+                variant="primary"
+                className="flex-1 justify-center"
+                loading={loading}
+                disabled={loading}
+              >
+                {!loading && "Salvar Orçamento"}
+              </Btn>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {confirmDel && (
+        <Modal title="Excluir orçamento?" onClose={() => setConfirmDel(null)}>
+          <p className="mb-4 text-sm text-muted-foreground">
+            Esta ação não pode ser desfeita. O orçamento será removido do
+            sistema.
+          </p>
+          <div className="flex gap-2">
+            <Btn
+              variant="secondary"
+              className="flex-1 justify-center"
+              onClick={() => setConfirmDel(null)}
+            >
+              Cancelar
+            </Btn>
+            <Btn
+              variant="danger"
+              className="flex-1 justify-center"
+              onClick={() => del(confirmDel)}
+            >
+              <Trash2 size={13} />
+              Excluir
+            </Btn>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+}
 
 function OrdersPage({
   orders,
@@ -7019,7 +7980,7 @@ export default function App() {
             <Dashboard
               clients={clients}
               vehicles={vehicles}
-              orders={orders}
+              orders={orders.filter((o) => !isBudgetOrder(o))}
               profile={profile}
               onNav={nav}
               onViewOrder={viewOrder}
@@ -7038,9 +7999,19 @@ export default function App() {
             />
           )}
 
+          {page === "budgets" && (
+            <BudgetsPage
+              profile={profile}
+              orders={orders.filter(isBudgetOrder)}
+              clients={clients}
+              vehicles={vehicles}
+              onReload={loadAll}
+            />
+          )}
+
           {page === "orders" && (
             <OrdersPage
-              orders={orders}
+              orders={orders.filter((o) => !isBudgetOrder(o))}
               clients={clients}
               vehicles={vehicles}
               onReload={loadAll}
@@ -7061,7 +8032,7 @@ export default function App() {
 
           {page === "history" && (
             <HistoryPage
-              orders={orders}
+              orders={orders.filter((o) => !isBudgetOrder(o))}
               clients={clients}
               vehicles={vehicles}
               onView={(order) => {
@@ -7073,7 +8044,7 @@ export default function App() {
 
           {page === "financial" && (
             <FinancialPage
-              orders={orders}
+              orders={orders.filter((o) => !isBudgetOrder(o))}
               entries={financialEntries}
               onReload={loadAll}
             />
