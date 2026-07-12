@@ -803,10 +803,6 @@ async function syncAccessState(params: {
     ...(params.subscriptionPatch ?? {}),
   };
 
-  if (params.paymentId !== undefined) {
-    subscriptionPayload.mercadopago_payment_id = params.paymentId;
-  }
-
   const { error: subscriptionError } = await svc()
     .from("subscriptions")
     .upsert(subscriptionPayload, { onConflict: "user_id" });
@@ -889,6 +885,191 @@ async function mercadoPagoGet(path: string) {
   return { response, data };
 }
 
+function hexToBytes(value: string) {
+  if (!/^[0-9a-f]+$/i.test(value) || value.length % 2 !== 0) return null;
+  const bytes = new Uint8Array(value.length / 2);
+  for (let index = 0; index < bytes.length; index += 1) {
+    bytes[index] = Number.parseInt(value.slice(index * 2, index * 2 + 2), 16);
+  }
+  return bytes;
+}
+
+function timingSafeEqualHex(left: string, right: string) {
+  const leftBytes = hexToBytes(left);
+  const rightBytes = hexToBytes(right);
+  if (!leftBytes || !rightBytes || leftBytes.length !== rightBytes.length)
+    return false;
+
+  let difference = 0;
+  for (let index = 0; index < leftBytes.length; index += 1) {
+    difference |= leftBytes[index] ^ rightBytes[index];
+  }
+  return difference === 0;
+}
+
+async function validateMercadoPagoWebhookSignature(c: any, dataId: string) {
+  const secret = Deno.env.get("MERCADOPAGO_WEBHOOK_SECRET");
+  if (!secret) {
+    throw new Error("MERCADOPAGO_WEBHOOK_SECRET não configurado");
+  }
+
+  const signatureHeader = c.req.header("x-signature") ?? "";
+  const requestId = c.req.header("x-request-id") ?? "";
+  let timestamp = "";
+  let receivedHash = "";
+
+  for (const part of signatureHeader.split(",")) {
+    const [rawKey, ...rawValue] = part.split("=");
+    const key = rawKey?.trim();
+    const value = rawValue.join("=").trim();
+    if (key === "ts") timestamp = value;
+    if (key === "v1") receivedHash = value;
+  }
+
+  if (!timestamp || !receivedHash) return false;
+
+  const manifestParts: string[] = [];
+  const normalizedDataId = dataId.trim().toLowerCase();
+  if (normalizedDataId) manifestParts.push(`id:${normalizedDataId}`);
+  if (requestId) manifestParts.push(`request-id:${requestId}`);
+  manifestParts.push(`ts:${timestamp}`);
+  const manifest = `${manifestParts.join(";")};`;
+
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const signed = await crypto.subtle.sign(
+    "HMAC",
+    key,
+    new TextEncoder().encode(manifest),
+  );
+  const calculatedHash = Array.from(new Uint8Array(signed))
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+
+  return timingSafeEqualHex(calculatedHash, receivedHash.toLowerCase());
+}
+
+function webhookEventKey(params: {
+  topic: string;
+  resourceId: string;
+  notificationId: string;
+  action: string;
+  createdAt: string;
+  requestId: string;
+}) {
+  if (params.notificationId) {
+    return `${params.topic}:notification:${params.notificationId}`;
+  }
+  return [
+    params.topic,
+    params.resourceId,
+    params.action || "no-action",
+    params.createdAt || params.requestId || "no-date",
+  ].join(":");
+}
+
+async function claimWebhookEvent(params: {
+  topic: string;
+  resourceId: string;
+  notificationId: string;
+  action: string;
+  createdAt: string;
+  requestId: string;
+  payload: unknown;
+}) {
+  const eventKey = webhookEventKey(params);
+  const database = svc();
+  const now = new Date().toISOString();
+  const { data, error } = await database
+    .from("billing_webhook_events")
+    .insert({
+      provider: "mercadopago",
+      event_key: eventKey,
+      topic: params.topic,
+      resource_id: params.resourceId,
+      notification_id: params.notificationId || null,
+      request_id: params.requestId || null,
+      status: "processing",
+      attempts: 1,
+      payload: params.payload,
+      updated_at: now,
+    })
+    .select("id")
+    .single();
+
+  if (!error && data) {
+    return { id: data.id as string, duplicate: false };
+  }
+  if (error?.code !== "23505") throw error;
+
+  const { data: existing, error: existingError } = await database
+    .from("billing_webhook_events")
+    .select("id, status, attempts, updated_at")
+    .eq("provider", "mercadopago")
+    .eq("event_key", eventKey)
+    .single();
+
+  if (existingError) throw existingError;
+  if (existing.status === "processed") {
+    return { id: existing.id as string, duplicate: true };
+  }
+
+  const lastUpdate = new Date(existing.updated_at).getTime();
+  const processingIsFresh =
+    existing.status === "processing" &&
+    Number.isFinite(lastUpdate) &&
+    Date.now() - lastUpdate < 5 * 60 * 1000;
+
+  if (processingIsFresh) {
+    return { id: existing.id as string, duplicate: true };
+  }
+
+  const { error: retryError } = await database
+    .from("billing_webhook_events")
+    .update({
+      status: "processing",
+      attempts: Number(existing.attempts ?? 0) + 1,
+      error_message: null,
+      payload: params.payload,
+      request_id: params.requestId || null,
+      updated_at: now,
+    })
+    .eq("id", existing.id);
+
+  if (retryError) throw retryError;
+  return { id: existing.id as string, duplicate: false };
+}
+
+async function finishWebhookEvent(eventId: string) {
+  const { error } = await svc()
+    .from("billing_webhook_events")
+    .update({
+      status: "processed",
+      processed_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      error_message: null,
+    })
+    .eq("id", eventId);
+  if (error) throw error;
+}
+
+async function failWebhookEvent(eventId: string, errorMessage: string) {
+  const { error } = await svc()
+    .from("billing_webhook_events")
+    .update({
+      status: "failed",
+      error_message: errorMessage.slice(0, 2000),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", eventId);
+  if (error) console.error("Erro ao registrar falha do webhook:", error);
+}
+
 async function processApprovedPayment(paymentId: string) {
   const { response, data: payment } = await mercadoPagoGet(
     `/v1/payments/${encodeURIComponent(paymentId)}`,
@@ -943,16 +1124,14 @@ async function processApprovedPayment(paymentId: string) {
 
   const { data: subscription, error: subscriptionError } = await svc()
     .from("subscriptions")
-    .select("status, expires_at, mercadopago_payment_id")
+    .select("status, expires_at")
     .eq("user_id", userId)
     .maybeSingle();
 
   if (subscriptionError) throw subscriptionError;
 
   const normalizedPaymentId = String(payment.id);
-  const duplicate =
-    profile.mercadopago_payment_id === normalizedPaymentId ||
-    subscription?.mercadopago_payment_id === normalizedPaymentId;
+  const duplicate = profile.mercadopago_payment_id === normalizedPaymentId;
 
   if (duplicate) {
     const knownExpiration =
@@ -1134,7 +1313,7 @@ app.post(`${P}/billing/create-checkout`, async (c) => {
           },
           auto_return: "approved",
           notification_url:
-            "https://kddlzartfawqjnrafzdb.supabase.co/functions/v1/rapid-action/billing/webhook",
+            "https://kddlzartfawqjnrafzdb.supabase.co/functions/v1/rapid-action/billing/webhook?source_news=webhooks",
         }),
       },
     );
@@ -1260,59 +1439,89 @@ app.post(`${P}/billing/create-subscription`, async (c) => {
 });
 
 app.post(`${P}/billing/webhook`, async (c) => {
+  let claimedEventId: string | null = null;
+
   try {
     const body = await c.req.json().catch(() => ({}));
     const topic = String(
       body?.type ?? c.req.query("type") ?? c.req.query("topic") ?? "payment",
     );
-    const dataId = String(
+    const resourceId = String(
       body?.data?.id ??
-        body?.id ??
         c.req.query("data.id") ??
         c.req.query("data_id") ??
+        body?.id ??
         c.req.query("id") ??
         "",
     );
+    const signatureDataId = String(
+      c.req.query("data.id") ?? c.req.query("data_id") ?? body?.data?.id ?? "",
+    );
 
-    if (!dataId) return badRequest(c, "Notificação sem ID");
+    if (!resourceId) return badRequest(c, "Notificação sem ID");
 
-    if (topic === "subscription_preapproval") {
-      return c.json(await processPreapproval(dataId));
+    const validSignature = await validateMercadoPagoWebhookSignature(
+      c,
+      signatureDataId,
+    );
+    if (!validSignature) {
+      return c.json(
+        { ok: false, error: "Assinatura do webhook inválida" },
+        401,
+      );
     }
 
-    if (topic === "subscription_authorized_payment") {
+    const requestId = c.req.header("x-request-id") ?? "";
+    const claim = await claimWebhookEvent({
+      topic,
+      resourceId,
+      notificationId: String(body?.id ?? ""),
+      action: String(body?.action ?? ""),
+      createdAt: String(body?.date_created ?? ""),
+      requestId,
+      payload: body,
+    });
+    claimedEventId = claim.id;
+
+    if (claim.duplicate) {
+      return c.json({ ok: true, duplicate: true });
+    }
+
+    let result: Record<string, unknown>;
+
+    if (topic === "subscription_preapproval") {
+      result = await processPreapproval(resourceId);
+    } else if (topic === "subscription_authorized_payment") {
       const invoice = await mercadoPagoGet(
-        `/authorized_payments/${encodeURIComponent(dataId)}`,
+        `/authorized_payments/${encodeURIComponent(resourceId)}`,
       );
       if (!invoice.response.ok) {
         throw new Error(invoice.data?.message ?? "Fatura não encontrada");
       }
       const linkedPaymentId = invoice.data?.payment?.id;
       if (!linkedPaymentId || invoice.data?.payment?.status !== "approved") {
-        return c.json({
+        result = {
           ok: true,
           ignored: true,
           status:
             invoice.data?.payment?.status ?? invoice.data?.status ?? "unknown",
-        });
+        };
+      } else {
+        result = await processApprovedPayment(String(linkedPaymentId));
       }
-      return c.json(await processApprovedPayment(String(linkedPaymentId)));
+    } else if (topic !== "payment" && topic !== "topic_payment") {
+      result = { ok: true, ignored: true, topic };
+    } else {
+      result = await processApprovedPayment(resourceId);
     }
 
-    if (topic !== "payment" && topic !== "topic_payment") {
-      return c.json({ ok: true, ignored: true, topic });
-    }
-
-    return c.json(await processApprovedPayment(dataId));
+    await finishWebhookEvent(claimedEventId);
+    return c.json(result);
   } catch (error: any) {
+    const errorMessage = error?.message ?? "Erro ao processar notificação";
+    if (claimedEventId) await failWebhookEvent(claimedEventId, errorMessage);
     console.error("Erro no webhook do Mercado Pago:", error);
-    return c.json(
-      {
-        ok: false,
-        error: error?.message ?? "Erro ao processar notificação",
-      },
-      500,
-    );
+    return c.json({ ok: false, error: errorMessage }, 500);
   }
 });
 
