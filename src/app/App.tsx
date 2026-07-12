@@ -1050,6 +1050,13 @@ function RegisterScreen({ onGoLogin }: { onGoLogin: () => void }) {
       password: form.password,
       options: {
         emailRedirectTo: window.location.origin,
+        data: {
+          name: form.name.trim(),
+          owner_name: form.name.trim(),
+          workshop_name: form.workshopName.trim(),
+          business_name: form.workshopName.trim(),
+          shop_name: form.workshopName.trim(),
+        },
       },
     });
 
@@ -7478,24 +7485,49 @@ export default function App() {
       ]);
 
       let p = prof.status === "fulfilled" ? prof.value : null;
+      const pendingProfileRaw = localStorage.getItem(
+        "vortanoficina_pending_profile",
+      );
 
-      if (!p) {
-        const pendingProfileRaw = localStorage.getItem(
-          "vortanoficina_pending_profile",
-        );
+      let pendingProfile: { owner_name?: string; workshop_name?: string } | null = null;
+      if (pendingProfileRaw) {
+        try {
+          pendingProfile = JSON.parse(pendingProfileRaw);
+        } catch {
+          localStorage.removeItem("vortanoficina_pending_profile");
+        }
+      }
 
-        if (pendingProfileRaw) {
-          try {
-            const pendingProfile = JSON.parse(pendingProfileRaw) as {
-              owner_name: string;
-              workshop_name: string;
-            };
+      const metadata = session.user.user_metadata ?? {};
+      const shouldInitializeTrial =
+        !p ||
+        Boolean(pendingProfile) ||
+        p.subscription_status === "pending";
 
-            p = await API.upsertProfile(pendingProfile);
-            localStorage.removeItem("vortanoficina_pending_profile");
-          } catch {
-            localStorage.removeItem("vortanoficina_pending_profile");
-          }
+      if (shouldInitializeTrial) {
+        try {
+          p = await API.upsertProfile({
+            workshop_name:
+              pendingProfile?.workshop_name ||
+              metadata.workshop_name ||
+              p?.workshop_name ||
+              "Minha Oficina",
+            owner_name:
+              pendingProfile?.owner_name ||
+              metadata.owner_name ||
+              metadata.name ||
+              p?.owner_name ||
+              "Usuário",
+            phone: p?.phone ?? "",
+            whatsapp: p?.whatsapp ?? "",
+            instagram: p?.instagram ?? "",
+            city: p?.city ?? "",
+            state: p?.state ?? "",
+            logo_url: p?.logo_url ?? "",
+          });
+          localStorage.removeItem("vortanoficina_pending_profile");
+        } catch (profileError) {
+          console.error("Não foi possível concluir o perfil inicial:", profileError);
         }
       }
 
