@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { supabase } from "../lib/supabase";
+import { supabase, API_BASE } from "../lib/supabase";
 import { DashboardTab } from "./admin/components/DashboardTab";
 import { WorkshopsTab } from "./admin/components/WorkshopsTab";
 import { StatsTab } from "./admin/components/StatsTab";
@@ -68,12 +68,6 @@ function isExpired(profile: AdminProfile) {
   return new Date(profile.subscription_ends_at).getTime() < Date.now();
 }
 
-function addDays(days: number) {
-  const date = new Date();
-  date.setDate(date.getDate() + days);
-  return date.toISOString();
-}
-
 export default function AdminPage() {
   const [profiles, setProfiles] = useState<AdminProfile[]>([]);
   const [loading, setLoading] = useState(true);
@@ -116,59 +110,45 @@ export default function AdminPage() {
     return digits.startsWith("55") ? digits : `55${digits}`;
   }
 
+  async function adminFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    if (!session?.access_token) {
+      throw new Error("Sessão expirada. Entre novamente.");
+    }
+
+    const response = await fetch(`${API_BASE}${path}`, {
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session.access_token}`,
+        ...options.headers,
+      },
+    });
+
+    const body = await response.json().catch(() => null);
+    if (!response.ok) {
+      throw new Error(body?.error || "Erro administrativo");
+    }
+
+    return body as T;
+  }
+
   async function loadProfiles() {
     setLoading(true);
     setError("");
 
-    const { data: profilesData, error: profilesError } = await supabase
-      .from("af_profiles")
-      .select(
-        "id, owner_name, workshop_name, phone, whatsapp, city, state, subscription_status, subscription_ends_at, created_at, is_admin",
-      )
-      .order("created_at", { ascending: false });
-
-    if (profilesError) {
-      setError(profilesError.message || "Erro ao carregar clientes.");
+    try {
+      const data = await adminFetch<AdminProfile[]>("/admin/workshops");
+      setProfiles(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erro ao carregar clientes.");
       setProfiles([]);
+    } finally {
       setLoading(false);
-      return;
     }
-
-    const baseProfiles = (profilesData || []) as AdminProfile[];
-    const ids = baseProfiles.map((p) => p.id);
-
-    if (ids.length === 0) {
-      setProfiles([]);
-      setLoading(false);
-      return;
-    }
-
-    const [clientsRes, vehiclesRes, ordersRes] = await Promise.all([
-      supabase.from("af_clients").select("id, workshop_id"),
-      supabase.from("af_vehicles").select("id, workshop_id"),
-      supabase.from("af_service_orders").select("id, workshop_id"),
-    ]);
-
-    const countByWorkshop = (rows?: { workshop_id: string }[] | null) => {
-      return (rows || []).reduce<Record<string, number>>((acc, row) => {
-        acc[row.workshop_id] = (acc[row.workshop_id] || 0) + 1;
-        return acc;
-      }, {});
-    };
-
-    const clientsCount = countByWorkshop(clientsRes.data);
-    const vehiclesCount = countByWorkshop(vehiclesRes.data);
-    const ordersCount = countByWorkshop(ordersRes.data);
-
-    const enriched = baseProfiles.map((profile) => ({
-      ...profile,
-      total_clients: clientsCount[profile.id] || 0,
-      total_vehicles: vehiclesCount[profile.id] || 0,
-      total_orders: ordersCount[profile.id] || 0,
-    }));
-
-    setProfiles(enriched);
-    setLoading(false);
   }
 
   useEffect(() => {
@@ -245,50 +225,44 @@ export default function AdminPage() {
     };
   }, [profiles]);
 
-  async function updateProfile(id: string, payload: Partial<AdminProfile>) {
+  async function updateSubscription(
+    id: string,
+    action: "activate" | "renew_trial" | "block",
+  ) {
     setSavingId(id);
     setError("");
 
-    const { error } = await supabase
-      .from("af_profiles")
-      .update(payload)
-      .eq("id", id);
+    try {
+      const updated = await adminFetch<AdminProfile>(
+        `/admin/workshops/${id}/subscription`,
+        {
+          method: "POST",
+          body: JSON.stringify({ action }),
+        },
+      );
 
-    if (error) {
-      setError(error.message || "Erro ao atualizar cliente.");
-    } else {
       await loadProfiles();
-      setSelected((prev) => (prev?.id === id ? { ...prev, ...payload } : prev));
+      setSelected((prev) => (prev?.id === id ? { ...prev, ...updated } : prev));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erro ao atualizar cliente.");
+    } finally {
+      setSavingId(null);
     }
-
-    setSavingId(null);
   }
 
   async function activate(id: string) {
-    await updateProfile(id, {
-      subscription_status: "active",
-      subscription_ends_at: addDays(30),
-    });
+    await updateSubscription(id, "activate");
   }
 
   async function renewTrial(id: string) {
-    await updateProfile(id, {
-      subscription_status: "trial",
-      subscription_ends_at: addDays(15),
-    });
+    await updateSubscription(id, "renew_trial");
   }
 
   async function block(id: string) {
     const ok = confirm("Tem certeza que deseja bloquear este cliente?");
     if (!ok) return;
 
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-
-    await updateProfile(id, {
-      subscription_status: "expired",
-      subscription_ends_at: yesterday.toISOString(),
-    });
+    await updateSubscription(id, "block");
   }
 
   async function copyId(id: string) {

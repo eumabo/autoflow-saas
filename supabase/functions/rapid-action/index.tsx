@@ -95,6 +95,127 @@
   return null;
 }
 
+
+  async function requireAdmin(c: any) {
+    const user = await getUser(c.req.header("Authorization"));
+    if (!user) return { user: null, response: unauthorized(c) };
+
+    const { data: profile, error } = await svc()
+      .from("af_profiles")
+      .select("is_admin")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (error) {
+      return { user: null, response: serverError(c, error.message) };
+    }
+
+    if (profile?.is_admin !== true) {
+      return {
+        user: null,
+        response: c.json({ error: "Acesso administrativo negado" }, 403),
+      };
+    }
+
+    return { user, response: null };
+  }
+
+  // ─── Admin ───────────────────────────────────────────────────────────────────
+
+  app.get(`${P}/admin/workshops`, async (c) => {
+    const admin = await requireAdmin(c);
+    if (admin.response) return admin.response;
+
+    const [profilesRes, clientsRes, vehiclesRes, ordersRes] = await Promise.all([
+      svc()
+        .from("af_profiles")
+        .select(
+          "id, owner_name, workshop_name, phone, whatsapp, city, state, subscription_status, subscription_ends_at, created_at, is_admin",
+        )
+        .order("created_at", { ascending: false }),
+      svc().from("af_clients").select("id, workshop_id"),
+      svc().from("af_vehicles").select("id, workshop_id"),
+      svc().from("af_service_orders").select("id, workshop_id"),
+    ]);
+
+    const firstError =
+      profilesRes.error || clientsRes.error || vehiclesRes.error || ordersRes.error;
+    if (firstError) return serverError(c, firstError.message);
+
+    const countByWorkshop = (rows: any[] | null) =>
+      (rows ?? []).reduce<Record<string, number>>((acc, row) => {
+        if (row.workshop_id) {
+          acc[row.workshop_id] = (acc[row.workshop_id] ?? 0) + 1;
+        }
+        return acc;
+      }, {});
+
+    const clientsCount = countByWorkshop(clientsRes.data);
+    const vehiclesCount = countByWorkshop(vehiclesRes.data);
+    const ordersCount = countByWorkshop(ordersRes.data);
+
+    const profiles = (profilesRes.data ?? []).map((profile: any) => ({
+      ...profile,
+      total_clients: clientsCount[profile.id] ?? 0,
+      total_vehicles: vehiclesCount[profile.id] ?? 0,
+      total_orders: ordersCount[profile.id] ?? 0,
+    }));
+
+    return c.json(profiles);
+  });
+
+  app.post(`${P}/admin/workshops/:id/subscription`, async (c) => {
+    const admin = await requireAdmin(c);
+    if (admin.response) return admin.response;
+
+    const targetId = c.req.param("id");
+    const body = await c.req.json().catch(() => ({}));
+    const action = String(body?.action ?? "");
+
+    if (!targetId) return badRequest(c, "Oficina inválida");
+
+    const now = new Date();
+    let payload: Record<string, string>;
+
+    if (action === "activate") {
+      const endsAt = new Date(now);
+      endsAt.setDate(endsAt.getDate() + 30);
+      payload = {
+        subscription_status: "active",
+        subscription_ends_at: endsAt.toISOString(),
+      };
+    } else if (action === "renew_trial") {
+      const endsAt = new Date(now);
+      endsAt.setDate(endsAt.getDate() + 15);
+      payload = {
+        subscription_status: "trial",
+        subscription_ends_at: endsAt.toISOString(),
+      };
+    } else if (action === "block") {
+      const endsAt = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+      payload = {
+        subscription_status: "expired",
+        subscription_ends_at: endsAt.toISOString(),
+      };
+    } else {
+      return badRequest(c, "Ação administrativa inválida");
+    }
+
+    const { data, error } = await svc()
+      .from("af_profiles")
+      .update(payload)
+      .eq("id", targetId)
+      .select(
+        "id, owner_name, workshop_name, phone, whatsapp, city, state, subscription_status, subscription_ends_at, created_at, is_admin",
+      )
+      .maybeSingle();
+
+    if (error) return serverError(c, error.message);
+    if (!data) return c.json({ error: "Oficina não encontrada" }, 404);
+
+    return c.json(data);
+  });
+
   // ─── Health ──────────────────────────────────────────────────────────────────
 
   app.get(`${P}/health`, (c) => c.json({ status: "ok", ts: new Date().toISOString() }));
